@@ -5,12 +5,12 @@
 
 from crefor.model.guide import TransformModel
 
-class ConnecterModel(TransformModel):
+class Connector(TransformModel):
 
     suffix = 'cnc'
 
     def __init__(self, parent, child):
-        super(ConnectorModel, self).__init__()
+        super(Connector, self).__init__()
 
         self.parent = parent
         self.child = child
