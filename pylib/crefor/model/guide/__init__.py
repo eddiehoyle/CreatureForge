@@ -3,14 +3,10 @@
 '''
 '''
 
-class TransformModel(object):
-    '''
-    '''
+from maya import cmds
+from crefor.model import DAG
+from crefor.lib import libShader, libName
 
-    def __init__(self):
-
-        self.shader = None
-        self.sg = None
-
-        self.transform = None
-        self.shapes = []
+class GuideModel(DAG):
+    def __init__(self, position, description, index=0):
+        super(GuideModel, self).__init__(position, description, index)

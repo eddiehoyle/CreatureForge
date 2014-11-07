@@ -93,23 +93,26 @@ def hide_scales(node):
     for axis in ['X', 'Y', 'Z']:
         hide_attr(node, 'scale%s' % axis)
 
-def lock_translates(node):
+def lock_translates(node, hide=False):
     'Lock translate individual attrs'
     for axis in ['X', 'Y', 'Z']:
-        if _has_attr(node, 'translate%s' % axis):
-            lock_attr(node, 'translate%s' % axis)
+        lock_attr(node, 'translate%s' % axis)
+        if hide:
+            hide_attr(node, 'translate%s' % axis)
 
-def lock_rotates(node):
+def lock_rotates(node, hide=False):
     'Lock rotate individual attrs'
     for axis in ['X', 'Y', 'Z']:
-        if _has_attr(node, 'rotate%s' % axis):
-            lock_attr(node, 'rotate%s' % axis)
+        lock_attr(node, 'rotate%s' % axis)
+        if hide:
+            hide_attr(node, 'rotate%s' % axis)
 
-def lock_scales(node):
+def lock_scales(node, hide=False):
     'Lock scale individual attrs'
     for axis in ['X', 'Y', 'Z']:
-        if _has_attr(node, 'scale%s' % axis):
-            lock_attr(node, 'scale%s' % axis)
+        lock_attr(node, 'scale%s' % axis)
+        if hide:
+            hide_attr(node, 'scale%s' % axis)
 
 def lock_vis(node):
     'Lock visibility'
@@ -133,11 +136,11 @@ def nonkeyable_scales(node):
     for axis in ['X', 'Y', 'Z']:
         nonkeyable_attr(node, 'scale%s' % axis)
 
-def lock_all(node):
+def lock_all(node, hide=False):
     'Common lock all attrs'
-    lock_translates(node)
-    lock_rotates(node)
-    lock_scales(node)
+    lock_translates(node, hide=hide)
+    lock_rotates(node, hide=hide)
+    lock_scales(node, hide=hide)
     hide_vis(node)
 
 def _safe_attr(node, name):
