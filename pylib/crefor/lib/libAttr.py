@@ -17,15 +17,8 @@ def add_separator(node, name):
     add_enum(node, name, ['attributes'], False, True)
 
 
-def add_long(node, kwargs):
-    'Long attribute'
-    attr = kwargs['ln']
-    if _safe_attr(node, attr):
-        full = '%s.%s' % (node, attr)
-        cmds.addAttr(node, **kwargs)
-    return full
 
-def add_long2(node, name, keyable=True, channelBox=True):
+def add_long(node, name, keyable=True, channelBox=True):
     'Long attribute'
     attr = None
     if _safe_attr(node, name):
@@ -36,8 +29,14 @@ def add_long2(node, name, keyable=True, channelBox=True):
     return attr
 
 
-def add_double():
-    pass
+def add_double(node, name, keyable=True, channelBox=True):
+    attr = None
+    if _safe_attr(node, name):
+        attr = '%s.%s' % (node, name)
+        cmds.addAttr(node, ln=name, at='double')
+        cmds.setAttr(attr, cb=channelBox)
+        cmds.setAttr(attr, k=keyable)
+    return attr
 
 def add_string(node, name, data=None, keyable=True, channelBox=True):
     'String attribute'
@@ -114,27 +113,33 @@ def lock_scales(node, hide=False):
         if hide:
             hide_attr(node, 'scale%s' % axis)
 
-def lock_vis(node):
+def lock_vis(node, hide=False):
     'Lock visibility'
-    if _has_attr(node, 'visibility'):
-        lock_attr(node, 'visibility')
+    lock_attr(node, 'visibility')
+    if hide:
+        hide_vis(node)
 
 def hide_vis(node):
     'Hide visibility'
-    if _has_attr(node, 'visibility'):
-        hide_attr(node, 'visibility')
+    hide_attr(node, 'visibility')
 
-def nonkeyable_translates(node):
+def nonkeyable_translates(node, hide=False):
     for axis in ['X', 'Y', 'Z']:
         nonkeyable_attr(node, 'translate%s' % axis)
+        if hide:
+            hide_attr(node, 'translate%s' % axis)
 
-def nonkeyable_rotates(node):
+def nonkeyable_rotates(node, hide=False):
     for axis in ['X', 'Y', 'Z']:
         nonkeyable_attr(node, 'rotate%s' % axis)
+        if hide:
+            hide_attr(node, 'rotate%s' % axis)
 
-def nonkeyable_scales(node):
+def nonkeyable_scales(node, hide=False):
     for axis in ['X', 'Y', 'Z']:
         nonkeyable_attr(node, 'scale%s' % axis)
+        if hide:
+            hide_attr(node, 'scale%s' % axis)
 
 def lock_all(node, hide=False):
     'Common lock all attrs'

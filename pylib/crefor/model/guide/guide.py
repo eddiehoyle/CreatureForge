@@ -10,12 +10,22 @@ from crefor.model.guide import GuideModel
 class Guide(GuideModel):
 
     SUFFIX = 'gde'
-    RADIUS = 0.5
+    RADIUS = 1
+    DEBUG = True
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
 
+        # Constraint utils
         self.up = None
+        self.aim = None
+
+        # Constraint default options
+        self.world = None
+        self.custom = None
+
+        # Aim constraint
+        self.constraint = None
 
     def short_name(self):
         return None
@@ -29,7 +39,7 @@ class Guide(GuideModel):
     def get_child(self):
         return None
 
-    def __create_geometry(self):
+    def __create_nodes(self):
         
         self.transform = cmds.sphere(name=self.name, radius=self.RADIUS, ch=False)[0]
         self.shapes = cmds.listRelatives(self.transform, type='nurbsSurface', children=True)
@@ -39,12 +49,54 @@ class Guide(GuideModel):
         libAttr.nonkeyable_translates(self.transform)
         libAttr.hide_vis(self.transform)
 
+        cmds.addAttr(self.transform, ln='debug', at='bool', min=0, max=1, dv=0)
+        cmds.setAttr('%s.debug' % self.transform, k=False)
+        cmds.setAttr('%s.debug' % self.transform, cb=True)
+
         # Create up locator
         self.up = cmds.group(name=libName.set_suffix(self.name, 'up'), empty=True)
         cmds.setAttr('%s.translateY' % self.up, 1)
         libAttr.lock_all(self.up, hide=True)
 
-        cmds.parent(self.up, self.transform)
+        # Create main aim transform
+        self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
+        libAttr.lock_translates(self.aim, hide=True)
+        libAttr.lock_scales(self.aim, hide=True)
+        libAttr.lock_vis(self.aim, hide=True)
+        libAttr.nonkeyable_rotates(self.aim, hide=True)
+
+        libAttr.add_double(self.aim, 'jointOrientX', keyable=False)
+        libAttr.add_double(self.aim, 'jointOrientY', keyable=False)
+        libAttr.add_double(self.aim, 'jointOrientZ', keyable=False)
+        cmds.connectAttr('%s.debug' % self.transform, '%s.displayLocalAxis' % self.aim)
+
+        for axis in ['X', 'Y', 'Z']:
+            cmds.connectAttr('%s.rotate%s' % (self.aim, axis), '%s.jointOrient%s' % (self.aim, axis))
+
+        # Add aim defaults
+        self.world = cmds.group(name=libName.append_description(self.aim, 'world'), empty=True)
+        self.custom = cmds.group(name=libName.append_description(self.aim, 'custom'), empty=True)
+
+        libAttr.lock_all(self.world, hide=True)
+        libAttr.lock_scales(self.custom, hide=True)
+        libAttr.lock_vis(self.custom, hide=True)
+        libAttr.nonkeyable_translates(self.custom, hide=False)
+        libAttr.nonkeyable_rotates(self.custom, hide=False)
+
+        cmds.parent([self.up, self.aim, self.world, self.custom], self.transform)
+
+    def __create_attribtues(self):
+        pass
+
+    def __create_aim(self):
+
+        con = cmds.aimConstraint([self.world, self.custom], self.aim, worldUpObject=self.up, offset=(0, 0, 0),
+                                 aimVector=(1, 0, 0), upVector=(0, 1, 0), worldUpType='object')[0]
+        aliases = cmds.aimConstraint(con, q=True, wal=True)
+        for alias in aliases:
+            cmds.setAttr('%s.%s' % (con, alias), 0)
+        else:
+            cmds.setAttr('%s.%s' % (con, aliases[0]), 1)
 
     def __create_shader(self):
 
@@ -54,9 +106,6 @@ class Guide(GuideModel):
         rgb = libShader.get_rgb_from_position(self.position)
         cmds.setAttr('%s.color' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
-
-    def __create_attribtues(self):
-        pass
 
     def reinit(self):
 
@@ -73,9 +122,13 @@ class Guide(GuideModel):
         if cmds.objExists(self.name):
             return self.reinit()
 
-        self.__create_geometry()
+        self.__create_nodes()
+        self.__create_aim()
         self.__create_attribtues()
         self.__create_shader()
+
+        if self.DEBUG:
+            cmds.setAttr('%s.debug' % self.transform, True)
 
         return self.transform
 

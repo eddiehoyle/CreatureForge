@@ -58,3 +58,8 @@ def set_suffix(name, position):
     data = _decompile(name)
     data[3] = position
     return create_name(*data)
+
+def append_description(name, descrption):
+    data = _decompile(name)
+    data[1] = '%s%s' % (data[1], descrption.capitalize())
+    return create_name(*data)
