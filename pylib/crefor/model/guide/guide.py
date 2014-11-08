@@ -5,9 +5,10 @@
 
 from maya import cmds
 from crefor.lib import libName, libAttr, libShader
-from crefor.model.guide import GuideModel
+from crefor.model import Node
+from crefor.model.guide.connector import Connector
 
-class Guide(GuideModel):
+class Guide(Node):
 
     SUFFIX = 'gde'
     RADIUS = 1
@@ -32,6 +33,16 @@ class Guide(GuideModel):
 
     def long_name(self):
         return None
+
+    def set_translates(self, vector3f):
+        if self.transform:
+            cmds.setAttr('%s.translate' % self.transform, *vector3f, type='float3')
+
+
+    def set_parent(self, parent):
+        con = Connector(parent, self)
+        con.create()
+        return con
 
     def get_parent(self):
         return None
