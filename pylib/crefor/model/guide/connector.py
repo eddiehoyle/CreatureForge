@@ -13,10 +13,12 @@ class Connector(Node):
     RADIUS = 0.4
     DASHED_COUNT = 5
     DEFAULT_AXIS = 'X'
+    CLUSTER_OFFSET = 1.0
 
     def __init__(self, parent, child):
         super(Connector, self).__init__(*libName._decompile(child.name)[:-1])
 
+        self.top_node = None
         self.parent = parent
         self.child = child
 
@@ -31,12 +33,10 @@ class Connector(Node):
         self.__solid_transform = None
         self.__solid_shapes = []
 
-        self.__aim_transform = None
-        self.__aim_shapes = []
-        
         self.state_node = None
 
         self.shaders = {}
+        self.nodes = []
 
         self.axis = self.DEFAULT_AXIS
 
@@ -65,7 +65,6 @@ class Connector(Node):
             # Add to geometry
             cmds.sets(self.__dashed_shapes, edit=True, forceElement=sg)
             cmds.sets(self.__solid_shapes, edit=True, forceElement=sg)
-            cmds.sets(self.__aim_shapes, edit=True, forceElement=sg)
 
     @property
     def transform(self):
@@ -83,6 +82,23 @@ class Connector(Node):
                 cmds.setAttr('%s.display' % self.state_node, 0)
             elif state == 'dashed':
                 cmds.setAttr('%s.display' % self.state_node, 1)
+
+    def set_aim_scale(self, value):
+        if self.aim:
+            cmds.setAttr('%s.scale' % self.aim, value, value, value, type='float3')
+
+    def set_connector_scale(self, value):
+        if self.start and self.end:
+            self.set_start_scale(value)
+            self.set_end_scale(value)
+
+    def set_start_scale(self, value):
+        if self.start:
+            cmds.setAttr('%s.scale' % self.start, value, value, value, type='float3')
+
+    def set_end_scale(self, value):
+        if self.end:
+            cmds.setAttr('%s.scale' % self.end, value, value, value, type='float3')
 
     def get_parent(self):
         return self.parent
@@ -127,18 +143,6 @@ class Connector(Node):
         cmds.xform(self.__dashed_transform, cp=True)
         cmds.move(-0.5, self.__dashed_transform, y=True)
 
-        # Create cone
-        self.__aim_transform = cmds.polyCone(name=libName.append_description(self.name, 'aim'),
-                                               r=self.RADIUS * 2,
-                                               h=(self.RADIUS * 4) * -1,
-                                               sx=16,
-                                               sy=0,
-                                               ax=(0, 1, 0),
-                                               rcp=0,
-                                               cuv=3,
-                                               ch=0)[0]
-        self.__aim_shapes = cmds.listRelatives(self.__aim_transform, type='mesh', children=True)
-
     def __create_deformers(self):
         '''
         Lattice and clusters
@@ -157,51 +161,64 @@ class Connector(Node):
 
         cmds.move(0, '%s.pt[*][*][*]' % lattice_handle, y=True)
 
-        self.start_cl, _start = cmds.cluster(['%s.pt[0:1][1][0]' % lattice_handle, '%s.pt[0:1][1][1]' % lattice_handle])
-        self.end_cl, _end = cmds.cluster(['%s.pt[0:1][0][0]' % lattice_handle, '%s.pt[0:1][0][1]' % lattice_handle])
-        self.aim_cl, _aim = cmds.cluster(self.__aim_transform)
+        self.start_cl, self.start = cmds.cluster(['%s.pt[0:1][1][0]' % lattice_handle, '%s.pt[0:1][1][1]' % lattice_handle])
+        self.end_cl, self.end = cmds.cluster(['%s.pt[0:1][0][0]' % lattice_handle, '%s.pt[0:1][0][1]' % lattice_handle])
 
-        _start = cmds.rename(_start, libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))
-        _end = cmds.rename(_end, libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))
-        _aim = cmds.rename(_aim, libName.set_suffix(libName.append_description(self.name, 'aim'), 'clh'))
-        self.start_cl = cmds.rename('%sCluster' % _start, libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))
-        self.end_cl = cmds.rename('%sCluster' % _end, libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))
-        self.aim_cl = cmds.rename('%sCluster' % _aim, libName.set_suffix(libName.append_description(self.name, 'aim'), 'cls'))
+        self.start = cmds.rename(self.start, libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))
+        self.end = cmds.rename(self.end, libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))
 
-        cmds.move(-0.7, _start, y=True)
-        cmds.move(0.7, _end, y=True)
+        self.start_cl = cmds.rename('%sCluster' % self.start, libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))
+        self.end_cl = cmds.rename('%sCluster' % self.end, libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))
 
-        # for clh in [_start, _end, _aim]:
-        #     libAttr.lock_all(clh, hide=True)
+        start_grp = cmds.group(self.start, name=libName.set_suffix(self.start, '%sGrp' % libName.get_suffix(self.start)))
+        end_grp = cmds.group(self.end, name=libName.set_suffix(self.end, '%sGrp' % libName.get_suffix(self.end)))
 
-        self.start = cmds.group(_start, name=libName.set_suffix(_start, '%sGrp' % libName.get_suffix(_start)))
-        self.end = cmds.group(_end, name=libName.set_suffix(_end, '%sGrp' % libName.get_suffix(_end)))
-        self.aim = cmds.group(_aim, name=libName.set_suffix(_aim, '%sGrp' % libName.get_suffix(_aim)))
-
-        # for clh in [self.start, self.end, self.aim, start_grp, end_grp, aim_grp]:
-        for clh in [self.start, self.end, self.aim]:
+        for clh in [self.start, self.end, start_grp, end_grp]:
             cmds.xform(clh, piv=(0, 0, 0), ws=True)
+            cmds.setAttr('%s.visibility' % clh, 0)
 
-        # Create parent constraint for arrow geo
-        con = cmds.parentConstraint([self.start, self.end], self.aim, mo=False)[0]
-        aliases = cmds.parentConstraint(con, q=True, wal=True)
-        for alias in aliases:
-            cmds.setAttr('%s.%s' % (con, alias), 1.0/len(aliases))
+        cmds.move(self.CLUSTER_OFFSET * -1, self.start, y=True)
+        cmds.move(self.CLUSTER_OFFSET, self.end, y=True)
 
-        cmds.aimConstraint(self.start, self.end, worldUpObject=self.child.up,
-                           worldUpType='object',
+        cmds.setAttr('%s.visibility' % lattice_handle, 0)
+        cmds.setAttr('%s.visibility' % lattice_base, 0)
+
+        # Create aim constraints for connector
+        cmds.aimConstraint(start_grp, end_grp,
+                           worldUpType='scene',
                            offset=(0, 180, -90),
                            aimVector=(1, 0, 0),
                            upVector=(0, 1, 0),
                            mo=False)
 
-        cmds.aimConstraint(self.end, self.start, worldUpObject=self.parent.up,
-                           worldUpType='object',
+        cmds.aimConstraint(end_grp, start_grp,
+                           worldUpType='scene',
                            offset=(0, 0, 90),
                            aimVector=(1, 0, 0),
                            upVector=(0, 1, 0),
                            mo=False)
 
+        # Tidy up
+        self.top_node = cmds.group(name=libName.set_suffix(self.name, '%sGrp' % self.SUFFIX), empty=True)
+        cmds.parent([self.__dashed_transform, self.__solid_transform, lattice_handle, lattice_base], self.top_node)
+
+        self.nodes = [self.__dashed_transform,
+                      self.__solid_transform,
+                      lattice_handle,
+                      lattice_base,
+                      self.start,
+                      self.end,
+                      self.state_node]
+
+        # Parent under parent and child grps
+        cmds.parent(start_grp, self.parent.transform, r=True)
+        cmds.parent(end_grp, self.child.transform, r=True)
+
+    def __create_nodes(self):
+        '''
+        '''
+
+        # Create visibility network
         self.state_node = cmds.createNode('reverse')
 
         cmds.addAttr(self.state_node, ln='display', at='enum', en='solid:dashed', dv=0)
@@ -213,12 +230,7 @@ class Connector(Node):
             cmds.setAttr('%s.%s' % (self.state_node, attr), k=False)
 
         cmds.connectAttr('%s.outputX' % self.state_node, '%s.visibility' % self.__solid_transform)
-        cmds.connectAttr('%s.outputX' % self.state_node, '%s.visibility' % self.__aim_transform)
         cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__dashed_transform)
-
-        # Parent under parent and child grps
-        cmds.parent(self.start, self.parent.transform, r=True)
-        cmds.parent(self.end, self.child.transform, r=True)
 
     def __create_shader(self):
         '''
@@ -235,14 +247,21 @@ class Connector(Node):
         self.shaders['Z'] = dict(shader=blue, sg = blue_sg)
         self.shaders['N'] = dict(shader=none, sg = none_sg)
 
-        for shader, rgb in zip([red, green, blue, none], [(1, 0, 0), (0, 1, 0), (0, 0, 1), (0.5, 0.5, 0.5)]):
+        for shader, rgb in zip([red, green, blue, none], [(1, 0, 0), (0, 1, 0), (0, 0, 1), (0.7, 0.7, 0.7)]):
             cmds.setAttr('%s.color' % shader, *rgb, type='float3')
             cmds.setAttr('%s.incandescence' % shader, *rgb, type='float3')
+            cmds.setAttr('%s.diffuse' % shader, 0)
 
         self.set_axis(self.DEFAULT_AXIS)
 
     def __create_attribtues(self):
         pass
+
+    def remove(self):
+        if self.transform:
+            cmds.delete(self.nodes)
+
+        return Connector(self.parent, self.child)
 
     def init(self):
         pass
@@ -250,5 +269,9 @@ class Connector(Node):
     def create(self):
         self.__create_geometry()
         self.__create_deformers()
+        self.__create_nodes()
         self.__create_attribtues()
         self.__create_shader()
+
+        self.set_start_scale(1)
+        self.set_end_scale(0.1)
