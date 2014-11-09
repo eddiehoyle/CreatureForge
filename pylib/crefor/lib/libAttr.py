@@ -113,6 +113,12 @@ def lock_scales(node, hide=False):
         if hide:
             hide_attr(node, 'scale%s' % axis)
 
+def unlock_rotates(node, hide=False):
+    for axis in ['X', 'Y', 'Z']:
+        unlock_attr(node, 'rotate%s' % axis)
+        if hide:
+            hide_attr(node, 'rotate%s' % axis)
+
 def lock_vis(node, hide=False):
     'Lock visibility'
     lock_attr(node, 'visibility')
