@@ -1,3 +1,3 @@
-## Goals
-* [x] lower
-* [X] upper
+* [x] Completed task
+* [ ] Unfinished task
+    * [x] Nested task
