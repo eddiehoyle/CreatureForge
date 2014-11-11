@@ -17,6 +17,7 @@ class Guide(Node):
 
     SUFFIX = 'gde'
     RADIUS = 1.0
+    DEFAULT_AIMS = ['world', 'custom']
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
@@ -41,6 +42,22 @@ class Guide(Node):
 
     def long_name(self):
         return None
+
+    def set_scale(self, value):
+        '''
+        Scale guide and related connectors
+        '''
+
+        if self.transform:
+            libAttr.unlock_scales(self.transform)
+            cmds.setAttr('%s.scale' % self.transform, value, value, value, type='float3')
+            libAttr.lock_scales(self.transform, hide=True)
+
+            for child in self.__children.values():
+                self.__connectors[child.name].set_start_scale(value)
+
+            if self.__parent:
+                self.__connectors[self.__parent.name].set_end_scale(value)
 
     def set_translates(self, vector3f):
         if self.transform:
@@ -77,6 +94,16 @@ class Guide(Node):
 
         return self.__connectors[guide.name]
 
+    def set_aim(self, name):
+        '''
+        '''
+
+        if self.transform:
+            enums = cmds.attributeQuery('aimAt', node=self.transform, listEnum=True)[0].split(':')
+            if name in enums:
+                cmds.setAttr('%s.aimAt' % self.transform, enums.index(name))
+                log.info('\'%s\' aim set to: %s' % (self.transform, name))
+
     def add_child(self, guide):
         '''
         '''
@@ -102,33 +129,47 @@ class Guide(Node):
         '''
         '''
 
-        if self.has_child(guide):
+        self.__remove(self, guide)
 
-            self.__connectors[guide.name].remove()
+    def remove_parent(self, guide):
+        '''
+        '''
 
-            del self.__connectors[guide.name]
-            del self.__children[guide.name]
+        self.__remove(guide, self)
 
-            del guide.__connectors[self.name]
-            guide.__parent = None
+    def __remove(self, parent, child):
+        '''
+        '''
 
-            enums = cmds.attributeQuery('aimAt', node=self.transform, listEnum=True)[0].split(':')
-            enums.remove(guide.transform)
-            cmds.addAttr('%s.aimAt' % self.transform, e=True, en=':'.join(enums))
+        if parent.has_child(child) and child.is_parent(parent):
+
+            parent.__connectors[child.name].remove()
+
+            del parent.__connectors[child.name]
+            del parent.__children[child.name]
+
+            del child.__connectors[parent.name]
+            child.__parent = None
+
+            enums = cmds.attributeQuery('aimAt', node=parent.transform, listEnum=True)[0].split(':')
+            enums.remove(child.transform)
+            cmds.addAttr('%s.aimAt' % parent.transform, e=True, en=':'.join(enums))
 
             # Default to world
             if len(enums) == 2:
-                cmds.setAttr('%s.aimAt' % self.transform, 0)
+                cmds.setAttr('%s.aimAt' % parent.transform, 0)
 
-            log.info('Successfully removed guide: %s' % guide.name)
-            return True
+            aliases = cmds.aimConstraint(parent.constraint, q=True, wal=True)
+            for alias in aliases:
+                if not cmds.listConnections('%s.%s' % (parent.constraint, alias), source=True,
+                                                                                  destination=False,
+                                                                                  plugs=True):
+                    cmds.setAttr('%s.%s' % (parent.constraint, alias), 0)
+
+            log.info('Successfully removed guide: %s' % child.name)
+
         else:
-            log.warning("'%s' is not a chld of '%s'" % (guide.name, self.name))
-
-        return False
-
-    def remove_parent(self):
-        pass
+            raise RuntimeError("'%s' is not connected to '%s'" % (parent.name, child.name))
 
     def get_parent(self):
         return self.__parent
@@ -152,37 +193,33 @@ class Guide(Node):
         self.__connectors[guide.name] = con
         guide.__connectors[self.name] = con
 
-        libAttr.unlock_rotates(self.transform)
-        cmds.aimConstraint(self.transform, guide.transform, worldUpObject=self.up,
+        cmds.aimConstraint(self.aim, guide.aim, worldUpObject=guide.up,
                            worldUpType='object',
                            offset=(0, 0, 0),
                            aimVector=(1, 0, 0),
                            upVector=(0, 1, 0),
                            mo=False)
-        libAttr.lock_rotates(self.transform, hide=True)
 
-        enums = cmds.attributeQuery('aimAt', node=self.transform, listEnum=True)[0].split(':')
+        enums = cmds.attributeQuery('aimAt', node=guide.transform, listEnum=True)[0].split(':')
         enums.append(self.transform)
         cmds.addAttr('%s.aimAt' % guide.transform, e=True, en=':'.join(enums))
 
-        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
-        for index, alias in enumerate(aliases):
-            if re.match('^%s' % guide.transform, alias):
-                cmds.setAttr('%s.%s' % (self.constraint, alias), 1)
-            else:
-                cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
+        aliases = cmds.aimConstraint(guide.constraint, q=True, wal=True)
+        targets = cmds.aimConstraint(guide.constraint, q=True, tl=True)
+        index = targets.index(self.aim)
+
+        condition = cmds.createNode('condition')
+        cmds.setAttr('%s.secondTerm' % condition, index)
+        cmds.setAttr('%s.colorIfTrueR' % condition, 1)
+        cmds.setAttr('%s.colorIfFalseR' % condition, 0)
+        cmds.connectAttr('%s.aimAt' % guide.transform, '%s.firstTerm' % condition)
+        cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (guide.constraint, aliases[index]))
+        con.nodes.append(condition)
+
+        cmds.connectAttr('%s.outColorR' % condition, '%s.display' % con.state_node)
+        cmds.setAttr('%s.aimAt' % guide.transform, index)
 
         return con
-
-    def set_aim(self, name):
-        '''
-        '''
-
-        if self.transform:
-            enums = cmds.attributeQuery('aimAt', node=self.transform, listEnum=True)[0].split(':')
-            if name in enums:
-                cmds.setAttr('%s.aimAt' % self.transform, enums.index(name))
-                log.info('\'%s\' aim set to: %s' % (self.transform, name))
 
     def __create_nodes(self):
         
@@ -200,22 +237,11 @@ class Guide(Node):
         # libAttr.lock_all(self.up, hide=True)
 
         # Create main aim transform
-        # self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
-        # libAttr.lock_translates(self.aim, hide=True)
-        # libAttr.lock_scales(self.aim, hide=True)
-        # libAttr.lock_vis(self.aim, hide=True)
-        # libAttr.nonkeyable_rotates(self.aim, hide=True)
-
-        # libAttr.add_double(self.aim, 'jointOrientX', keyable=False)
-        # libAttr.add_double(self.aim, 'jointOrientY', keyable=False)
-        # libAttr.add_double(self.aim, 'jointOrientZ', keyable=False)
-
-        # for axis in ['X', 'Y', 'Z']:
-        #     cmds.connectAttr('%s.rotate%s' % (self.aim, axis), '%s.jointOrient%s' % (self.aim, axis))
+        self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
 
         # Add aim defaults
-        self.world = cmds.group(name=libName.append_description(self.transform, 'world'), empty=True)
-        self.custom = cmds.group(name=libName.append_description(self.transform, 'custom'), empty=True)
+        self.world = cmds.group(name=libName.append_description(self.aim, 'world'), empty=True)
+        self.custom = cmds.group(name=libName.append_description(self.aim, 'custom'), empty=True)
 
         libAttr.lock_all(self.world, hide=True)
         libAttr.lock_scales(self.custom, hide=True)
@@ -223,35 +249,45 @@ class Guide(Node):
         libAttr.nonkeyable_translates(self.custom, hide=False)
         libAttr.nonkeyable_rotates(self.custom, hide=False)
 
-        cmds.parent([self.up, self.world, self.custom], self.transform)
-
-    def __create_attribtues(self):
-        # aliases = cmds.aimConstraint(self.constraint, q=True, tl=True)
-        aliases = ['world', 'custom']
-        cmds.addAttr(self.transform, ln='aimAt', at='enum', en=':'.join(aliases))
+        cmds.addAttr(self.transform, ln='aimAt', at='enum', en=':'.join(self.DEFAULT_AIMS))
         cmds.setAttr('%s.aimAt' % self.transform, k=False)
         cmds.setAttr('%s.aimAt' % self.transform, cb=True)
+
+        cmds.parent([self.up, self.aim, self.world, self.custom], self.transform)
+
+    def __create_attribtues(self):
 
         cmds.addAttr(self.transform, ln='debug', at='bool', min=0, max=1, dv=0)
         cmds.setAttr('%s.debug' % self.transform, k=False)
         cmds.setAttr('%s.debug' % self.transform, cb=True)
-        cmds.connectAttr('%s.debug' % self.transform, '%s.displayLocalAxis' % self.transform)
+        cmds.connectAttr('%s.debug' % self.transform, '%s.displayLocalAxis' % self.aim)
 
     def __create_aim(self):
-        libAttr.unlock_rotates(self.transform)
-        self.constraint = cmds.aimConstraint([self.world, self.custom],
-                                             self.transform,
-                                             worldUpObject=self.up,
-                                             offset=(0, 0, 0),
-                                             aimVector=(1, 0, 0),
-                                             upVector=(0, 1, 0),
-                                             worldUpType='object')[0]
-        libAttr.lock_rotates(self.transform, hide=True)
-        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
-        for alias in aliases:
-            cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
-        else:
-            cmds.setAttr('%s.%s' % (self.constraint, aliases[0]), 1)
+
+        for index, transform in enumerate([self.world, self.custom]):
+            constraint = cmds.aimConstraint(transform,
+                                                 self.aim,
+                                                 worldUpObject=self.up,
+                                                 offset=(0, 0, 0),
+                                                 aimVector=(1, 0, 0),
+                                                 upVector=(0, 1, 0),
+                                                 worldUpType='object')[0]
+
+            aliases = cmds.aimConstraint(constraint, q=True, wal=True)
+            condition = cmds.createNode('condition')
+            cmds.setAttr('%s.secondTerm' % condition, index)
+            cmds.setAttr('%s.colorIfTrueR' % condition, 1)
+            cmds.setAttr('%s.colorIfFalseR' % condition, 0)
+            cmds.connectAttr('%s.aimAt' % self.transform, '%s.firstTerm' % condition)
+            cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (constraint, aliases[index]))
+
+        self.constraint = cmds.listConnections(self.aim, type='aimConstraint')[0]
+
+        # aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+        # for alias in aliases:
+        #     cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
+        # else:
+        #     cmds.setAttr('%s.%s' % (self.constraint, aliases[0]), 1)
 
     def __create_shader(self):
 

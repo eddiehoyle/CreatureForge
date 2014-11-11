@@ -1,4 +1,2 @@
-test test
-
-## Goals
-- [x] check
+# Creature Forge
+A simple modular rigging solution

@@ -77,6 +77,7 @@ def unlock_attr(node, attr):
     cmds.setAttr('%s.%s' % (node, attr), lock=False)
 
 def nonkeyable_attr(node, attr):
+
     cmds.setAttr('%s.%s' % (node, attr), k=False)
     cmds.setAttr('%s.%s' % (node, attr), cb=True)
 
@@ -113,11 +114,23 @@ def lock_scales(node, hide=False):
         if hide:
             hide_attr(node, 'scale%s' % axis)
 
+def unlock_translates(node, hide=False):
+    for axis in ['X', 'Y', 'Z']:
+        unlock_attr(node, 'translate%s' % axis)
+        if hide:
+            hide_attr(node, 'translate%s' % axis)
+
 def unlock_rotates(node, hide=False):
     for axis in ['X', 'Y', 'Z']:
         unlock_attr(node, 'rotate%s' % axis)
         if hide:
             hide_attr(node, 'rotate%s' % axis)
+
+def unlock_scales(node, hide=False):
+    for axis in ['X', 'Y', 'Z']:
+        unlock_attr(node, 'scale%s' % axis)
+        if hide:
+            hide_attr(node, 'scale%s' % axis)
 
 def lock_vis(node, hide=False):
     'Lock visibility'

@@ -83,6 +83,14 @@ class Connector(Node):
             elif state == 'dashed':
                 cmds.setAttr('%s.display' % self.state_node, 1)
 
+    def set_start_offset(self, value):
+        if self.start and self.end:
+            cmds.move(value * -1, self.start, y=True)
+
+    def set_end_offset(self, value):
+        if self.start and self.end:
+            cmds.move(value, self.end, y=True)
+
     def set_aim_scale(self, value):
         if self.aim:
             cmds.setAttr('%s.scale' % self.aim, value, value, value, type='float3')
@@ -221,7 +229,7 @@ class Connector(Node):
         # Create visibility network
         self.state_node = cmds.createNode('reverse')
 
-        cmds.addAttr(self.state_node, ln='display', at='enum', en='solid:dashed', dv=0)
+        cmds.addAttr(self.state_node, ln='display', at='enum', en='dashed:solid', dv=0)
         cmds.setAttr('%s.display' % self.state_node, k=False)
         cmds.setAttr('%s.display' % self.state_node, cb=True)
         cmds.connectAttr('%s.display' % self.state_node, '%s.inputX' % self.state_node)
@@ -229,8 +237,8 @@ class Connector(Node):
         for attr in ['inputX', 'inputY', 'inputZ']:
             cmds.setAttr('%s.%s' % (self.state_node, attr), k=False)
 
-        cmds.connectAttr('%s.outputX' % self.state_node, '%s.visibility' % self.__solid_transform)
-        cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__dashed_transform)
+        cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__solid_transform)
+        cmds.connectAttr('%s.outputX' % self.state_node, '%s.visibility' % self.__dashed_transform)
 
     def __create_shader(self):
         '''
