@@ -16,7 +16,7 @@ class Connector(Node):
     CLUSTER_OFFSET = 1.0
 
     def __init__(self, parent, child):
-        super(Connector, self).__init__(*libName._decompile(child.name)[:-1])
+        super(Connector, self).__init__(*libName._decompile(parent.name)[:-1])
 
         self.top_node = None
         self.parent = parent
@@ -151,6 +151,10 @@ class Connector(Node):
         cmds.xform(self.__dashed_transform, cp=True)
         cmds.move(-0.5, self.__dashed_transform, y=True)
 
+        # Tidy up
+        cmds.parent(self.top_node, self.child.setup_node)
+
+
     def __create_deformers(self):
         '''
         Lattice and clusters
@@ -175,6 +179,7 @@ class Connector(Node):
         self.start = cmds.rename(self.start, libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))
         self.end = cmds.rename(self.end, libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))
 
+        print 'self.start', self.start
         self.start_cl = cmds.rename('%sCluster' % self.start, libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))
         self.end_cl = cmds.rename('%sCluster' % self.end, libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))
 
@@ -207,7 +212,6 @@ class Connector(Node):
                            mo=False)
 
         # Tidy up
-        self.top_node = cmds.group(name=libName.set_suffix(self.name, '%sGrp' % self.SUFFIX), empty=True)
         cmds.parent([self.__dashed_transform, self.__solid_transform, lattice_handle, lattice_base], self.top_node)
 
         self.nodes = [self.__dashed_transform,
@@ -219,8 +223,8 @@ class Connector(Node):
                       self.state_node]
 
         # Parent under parent and child grps
-        cmds.parent(start_grp, self.parent.transform, r=True)
-        cmds.parent(end_grp, self.child.transform, r=True)
+        cmds.parent(start_grp, self.parent.setup_node, r=True)
+        cmds.parent(end_grp, self.child.setup_node, r=True)
 
     def __create_nodes(self):
         '''
@@ -275,6 +279,14 @@ class Connector(Node):
         pass
 
     def create(self):
+        '''
+        '''
+
+        self.top_node = cmds.group(name=libName.set_suffix(self.name,
+                                                           '%sGrp' % self.SUFFIX),
+                                                           empty=True)
+        cmds.setAttr('%s.inheritsTransform' % self.top_node, False)
+
         self.__create_geometry()
         self.__create_deformers()
         self.__create_nodes()
