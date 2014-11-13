@@ -16,7 +16,7 @@ class Connector(Node):
     CLUSTER_OFFSET = 1.0
 
     def __init__(self, parent, child):
-        super(Connector, self).__init__(*libName._decompile(parent.name)[:-1])
+        super(Connector, self).__init__(*libName._decompile(child.name)[:-1])
 
         self.top_node = None
         self.parent = parent
@@ -179,7 +179,6 @@ class Connector(Node):
         self.start = cmds.rename(self.start, libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))
         self.end = cmds.rename(self.end, libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))
 
-        print 'self.start', self.start
         self.start_cl = cmds.rename('%sCluster' % self.start, libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))
         self.end_cl = cmds.rename('%sCluster' % self.end, libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))
 
@@ -214,7 +213,8 @@ class Connector(Node):
         # Tidy up
         cmds.parent([self.__dashed_transform, self.__solid_transform, lattice_handle, lattice_base], self.top_node)
 
-        self.nodes = [self.__dashed_transform,
+        self.nodes = [self.top_node,
+                      self.__dashed_transform,
                       self.__solid_transform,
                       lattice_handle,
                       lattice_base,
@@ -269,10 +269,19 @@ class Connector(Node):
     def __create_attribtues(self):
         pass
 
-    def remove(self):
-        if self.transform:
-            cmds.delete(self.nodes)
+    def exists(self):
+        '''
+        '''
 
+        return cmds.objExists(self.__create_nodes())
+
+    def remove(self):
+        try:
+            cmds.delete(self.__create_nodes())
+        except Exception:
+            pass
+
+        # return super(Connector, self).__init__(self.parent, self.child)
         return Connector(self.parent, self.child)
 
     def init(self):
