@@ -273,15 +273,14 @@ class Connector(Node):
         '''
         '''
 
-        return cmds.objExists(self.__create_nodes())
+        return cmds.objExists(self.top_node)
 
     def remove(self):
         try:
-            cmds.delete(self.__create_nodes())
+            cmds.delete(self.nodes)
         except Exception:
             pass
 
-        # return super(Connector, self).__init__(self.parent, self.child)
         return Connector(self.parent, self.child)
 
     def init(self):

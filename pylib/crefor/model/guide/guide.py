@@ -38,26 +38,20 @@ class Guide(Node):
         self.constraint = None
         self.orient = None
 
-        self.__connectors = {}
-        self.__children = {}
-        self.__parent = None
+        self.connectors = {}
+        self.children = {}
+        self.parent = None
 
-        self.__trash = []
+        self.trash = []
 
     def connectors(self):
-        return self.__connectors
+        return self.connectors
 
     def short_name(self):
         return None
 
     def long_name(self):
         return None
-
-    def parent(self):
-        return self.__parent
-
-    def children(self):
-        return self.__children
 
     def set_scale(self, value):
         '''
@@ -69,11 +63,11 @@ class Guide(Node):
             cmds.setAttr('%s.scale' % self.joint, value, value, value, type='float3')
             libAttr.lock_scales(self.joint, hide=True)
 
-            for child in self.__children.values():
-                self.__connectors[child.name].set_start_scale(value)
+            for child in self.children.values():
+                self.connectors[child.name].set_start_scale(value)
 
-            if self.__parent:
-                self.__connectors[self.__parent.name].set_end_scale(value)
+            if self.parent:
+                self.connectors[self.parent.name].set_end_scale(value)
 
     def set_translates(self, vector3f):
         if self.joint:
@@ -84,10 +78,22 @@ class Guide(Node):
             cmds.setAttr('%s.debug' % self.joint, bool(debug))
 
     def has_child(self, guide):
-        return guide.joint in self.children()
+        return guide.joint in self.children
 
     def is_parent(self, guide):
         return guide.parent is self.parent
+
+    def has_parent(self, guide):
+        '''
+        Loop up all parents
+        '''
+
+        parent = self.parent
+        while parent:
+            if guide == parent:
+                return True
+            parent = parent.parent
+        return False
 
     def set_parent(self, guide):
         '''
@@ -95,44 +101,51 @@ class Guide(Node):
         arm is child of spine
         '''
 
-        if self.parent() == guide:
+        if self == guide:
+            return None
 
-            return self.parent()
+        if self.parent == guide:
+            log.info("'%s' is already a parent of '%s'" % (guide.joint, self.joint))
+            return self.parent
 
-        
+        if self.parent:
+            self.remove_parent()
+
         if self.has_child(guide):
-            self.__remove_aim(guide)
+            self.remove_aim(guide)
 
-        guide.__add_aim(self)
+        guide.add_aim(self)
         log.info('\'%s\' set parent: \'%s\'' % (self.joint, guide.joint))
 
         # Store data
-        self.__parent = guide
-        guide.__children[self.name] = self
-
-        return guide.__connectors[self.name]
+        self.parent = guide
+        guide.children[self.name] = self
 
     def add_child(self, guide):
         '''
         '''
 
-        if guide.parent():
+        if self == guide:
+            return None
+
+        if guide.name in self.children:
+            log.info("'%s' is already a child of '%s'" % (guide.joint, self.joint))
+            return self.children[guide.name]
+
+        if guide.parent:
             guide.remove_parent()
 
-        if guide.name in self.__children:
-            log.warning("'%s' is already a child of '%s'" % (guide.joint, self.joint))
-            return self.__children[guide.name]
+        if self.has_parent(guide):
+            self.remove_parent()
 
-        self.__add_aim(guide)
+        self.add_aim(guide)
         log.info('\'%s\' added child: \'%s\'' % (self.joint, guide.joint))
 
-        # Store data
-        guide.__parent = self
-        self.__children[guide.name] = guide
+        # # Store data
+        guide.parent = self
+        self.children[guide.name] = guide
 
-        return guide.__connectors[self.name]
-
-    def __add_aim(self, guide):
+    def add_aim(self, guide):
         '''
         self aims at guide
         self --> guide
@@ -141,15 +154,14 @@ class Guide(Node):
         guide is always child
         '''
 
-        if self.name in guide.__connectors:
-            return guide.__connectors[self.name]
+        if self.name in guide.connectors:
+            return guide.connectors[self.name]
 
         con = Connector(self, guide)
         con.create()
 
-        self.__connectors[guide.name] = con
-        guide.__connectors[self.name] = con
-
+        self.connectors[guide.name] = con
+        guide.connectors[self.name] = con
 
         cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up,
                            worldUpType='object',
@@ -175,37 +187,46 @@ class Guide(Node):
         con.nodes.append(condition)
 
         cmds.connectAttr('%s.outColorR' % condition, '%s.display' % con.state_node)
-        cmds.setAttr('%s.aimAt' % self.joint, index)
+        cmds.setAttr('%s.aimAt' % self.joint, len(enums)-1)
 
-        if guide.has_child(self):
-            cmds.parent(self.joint, world=True)
+        
+        # if self.has_parent(guide):
+        # if guide.has_child(self):
+            # cmds.parent(self.joint, world=True)
         cmds.parent(guide.joint, self.joint)
+
+        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+        for alias in aliases:
+            if not cmds.listConnections('%s.%s' % (self.constraint, alias), source=True,
+                                                                              destination=False,
+                                                                              plugs=True):
+                cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
 
         return con
 
-    def __remove_connector(self, guide):
+    def remove_connector(self, guide):
         '''
         Child centric connector remove
         '''
 
-        if guide.name in self.__connectors:
-            self.__connectors[guide.name].remove()
-
-        del self.__connectors[guide.name]
+        if guide.name in self.connectors:
+            self.connectors[guide.name].remove()
+        del self.connectors[guide.name]
 
     def remove_parent(self):
         '''
+        If have a parent, tell parent to remove aim to self
         '''
-        parent = self.parent()
-        if parent:
-            parent.__remove_aim(self)
+
+        if self.parent:
+            self.parent.remove_aim(self)
 
     def remove_child(self, guide):
         '''
         '''
-        self.__remove_aim(guide)
+        self.remove_aim(guide)
 
-    def __remove_aim(self, guide):
+    def remove_aim(self, guide):
         '''
         self has guide as a child
         self has constraint
@@ -217,13 +238,12 @@ class Guide(Node):
 
         if self.has_child(guide):
 
+            self.remove_connector(guide)
+
             enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
             enums.remove(guide.aim)
             cmds.addAttr('%s.aimAt' % self.joint, e=True, en=':'.join(enums))
-
-        #     # Default to world
-            # if len(enums) == 1:
-            #     cmds.setAttr('%s.aimAt' % self.joint, 0)
+            cmds.setAttr('%s.aimAt' % self.joint, len(enums) - 1)
 
             aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
             for alias in aliases:
@@ -232,26 +252,26 @@ class Guide(Node):
                                                                                   plugs=True):
                     cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
 
-
-            self.__remove_connector(guide)
-            del self.__children[guide.name]
-            guide.__parent = None
+            # Default to world
+            if len(enums) == 1:
+                cmds.setAttr('%s.aimAt' % self.joint, 0)
+            
+            del self.children[guide.name]
+            guide.parent = None
+            cmds.parent(guide.joint, world=True)
 
             log.info('%s remove child: %s' % (self.name, guide.name))
 
-        # else:
-        #     raise RuntimeError("'%s' is not child of '%s'" % (guide.name, self.name))
-
     def get_parent(self):
-        return self.__parent
+        return self.parent
 
     def get_child(self, name):
-        return self.__children.get(name, None)
+        return self.children.get(name, None)
 
     def get_children(self):
-        return self.__children.values()
+        return self.children.values()
 
-    def __create_nodes(self):
+    def create_nodes(self):
         
         # Create joint and parent sphere under
         # cmds.select(cl=True)
@@ -287,23 +307,24 @@ class Guide(Node):
         self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
         cmds.setAttr('%s.translateX' % self.aim, -0.00000001)
 
+        cmds.addAttr(self.joint, ln='aimAt', at='enum', en='local')
+        cmds.setAttr('%s.aimAt' % self.joint, k=False)
+        cmds.setAttr('%s.aimAt' % self.joint, cb=True)
+
         # Tidy up
         cmds.parent([self.up, self.aim], self.setup_node)
-        # cmds.parent(self.setup_node, self.joint)
-        self.__trash.extend([_cube, _sphere])
+        self.trash.extend([_cube, _sphere])
 
-    def __create_attribtues(self):
+    def create_attribtues(self):
 
         cmds.addAttr(self.joint, ln='debug', at='bool', min=0, max=1, dv=0)
         cmds.setAttr('%s.debug' % self.joint, k=False)
         cmds.setAttr('%s.debug' % self.joint, cb=True)
         cmds.connectAttr('%s.debug' % self.joint, '%s.displayLocalAxis' % self.aim)
 
-        cmds.addAttr(self.joint, ln='aimAt', at='enum', en='local')
-        cmds.setAttr('%s.aimAt' % self.joint, k=False)
-        cmds.setAttr('%s.aimAt' % self.joint, cb=True)
-
-    def __create_aim(self):
+    def create_aim(self):
+        '''
+        '''
 
         # Create local orient
         self.orient = cmds.orientConstraint(self.joint, self.setup_node, mo=True)[0]
@@ -324,8 +345,10 @@ class Guide(Node):
                                                  aimVector=(1, 0, 0),
                                                  upVector=(0, 1, 0),
                                                  worldUpType='object')[0]
+        aim_aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+        cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
 
-    def __create_shader(self):
+    def create_shader(self):
 
         self.shader, self.sg = libShader.get_or_create_shader(libName.set_suffix(self.name, 'shd'), 'lambert')
         cmds.sets(self.shapes, edit=True, forceElement=self.sg)
@@ -336,11 +359,11 @@ class Guide(Node):
         cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.diffuse' % self.shader, 0)
 
-    def __cleanup(self):
+    def cleanup(self):
         '''Delete trash nodes'''
 
         try:
-            cmds.delete(self.__trash)
+            cmds.delete(self.trash)
         except Exception:
             pass
 
@@ -363,11 +386,11 @@ class Guide(Node):
         # if cmds.objExists(self.name):
         #     return self.reinit()
 
-        self.__create_nodes()
-        self.__create_aim()
-        self.__create_attribtues()
-        self.__create_shader()
-        self.__cleanup()
+        self.create_nodes()
+        self.create_attribtues()
+        self.create_aim()
+        self.create_shader()
+        self.cleanup()
 
         cmds.select(cl=True)
 
