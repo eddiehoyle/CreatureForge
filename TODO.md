@@ -19,3 +19,19 @@
 
 ## Core
 * Write logging tool
+* Figure out how to build an API for users
+
+## IO
+* Write position save/load logic
+* Write hierarhcy (aim) save/load/ logic
+* Write template save/load logic
+
+## Template
+* Create a template from guides
+
+## UI
+* PLAN PLAN PLAN PLAN PLAN 
+* Write plugin logic
+
+## Web
+* Create web page for skeleton forge app
