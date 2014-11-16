@@ -14,6 +14,13 @@ def _decompile(name):
     except AttributeError:
         raise NameError('Name does not match naming conventions: %s' % name)
 
+def is_valid(name):
+    try:
+        return bool(_decompile(name))
+    except Exception:
+        return False
+
+
 def create_name(position, description, index=0, suffix='grp'):
     return '_'.join(_decompile('_'.join([str(position),
                                         str(description),

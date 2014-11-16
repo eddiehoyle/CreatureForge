@@ -38,17 +38,47 @@ class Guide(Node):
         self.constraint = None
         self.orient = None
 
-        self.connectors = {}
-        self.children = {}
-        self.parent = None
-
+        # self.connectors = {}
         self.trash = []
 
-    def connectors(self):
+        # if cmds.objExists(self.name):
+        #     self.reinit()
+
+    def connectors2(self):
         return self.connectors
 
     def short_name(self):
         return None
+
+    @property
+    def parent(self):
+        _parent = cmds.listRelatives(self.joint, parent=True, type='joint')
+        if _parent:
+            return Guide(*libName._decompile(_parent[0])[0:3]).reinit()
+        return None
+
+    @property
+    def children(self):
+        _children = cmds.listRelatives(self.joint, children=True, type='joint') or []
+        data = {}
+        for _child in _children:
+            if libName.is_valid(_child):
+                data[_child] = Guide(*libName._decompile(_child)[0:3]).reinit()
+        return data
+
+    @property
+    def connectors(self):
+        data = {}
+
+        # Init parent connector
+        if self.parent:
+            data[self.parent.name] = Connector(self.parent, self).reinit()
+
+        # Init child connectors
+        for _child in self.children.values():
+            data[_child.name] = Connector(self, _child).reinit()
+
+        return data
 
     def long_name(self):
         return None
@@ -78,7 +108,7 @@ class Guide(Node):
             cmds.setAttr('%s.debug' % self.joint, bool(debug))
 
     def has_child(self, guide):
-        return guide.joint in self.children
+        return guide.name in self.children
 
     def is_parent(self, guide):
         return guide.parent is self.parent
@@ -90,7 +120,7 @@ class Guide(Node):
 
         parent = self.parent
         while parent:
-            if guide == parent:
+            if guide.name == parent.name:
                 return True
             parent = parent.parent
         return False
@@ -101,7 +131,7 @@ class Guide(Node):
         arm is child of spine
         '''
 
-        if self == guide:
+        if self.name == guide.name:
             return None
 
         if self.parent == guide:
@@ -109,22 +139,19 @@ class Guide(Node):
             return self.parent
 
         if self.parent:
+            # print 'removing parent', self.parent
             self.remove_parent()
 
         if self.has_child(guide):
             self.remove_aim(guide)
 
-        guide.add_aim(self)
-        log.info('\'%s\' set parent: \'%s\'' % (self.joint, guide.joint))
-
         # Store data
-        self.parent = guide
-        guide.children[self.name] = self
+        guide.add_aim(self)
+        # log.info('\'%s\' successfully set parent: \'%s\'' % (self.joint, guide.joint))
 
     def add_child(self, guide):
         '''
         '''
-
         if self == guide:
             return None
 
@@ -132,18 +159,16 @@ class Guide(Node):
             log.info("'%s' is already a child of '%s'" % (guide.joint, self.joint))
             return self.children[guide.name]
 
+
         if guide.parent:
             guide.remove_parent()
 
         if self.has_parent(guide):
             self.remove_parent()
 
+        # Store data
         self.add_aim(guide)
-        log.info('\'%s\' added child: \'%s\'' % (self.joint, guide.joint))
-
-        # # Store data
-        guide.parent = self
-        self.children[guide.name] = guide
+        # log.info('\'%s\' successfully added child: \'%s\'' % (self.joint, guide.joint))
 
     def add_aim(self, guide):
         '''
@@ -154,11 +179,13 @@ class Guide(Node):
         guide is always child
         '''
 
+        print 'adding aim', self.name, guide.name
         if self.name in guide.connectors:
             return guide.connectors[self.name]
 
         con = Connector(self, guide)
         con.create()
+        # print 'con create', self.name, guide.name
 
         self.connectors[guide.name] = con
         guide.connectors[self.name] = con
@@ -189,7 +216,13 @@ class Guide(Node):
         cmds.connectAttr('%s.outColorR' % condition, '%s.display' % con.state_node)
         cmds.setAttr('%s.aimAt' % self.joint, len(enums)-1)
 
-        
+        # Burn in attributes
+        # cmds.setAttr('%s.parent' % guide.setup_node, self.name, type='string')
+        # cmds.setAttr('%s.children' % self.setup_node, ';'.join(guide.children.keys()), type='string')
+
+        # cmds.setAttr('%s.connectors' % self.setup_node, ';'.join(self.connectors.keys()), type='string')
+        # cmds.setAttr('%s.connectors' % guide.setup_node, ';'.join(guide.connectors.keys()), type='string')
+
         # if self.has_parent(guide):
         # if guide.has_child(self):
             # cmds.parent(self.joint, world=True)
@@ -208,7 +241,6 @@ class Guide(Node):
         '''
         Child centric connector remove
         '''
-
         if guide.name in self.connectors:
             self.connectors[guide.name].remove()
         del self.connectors[guide.name]
@@ -219,6 +251,7 @@ class Guide(Node):
         '''
 
         if self.parent:
+            log.info('Removing %s parent: %s' % (self.name, self.parent.name))
             self.parent.remove_aim(self)
 
     def remove_child(self, guide):
@@ -256,8 +289,8 @@ class Guide(Node):
             if len(enums) == 1:
                 cmds.setAttr('%s.aimAt' % self.joint, 0)
             
-            del self.children[guide.name]
-            guide.parent = None
+            # del self.children[guide.name]
+            # guide.parent = None
             cmds.parent(guide.joint, world=True)
 
             log.info('%s remove child: %s' % (self.name, guide.name))
@@ -267,9 +300,6 @@ class Guide(Node):
 
     def get_child(self, name):
         return self.children.get(name, None)
-
-    def get_children(self):
-        return self.children.values()
 
     def create_nodes(self):
         
@@ -286,6 +316,9 @@ class Guide(Node):
         # Setup node
         self.setup_node = cmds.group(name=libName.set_suffix(self.name, 'setup'), empty=True)
         cmds.pointConstraint(self.joint, self.setup_node, mo=False)
+
+        # for attr in ['parent', 'children', 'connectors']:
+        #     cmds.addAttr(self.setup_node, ln=attr, dt='string')
 
         # Create up transform
         self.up = cmds.group(name=libName.set_suffix(self.name, 'up'), empty=True)
@@ -367,24 +400,51 @@ class Guide(Node):
         except Exception:
             pass
 
+        self.trash = []
+
     def reinit(self):
         '''
         '''
 
+        # log.info('Reinitialising: %s' % self.name)
+
         self.joint = cmds.ls(self.name)[0]
         self.shapes = cmds.listRelatives(self.joint, type='nurbsSurface', children=True)
+        self.aim = cmds.ls(libName.set_suffix(self.name, 'aim'))[0]
+        self.constraint = cmds.listRelatives(self.aim, children=True, type='aimConstraint')[0]
 
         self.sg = cmds.listConnections(self.shapes, type='shadingEngine')[0]
         self.shader = cmds.listConnections('%s.surfaceShader' % self.sg)[0]
         
         self.up = cmds.ls(libName.set_suffix(self.name, 'up'))[0]
 
+        # print '-'*50
+        # print 'self.joint', self.joint
+        # print 'self.shapes', self.shapes
+        # print 'self.aim', self.aim
+        # print 'self.constraint', self.constraint
+        # print 'self.sg', self.sg
+        # print 'self.shader', self.shader
+        # print 'self.up', self.up
+        # print '-'*50
+
+        # _parent = cmds.listRelatives(self.joint, parent=True, type='joint')
+        # if _parent:
+        #     self.parent = Guide(*libName._decompile(_parent[0])[0:3]).reinit()
+
+        # _children = cmds.listRelatives(self.joint, children=True, type='joint') or []
+        # for _child in _children:
+        #     if libName.is_valid(_child):
+        #         self.children[_child] = Guide(*libName._decompile(_child)[0:3])
+
+        return self
+
     def create(self):
         '''
         '''
 
-        # if cmds.objExists(self.name):
-        #     return self.reinit()
+        if cmds.objExists(self.name):
+            return self.reinit()
 
         self.create_nodes()
         self.create_attribtues()

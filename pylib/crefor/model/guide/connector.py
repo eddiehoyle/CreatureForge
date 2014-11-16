@@ -68,7 +68,7 @@ class Connector(Node):
 
     @property
     def transform(self):
-        if self.__solid_transform and self.__dashed_transform:
+        if cmds.objExists(self.top_node):
             if cmds.getAttr('%s.visibility' % self.__solid_transform):
                 return self.__solid_transform
             else:
@@ -113,6 +113,18 @@ class Connector(Node):
 
     def get_child(self):
         return self.child
+
+    def state(self):
+        '''
+        '''
+
+        if self.state_node:
+            state = cmds.getAttr('%s.display' % self.state_node, 0)
+            if state == 0:
+                return 'solid'
+            elif state == 1:
+                return 'dashed'
+        return None
 
     def __create_geometry(self):
         '''
@@ -167,14 +179,14 @@ class Connector(Node):
                                                               ldv=(2, 2, 2),
                                                               ol=True)
 
-        lattice = cmds.rename(lattice, libName.set_suffix(self.name, 'ltc'))
-        lattice_handle = cmds.rename(lattice_handle, libName.set_suffix(self.name, 'lth'))
-        lattice_base = cmds.rename(lattice_base, libName.set_suffix(self.name, 'ltb'))
+        self.lattice = cmds.rename(lattice, libName.set_suffix(self.name, 'ltc'))
+        self.lattice_handle = cmds.rename(lattice_handle, libName.set_suffix(self.name, 'lth'))
+        self.lattice_base = cmds.rename(lattice_base, libName.set_suffix(self.name, 'ltb'))
 
-        cmds.move(0, '%s.pt[*][*][*]' % lattice_handle, y=True)
+        cmds.move(0, '%s.pt[*][*][*]' % self.lattice_handle, y=True)
 
-        self.start_cl, self.start = cmds.cluster(['%s.pt[0:1][1][0]' % lattice_handle, '%s.pt[0:1][1][1]' % lattice_handle])
-        self.end_cl, self.end = cmds.cluster(['%s.pt[0:1][0][0]' % lattice_handle, '%s.pt[0:1][0][1]' % lattice_handle])
+        self.start_cl, self.start = cmds.cluster(['%s.pt[0:1][1][0]' % self.lattice_handle, '%s.pt[0:1][1][1]' % self.lattice_handle])
+        self.end_cl, self.end = cmds.cluster(['%s.pt[0:1][0][0]' % self.lattice_handle, '%s.pt[0:1][0][1]' % self.lattice_handle])
 
         self.start = cmds.rename(self.start, libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))
         self.end = cmds.rename(self.end, libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))
@@ -182,28 +194,28 @@ class Connector(Node):
         self.start_cl = cmds.rename('%sCluster' % self.start, libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))
         self.end_cl = cmds.rename('%sCluster' % self.end, libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))
 
-        start_grp = cmds.group(self.start, name=libName.set_suffix(self.start, '%sGrp' % libName.get_suffix(self.start)))
-        end_grp = cmds.group(self.end, name=libName.set_suffix(self.end, '%sGrp' % libName.get_suffix(self.end)))
+        self.start_grp = cmds.group(self.start, name=libName.set_suffix(self.start, '%sGrp' % libName.get_suffix(self.start)))
+        self.end_grp = cmds.group(self.end, name=libName.set_suffix(self.end, '%sGrp' % libName.get_suffix(self.end)))
 
-        for clh in [self.start, self.end, start_grp, end_grp]:
+        for clh in [self.start, self.end, self.start_grp, self.end_grp]:
             cmds.xform(clh, piv=(0, 0, 0), ws=True)
             cmds.setAttr('%s.visibility' % clh, 0)
 
         cmds.move(self.CLUSTER_OFFSET * -1, self.start, y=True)
         cmds.move(self.CLUSTER_OFFSET, self.end, y=True)
 
-        cmds.setAttr('%s.visibility' % lattice_handle, 0)
-        cmds.setAttr('%s.visibility' % lattice_base, 0)
+        cmds.setAttr('%s.visibility' % self.lattice_handle, 0)
+        cmds.setAttr('%s.visibility' % self.lattice_base, 0)
 
         # Create aim constraints for connector
-        cmds.aimConstraint(start_grp, end_grp,
+        cmds.aimConstraint(self.start_grp, self.end_grp,
                            worldUpType='scene',
                            offset=(0, 180, -90),
                            aimVector=(1, 0, 0),
                            upVector=(0, 1, 0),
                            mo=False)
 
-        cmds.aimConstraint(end_grp, start_grp,
+        cmds.aimConstraint(self.end_grp, self.start_grp,
                            worldUpType='scene',
                            offset=(0, 0, 90),
                            aimVector=(1, 0, 0),
@@ -211,27 +223,26 @@ class Connector(Node):
                            mo=False)
 
         # Tidy up
-        cmds.parent([self.__dashed_transform, self.__solid_transform, lattice_handle, lattice_base], self.top_node)
-
+        cmds.parent([self.__dashed_transform, self.__solid_transform, self.lattice_handle, self.lattice_base], self.top_node)
         self.nodes = [self.top_node,
                       self.__dashed_transform,
                       self.__solid_transform,
-                      lattice_handle,
-                      lattice_base,
+                      self.lattice_handle,
+                      self.lattice_base,
                       self.start,
                       self.end,
                       self.state_node]
 
         # Parent under parent and child grps
-        cmds.parent(start_grp, self.parent.setup_node, r=True)
-        cmds.parent(end_grp, self.child.setup_node, r=True)
+        cmds.parent(self.start_grp, self.parent.setup_node, r=True)
+        cmds.parent(self.end_grp, self.child.setup_node, r=True)
 
     def __create_nodes(self):
         '''
         '''
 
         # Create visibility network
-        self.state_node = cmds.createNode('reverse')
+        self.state_node = cmds.createNode('reverse', name=libName.set_suffix(libName.append_description(self.name, 'state'), 'rev'))
 
         cmds.addAttr(self.state_node, ln='display', at='enum', en='dashed:solid', dv=0)
         cmds.setAttr('%s.display' % self.state_node, k=False)
@@ -276,19 +287,101 @@ class Connector(Node):
         return cmds.objExists(self.top_node)
 
     def remove(self):
+
+        if not self.nodes:
+            return self
+
         try:
             cmds.delete(self.nodes)
-        except Exception:
-            pass
+
+            self.top_node = None
+            self.__dashed_transform = None
+            self.__solid_transform = None
+            self.lattice_handle = None
+            self.lattice_base = None
+            self.start = None
+            self.end = None
+            self.state_node = None
+
+        except Exception as e:
+            print e
 
         return Connector(self.parent, self.child)
 
-    def init(self):
-        pass
+    # def remove_child(self):
+    #     pass
+
+    # def remove_end(self):
+    #     pass
+
+
+
+    def reinit(self):
+        '''
+        '''
+
+        _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
+        if not cmds.ls(_top_node):
+            return self
+
+        self.top_node = cmds.ls(libName.set_suffix(self.name, '%sGrp' % self.SUFFIX))[0]
+        self.__dashed_transform = cmds.ls(libName.append_description(self.name, 'dashed'))[0]
+        self.__solid_transform = cmds.ls(libName.append_description(self.name, 'solid'))[0]
+        self.start = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))[0]
+        self.start_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))[0]
+        self.end = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))[0]
+        self.end_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))[0]
+        self.state_node = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state'), 'rev'))[0]
+        self.lattice_handle = cmds.ls(libName.set_suffix(self.name, 'lth'))[0]
+        self.lattice_base = cmds.ls(libName.set_suffix(self.name, 'ltb'))[0]
+
+        self.start_grp = cmds.listRelatives(self.start, parent=True)[0]
+        self.end_grp = cmds.listRelatives(self.end, parent=True)[0]
+
+        aliases = cmds.aimConstraint(self.parent.constraint, q=True, wal=True)
+        targets = cmds.aimConstraint(self.parent.constraint, q=True, tl=True)
+        print self.parent.name, self.parent.constraint, aliases
+        index = targets.index(self.child.aim)
+
+        condition = cmds.listConnections('%s.%s' % (self.parent.constraint, aliases[index]),
+                                         type='condition',
+                                         source=True,
+                                         destination=False)[0]
+
+        # print '-'*40
+        # print 'self.top_node', self.top_node
+        # print 'self.__dashed_transform', self.__dashed_transform
+        # print 'self.__solid_transform', self.__solid_transform
+        # print 'self.start', self.start
+        # print 'self.end', self.end
+        # print 'self.start_grp', self.start_grp
+        # print 'self.end_grp', self.end_grp
+        # print 'self.state_node', self.state_node
+        # print 'self.lattice_handle', self.lattice_handle
+        # print 'self.lattice_base', self.lattice_base
+        # print '-'*40
+
+        self.nodes = [self.top_node,
+                      self.__dashed_transform,
+                      self.__solid_transform,
+                      self.lattice_handle,
+                      self.lattice_base,
+                      self.start,
+                      self.end,
+                      self.start_grp,
+                      self.end_grp,
+                      self.state_node,
+                      condition]
+
+        return self
 
     def create(self):
         '''
         '''
+
+        _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
+        if cmds.ls(_top_node):
+            return self.reinit()
 
         self.top_node = cmds.group(name=libName.set_suffix(self.name,
                                                            '%sGrp' % self.SUFFIX),

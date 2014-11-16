@@ -1,8 +1,12 @@
 # IMPORTANT
-* Set parent works and guides safely manage themselves. now add set_child()
+* Current status: Connector is failing to sometimes create during mass 100 tests.
+** check the print statments, i think its to do with re-init
+** trying to reinit incorrect parent/child relationship?
+* Write reinit for connector class
 
 ## Guide model
 * Write more docstrings
+* ~~Write reinit from string~~
 * Consider a shader swap setup to allow for XYZ axis swaps?
 * ~~Move aimConstraint to point at child aim transform, not guide~~
 * ~~Create condition node graph for aimConstraint~~
@@ -16,6 +20,7 @@
 * Add support for aim with X, Y or Z
 * ~~Refactor to build on from Maya joints to allow for hierarchy and pivot movement~~
 * ~~Atm guide hierarchy are properties, returning string of parent or children. Revert this back to guide objects~~
+* Write axis swap logic (to chang from pointing down X to Y, Z)
 
 ## Core
 * Write logging tool
@@ -30,6 +35,7 @@
 * Create a template from guides
 
 ## UI
+* ~~Create simple widget for guides~~
 * PLAN PLAN PLAN PLAN PLAN 
 * Write plugin logic
 
