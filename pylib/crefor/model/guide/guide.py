@@ -138,27 +138,32 @@ class Guide(Node):
             log.info("'%s' is already a parent of '%s'" % (guide.joint, self.joint))
             return self.parent
 
+        if guide.has_parent(self):
+            guide.remove_parent()
+
         if self.parent:
-            # print 'removing parent', self.parent
             self.remove_parent()
 
-        if self.has_child(guide):
-            self.remove_aim(guide)
+        # if self.has_child(guide):
+        #     self.remove_aim(guide)
+
+        # if guide.has_child(self):
+        #     guide.remove_aim(self)
 
         # Store data
         guide.add_aim(self)
-        # log.info('\'%s\' successfully set parent: \'%s\'' % (self.joint, guide.joint))
+        log.info('\'%s\' successfully set parent: \'%s\'' % (self.joint, guide.joint))
 
     def add_child(self, guide):
         '''
         '''
+
         if self == guide:
             return None
 
         if guide.name in self.children:
             log.info("'%s' is already a child of '%s'" % (guide.joint, self.joint))
             return self.children[guide.name]
-
 
         if guide.parent:
             guide.remove_parent()
@@ -168,7 +173,7 @@ class Guide(Node):
 
         # Store data
         self.add_aim(guide)
-        # log.info('\'%s\' successfully added child: \'%s\'' % (self.joint, guide.joint))
+        log.info('\'%s\' successfully added child: \'%s\'' % (self.joint, guide.joint))
 
     def add_aim(self, guide):
         '''
@@ -179,42 +184,30 @@ class Guide(Node):
         guide is always child
         '''
 
-        print 'adding aim', self.name, guide.name
         if self.name in guide.connectors:
             return guide.connectors[self.name]
 
-        con = Connector(self, guide)
-        con.create()
-        # print 'con create', self.name, guide.name
-
-        self.connectors[guide.name] = con
-        guide.connectors[self.name] = con
-
-        cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up,
-                           worldUpType='object',
-                           offset=(0, 0, 0),
-                           aimVector=(1, 0, 0),
-                           upVector=(0, 1, 0),
-                           mo=False)
+        try:
+            cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up,
+                               worldUpType='object',
+                               offset=(0, 0, 0),
+                               aimVector=(1, 0, 0),
+                               upVector=(0, 1, 0),
+                               mo=False)
+        except Exception as e:
+            print e
+            print self.aim, guide.aim
+            1/0
 
         enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
         enums.append(guide.aim)
         cmds.addAttr('%s.aimAt' % self.joint, e=True, en=':'.join(enums))
 
-        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
-        targets = cmds.aimConstraint(self.constraint, q=True, tl=True)
-        index = targets.index(guide.aim)
+        con = Connector(self, guide)
+        con.create()
 
-        condition = cmds.createNode('condition')
-        cmds.setAttr('%s.secondTerm' % condition, index)
-        cmds.setAttr('%s.colorIfTrueR' % condition, 1)
-        cmds.setAttr('%s.colorIfFalseR' % condition, 0)
-        cmds.connectAttr('%s.aimAt' % self.joint, '%s.firstTerm' % condition)
-        cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aliases[index]))
-        con.nodes.append(condition)
-
-        cmds.connectAttr('%s.outColorR' % condition, '%s.display' % con.state_node)
-        cmds.setAttr('%s.aimAt' % self.joint, len(enums)-1)
+        self.connectors[guide.name] = con
+        guide.connectors[self.name] = con
 
         # Burn in attributes
         # cmds.setAttr('%s.parent' % guide.setup_node, self.name, type='string')
@@ -251,7 +244,7 @@ class Guide(Node):
         '''
 
         if self.parent:
-            log.info('Removing %s parent: %s' % (self.name, self.parent.name))
+            # log.info('Removing %s parent: %s' % (self.name, self.parent.name))
             self.parent.remove_aim(self)
 
     def remove_child(self, guide):
@@ -269,31 +262,32 @@ class Guide(Node):
         guide is always child
         '''
 
-        if self.has_child(guide):
+        if not self.has_child(guide):
+            return None
 
-            self.remove_connector(guide)
+        self.remove_connector(guide)
 
-            enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
-            enums.remove(guide.aim)
-            cmds.addAttr('%s.aimAt' % self.joint, e=True, en=':'.join(enums))
-            cmds.setAttr('%s.aimAt' % self.joint, len(enums) - 1)
+        enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
+        enums.remove(guide.aim)
+        cmds.addAttr('%s.aimAt' % self.joint, e=True, en=':'.join(enums))
+        cmds.setAttr('%s.aimAt' % self.joint, len(enums) - 1)
 
-            aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
-            for alias in aliases:
-                if not cmds.listConnections('%s.%s' % (self.constraint, alias), source=True,
-                                                                                  destination=False,
-                                                                                  plugs=True):
-                    cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
+        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+        for alias in aliases:
+            if not cmds.listConnections('%s.%s' % (self.constraint, alias), source=True,
+                                                                              destination=False,
+                                                                              plugs=True):
+                cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
 
-            # Default to world
-            if len(enums) == 1:
-                cmds.setAttr('%s.aimAt' % self.joint, 0)
-            
-            # del self.children[guide.name]
-            # guide.parent = None
-            cmds.parent(guide.joint, world=True)
+        # Default to world
+        if len(enums) == 1:
+            cmds.setAttr('%s.aimAt' % self.joint, 0)
+        
+        # del self.children[guide.name]
+        # guide.parent = None
+        cmds.parent(guide.joint, world=True)
 
-            log.info('%s remove child: %s' % (self.name, guide.name))
+        log.info('%s remove child: %s' % (self.name, guide.name))
 
     def get_parent(self):
         return self.parent
@@ -406,7 +400,9 @@ class Guide(Node):
         '''
         '''
 
-        # log.info('Reinitialising: %s' % self.name)
+        if not cmds.objExists(self.name):
+            log.info('Cannot reinit \'%s\' as guide does not exist.' % self.name)
+            return None
 
         self.joint = cmds.ls(self.name)[0]
         self.shapes = cmds.listRelatives(self.joint, type='nurbsSurface', children=True)
@@ -415,6 +411,8 @@ class Guide(Node):
 
         self.sg = cmds.listConnections(self.shapes, type='shadingEngine')[0]
         self.shader = cmds.listConnections('%s.surfaceShader' % self.sg)[0]
+
+        self.setup_node = cmds.ls(libName.set_suffix(self.name, 'setup'))[0]
         
         self.up = cmds.ls(libName.set_suffix(self.name, 'up'))[0]
 
@@ -427,15 +425,6 @@ class Guide(Node):
         # print 'self.shader', self.shader
         # print 'self.up', self.up
         # print '-'*50
-
-        # _parent = cmds.listRelatives(self.joint, parent=True, type='joint')
-        # if _parent:
-        #     self.parent = Guide(*libName._decompile(_parent[0])[0:3]).reinit()
-
-        # _children = cmds.listRelatives(self.joint, children=True, type='joint') or []
-        # for _child in _children:
-        #     if libName.is_valid(_child):
-        #         self.children[_child] = Guide(*libName._decompile(_child)[0:3])
 
         return self
 

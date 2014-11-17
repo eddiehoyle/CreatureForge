@@ -3,6 +3,7 @@
 '''
 '''
 
+import re
 from maya import cmds
 from crefor.model import Node
 from crefor.lib import libName, libShader, libAttr
@@ -126,6 +127,16 @@ class Connector(Node):
                 return 'dashed'
         return None
 
+    def __create_top_node(self):
+        '''
+        '''
+
+        self.top_node = cmds.group(name=libName.set_suffix(self.name,
+                                                           '%sGrp' % self.SUFFIX),
+                                                           empty=True)
+        cmds.setAttr('%s.inheritsTransform' % self.top_node, False)
+        cmds.parent(self.top_node, self.child.setup_node)
+
     def __create_geometry(self):
         '''
         '''
@@ -164,7 +175,7 @@ class Connector(Node):
         cmds.move(-0.5, self.__dashed_transform, y=True)
 
         # Tidy up
-        cmds.parent(self.top_node, self.child.setup_node)
+        
 
 
     def __create_deformers(self):
@@ -222,8 +233,17 @@ class Connector(Node):
                            upVector=(0, 1, 0),
                            mo=False)
 
+        cmds.pointConstraint(self.parent.joint, self.start_grp, mo=False)
+        cmds.pointConstraint(self.child.joint, self.end_grp, mo=False)
+
         # Tidy up
-        cmds.parent([self.__dashed_transform, self.__solid_transform, self.lattice_handle, self.lattice_base], self.top_node)
+        cmds.parent([self.__dashed_transform,
+                     self.__solid_transform,
+                     self.lattice_handle,
+                     self.lattice_base,
+                     self.start_grp,
+                     self.end_grp], self.top_node)
+
         self.nodes = [self.top_node,
                       self.__dashed_transform,
                       self.__solid_transform,
@@ -233,9 +253,7 @@ class Connector(Node):
                       self.end,
                       self.state_node]
 
-        # Parent under parent and child grps
-        cmds.parent(self.start_grp, self.parent.setup_node, r=True)
-        cmds.parent(self.end_grp, self.child.setup_node, r=True)
+        
 
     def __create_nodes(self):
         '''
@@ -254,6 +272,24 @@ class Connector(Node):
 
         cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__solid_transform)
         cmds.connectAttr('%s.outputX' % self.state_node, '%s.visibility' % self.__dashed_transform)
+
+        aliases = cmds.aimConstraint(self.parent.constraint, q=True, wal=True)
+        targets = cmds.aimConstraint(self.parent.constraint, q=True, tl=True)
+        index = targets.index(self.child.aim)
+
+        enums = cmds.attributeQuery('aimAt', node=self.parent.joint, listEnum=True)[0].split(':')
+        enum_index = enums.index(self.child.aim)
+
+        condition = cmds.createNode('condition', name=libName.set_suffix(self.name, 'cond'))
+        cmds.setAttr('%s.secondTerm' % condition, enum_index)
+        cmds.setAttr('%s.colorIfTrueR' % condition, 1)
+        cmds.setAttr('%s.colorIfFalseR' % condition, 0)
+        cmds.connectAttr('%s.aimAt' % self.parent.joint, '%s.firstTerm' % condition)
+        cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.parent.constraint, aliases[index]))
+        self.nodes.append(condition)
+
+        cmds.connectAttr('%s.outColorR' % condition, '%s.display' % self.state_node)
+        cmds.setAttr('%s.aimAt' % self.parent.joint, len(enums)-1)
 
     def __create_shader(self):
         '''
@@ -322,7 +358,7 @@ class Connector(Node):
 
         _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
         if not cmds.ls(_top_node):
-            return self
+            return None
 
         self.top_node = cmds.ls(libName.set_suffix(self.name, '%sGrp' % self.SUFFIX))[0]
         self.__dashed_transform = cmds.ls(libName.append_description(self.name, 'dashed'))[0]
@@ -340,13 +376,17 @@ class Connector(Node):
 
         aliases = cmds.aimConstraint(self.parent.constraint, q=True, wal=True)
         targets = cmds.aimConstraint(self.parent.constraint, q=True, tl=True)
-        print self.parent.name, self.parent.constraint, aliases
         index = targets.index(self.child.aim)
 
-        condition = cmds.listConnections('%s.%s' % (self.parent.constraint, aliases[index]),
-                                         type='condition',
-                                         source=True,
-                                         destination=False)[0]
+        try:
+            condition = cmds.listConnections('%s.%s' % (self.parent.constraint, aliases[index]),
+                                             type='condition',
+                                             source=True,
+                                             destination=False)[0]
+        except Exception as e:
+            print e
+            print 'tried to find', aliases[index], 'in', self.parent.constraint
+            print 1/0
 
         # print '-'*40
         # print 'self.top_node', self.top_node
@@ -383,11 +423,8 @@ class Connector(Node):
         if cmds.ls(_top_node):
             return self.reinit()
 
-        self.top_node = cmds.group(name=libName.set_suffix(self.name,
-                                                           '%sGrp' % self.SUFFIX),
-                                                           empty=True)
-        cmds.setAttr('%s.inheritsTransform' % self.top_node, False)
 
+        self.__create_top_node()
         self.__create_geometry()
         self.__create_deformers()
         self.__create_nodes()
