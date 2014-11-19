@@ -1,8 +1,6 @@
 # IMPORTANT
-* Current status: Connector is failing to sometimes create during mass 100 tests.
-** check the print statments, i think its to do with re-init
-** trying to reinit incorrect parent/child relationship?
-* Write reinit for connector class
+* Tidy code to be more organised
+* Write unit tests!!!!!!!!!!
 
 ## Guide model
 * Write more docstrings
@@ -13,14 +11,16 @@
 * ~~Add up aim control shapes to be visible to user~~
 * ~~Add dashed/solid hierarchical shapes~~
 * ~~Add cleanup for connectors~~
-* Write re-init logic
-* ~~Stress test guides parent and child logic, make sure nodes are being tided up~~
+* ~~Write re-init logic~~
+* ~~Stress test guides parent and child logic, make sure nodes are being tidied up~~
 * ~~Add custom aim targets~~
-* Tidy code to be more organised
 * Add support for aim with X, Y or Z
 * ~~Refactor to build on from Maya joints to allow for hierarchy and pivot movement~~
 * ~~Atm guide hierarchy are properties, returning string of parent or children. Revert this back to guide objects~~
 * Write axis swap logic (to chang from pointing down X to Y, Z)
+
+## Connector model
+* ~~Write reinit for connector class~~
 
 ## Core
 * Write logging tool
