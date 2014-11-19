@@ -279,7 +279,6 @@ class Connector(Node):
 
         enums = cmds.attributeQuery('aimAt', node=self.parent.joint, listEnum=True)[0].split(':')
         enum_index = enums.index(self.child.aim)
-
         condition = cmds.createNode('condition', name=libName.set_suffix(self.name, 'cond'))
         cmds.setAttr('%s.secondTerm' % condition, enum_index)
         cmds.setAttr('%s.colorIfTrueR' % condition, 1)
@@ -327,29 +326,18 @@ class Connector(Node):
         if not self.nodes:
             return self
 
-        try:
-            cmds.delete(self.nodes)
+        cmds.delete(self.nodes)
 
-            self.top_node = None
-            self.__dashed_transform = None
-            self.__solid_transform = None
-            self.lattice_handle = None
-            self.lattice_base = None
-            self.start = None
-            self.end = None
-            self.state_node = None
-
-        except Exception as e:
-            print e
+        self.top_node = None
+        self.__dashed_transform = None
+        self.__solid_transform = None
+        self.lattice_handle = None
+        self.lattice_base = None
+        self.start = None
+        self.end = None
+        self.state_node = None
 
         return Connector(self.parent, self.child)
-
-    # def remove_child(self):
-    #     pass
-
-    # def remove_end(self):
-    #     pass
-
 
 
     def reinit(self):
@@ -378,15 +366,23 @@ class Connector(Node):
         targets = cmds.aimConstraint(self.parent.constraint, q=True, tl=True)
         index = targets.index(self.child.aim)
 
-        try:
-            condition = cmds.listConnections('%s.%s' % (self.parent.constraint, aliases[index]),
-                                             type='condition',
-                                             source=True,
-                                             destination=False)[0]
-        except Exception as e:
-            print e
-            print 'tried to find', aliases[index], 'in', self.parent.constraint
-            print 1/0
+        condition = cmds.listConnections('%s.%s' % (self.parent.constraint, aliases[index]),
+                                         type='condition',
+                                         source=True,
+                                         destination=False)[0]
+
+        # aim_aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+        # cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
+
+        # enums = cmds.attributeQuery('aimAt', node=self.parent.joint, listEnum=True)[0].split(':')
+        # enum_index = enums.index(self.child.aim)
+
+        # condition = cmds.createNode('condition', name=libName.set_suffix(self.name, 'cond'))
+
+        # condition = cmds.listConnections('%s.%s' % (self.parent.constraint, aliases[index]),
+        #                                  type='condition',
+        #                                  source=True,
+        #                                  destination=False)[0]
 
         # print '-'*40
         # print 'self.top_node', self.top_node
@@ -422,7 +418,6 @@ class Connector(Node):
         _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
         if cmds.ls(_top_node):
             return self.reinit()
-
 
         self.__create_top_node()
         self.__create_geometry()

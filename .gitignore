@@ -1,4 +1,5 @@
 *.pyc
 .mayaSwatches
-.psd
+*.psd
 .DS_STORE
+pylib/crefor/tests/
