@@ -1,6 +1,5 @@
 # IMPORTANT
-* Tidy code to be more organised
-* Write unit tests!!!!!!!!!!
+* Just added 4 dashed/solid transforms for easier axis recognition in connectors. its unfinished!!
 
 ## Guide model
 * Write more docstrings

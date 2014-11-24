@@ -19,19 +19,25 @@ def get_rgb_from_position(position):
         color = (0, 0, 0)
     return color
 
+def get_shader(name):
+    '''
+    '''
 
+    if cmds.objExists(name):
+        return name, cmds.listConnections(name, type='shadingEngine')[0]
+    return None
 
 def get_or_create_shader(name, shader_type):
     '''
     '''
 
     if cmds.objExists(name):
-        if cmds.nodeType(name) == shader_type:
-            return name, cmds.listConnections(name, type='shadingEngine')[0]
+        shader, sg = get_shader(name)
+        if cmds.nodeType(shader) == shader_type:
+            return shader, sg
         else:
-            if cmds.objExists(name):
-                raise NameError('Name already exists: %s (%s)' % (name),
-                                                                  cmds.nodeType(name))
+            raise NameError('Name already exists: %s (%s)' % (name),
+                                                              cmds.nodeType(name))
     else:
         return create_shader(name, shader_type)
 

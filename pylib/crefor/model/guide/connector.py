@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 '''
@@ -29,20 +30,22 @@ class Connector(Node):
         self.start_cl = None
         self.end_cl = None
 
-        self.__dashed_transform = None
-        self.__dashed_shapes = []
-        self.__solid_transform = None
-        self.__solid_shapes = []
-
         self.state_node = None
+
+        self.__geometry = {}
 
         self.shaders = {}
         self.nodes = []
 
         self.axis = self.DEFAULT_AXIS
 
+    def exists(self):
+        '''Does connector exist'''
+        return cmds.objExists(self.name)
+
     def set_scale(self, value):
-        if self.start and self.end:
+        '''Scale start and end clusters'''
+        if self.exists():
             cmds.setAttr('%s.scale' % self.start, *(value, value, value), type='float3')
             cmds.setAttr('%s.scale' % self.end, *(value, value, value), type='float3')
 
@@ -50,30 +53,34 @@ class Connector(Node):
         '''
         '''
 
-        if self.transform:
-            if isinstance(axis, basestring):
-                axis = axis.upper()
+        if self.exists():
 
+            axis = str(axis).upper()
             if axis == 'X':
                 sg = self.shaders['X']['sg']
+                cmds.sets(self.__get_shapes("X", "solid"), edit=True, forceElement=sg)
+                cmds.sets(self.__get_shapes("X", "dashed"), edit=True, forceElement=sg)
             elif axis == 'Y':
                 sg = self.shaders['Y']['sg']
+                cmds.sets(self.__get_shapes("Y", "solid"), edit=True, forceElement=sg)
+                cmds.sets(self.__get_shapes("Y", "dashed"), edit=True, forceElement=sg)
             elif axis == 'Z':
                 sg = self.shaders['Z']['sg']
+                cmds.sets(self.__get_shapes("Z", "solid"), edit=True, forceElement=sg)
+                cmds.sets(self.__get_shapes("Z", "dashed"), edit=True, forceElement=sg)
             else:
                 sg = self.shaders['N']['sg']
-
-            # Add to geometry
-            cmds.sets(self.__dashed_shapes, edit=True, forceElement=sg)
-            cmds.sets(self.__solid_shapes, edit=True, forceElement=sg)
+                cmds.sets(self.__get_shapes("N", "solid"), edit=True, forceElement=sg)
+                cmds.sets(self.__get_shapes("N", "dashed"), edit=True, forceElement=sg)
 
     @property
     def transform(self):
         if cmds.objExists(self.top_node):
-            if cmds.getAttr('%s.visibility' % self.__solid_transform):
-                return self.__solid_transform
-            else:
-                return self.__dashed_transform
+            return None
+        #     if cmds.getAttr('%s.visibility' % self.__solid_transform):
+        #         return self.__solid_transform
+        #     else:
+        #         return self.__dashed_transform
         else:
             return None
 
@@ -131,27 +138,70 @@ class Connector(Node):
         '''
         '''
 
-        self.top_node = cmds.group(name=libName.set_suffix(self.name,
-                                                           '%sGrp' % self.SUFFIX),
-                                                           empty=True)
+        self.top_node = cmds.group(name=self.name,
+                                   empty=True)
         cmds.setAttr('%s.inheritsTransform' % self.top_node, False)
         cmds.parent(self.top_node, self.child.setup_node)
+
+    def __get_all_transforms(self):
+        transforms = []
+        for axis in self.__geometry:
+            for _type in self.__geometry[axis]:
+                transforms.append(self.__geometry[axis][_type])
+        return transforms
+
+    def __get_all_shapes(self):
+        shapes = []
+        for axis in self.__geometry:
+            for _type in self.__geometry[axis]:
+                shapes.extend(cmds.listRelatives(self.__geometry[axis][_type],
+                                                 children=True,
+                                                 type="mesh") or [])
+        return shapes
+
+    def __get_transform(self, axis, state):
+        return self.__geometry.get(axis, {}).get(state, None)
+
+    def __get_shapes(self, axis, state):
+        return cmds.listRelatives(self.__geometry.get(axis, {}).get(state, None),
+                                  children=True,
+                                  type="mesh") or []
 
     def __create_geometry(self):
         '''
         '''
 
+        geometry = {}
+
+        solidX, dashedX = self.__create_geometry_axis('X')
+        solidY, dashedY = self.__create_geometry_axis('Y')
+        solidZ, dashedZ = self.__create_geometry_axis('Z')
+        solidN, dashedN = self.__create_geometry_axis('N')
+
+        geometry["X"] = dict(solid=solidX, dashed=dashedX)
+        geometry["Y"] = dict(solid=solidY, dashed=dashedY)
+        geometry["Z"] = dict(solid=solidZ, dashed=dashedZ)
+        geometry["N"] = dict(solid=solidN, dashed=dashedN)
+
+        self.__geometry = geometry
+
+    def __create_geometry_axis(self, axis):
+        '''
+        '''
+
         # Create solid geometry
-        self.__solid_transform = cmds.polyCylinder(name=libName.append_description(self.name, 'solid'),
-                                                   r=self.RADIUS,
-                                                   h=1,
-                                                   sx=16,
-                                                   sz=0,
-                                                   ax=(0, 1, 0),
-                                                   rcp=0,
-                                                   cuv=3,
-                                                   ch=0)[0]
-        self.__solid_shapes = cmds.listRelatives(self.__solid_transform, type='mesh', children=True)
+        __solid_transform = cmds.polyCylinder(name=libName.set_suffix(libName.append_description(self.name,
+                                                                                                 'solid%s' % axis.upper()),
+                                                                                                 'cncGeo'),
+                                              r=self.RADIUS,
+                                              h=1,
+                                              sx=16,
+                                              sz=0,
+                                              ax=(0, 1, 0),
+                                              rcp=0,
+                                              cuv=3,
+                                              ch=0)[0]
+        # __solid_shapes = cmds.listRelatives(__solid_transform, type='mesh', children=True)
 
         # Create dashed geometry
         pieces = []
@@ -168,23 +218,28 @@ class Connector(Node):
             pieces.append(piece)
             cmds.move(((1.0/((self.DASHED_COUNT*2)+1))*index)+offset, piece, y=True)
 
-        self.__dashed_transform = cmds.polyUnite(pieces, ch=False, name=libName.append_description(self.name, 'dashed'))[0]
-        self.__dashed_shapes = cmds.listRelatives(self.__dashed_transform, type='mesh', children=True)
+        __dashed_transform = cmds.polyUnite(pieces,
+                                                 ch=False,
+                                                 name=libName.set_suffix(libName.append_description(self.name,
+                                                                                                    'dashed%s' % axis.upper()),
+                                                                                                    'cncGeo'))[0]
+        # __dashed_shapes = cmds.listRelatives(__dashed_transform, type='mesh', children=True)
 
-        cmds.xform(self.__dashed_transform, cp=True)
-        cmds.move(-0.5, self.__dashed_transform, y=True)
+        cmds.xform(__dashed_transform, cp=True)
+        cmds.move(-0.5, __dashed_transform, y=True)
 
-        # Tidy up
-        
-
+        return (__solid_transform, __dashed_transform)
 
     def __create_deformers(self):
         '''
         Lattice and clusters
         '''
 
+        transforms = self.__get_all_transforms()
+        shaoes = self.__get_all_shapes()
+
         # Create lattice
-        lattice, lattice_handle, lattice_base = cmds.lattice([self.__solid_transform, self.__dashed_transform],
+        lattice, lattice_handle, lattice_base = cmds.lattice(transforms,
                                                               divisions=(2, 2, 2),
                                                               objectCentered=True,
                                                               ldv=(2, 2, 2),
@@ -237,27 +292,27 @@ class Connector(Node):
         cmds.pointConstraint(self.child.joint, self.end_grp, mo=False)
 
         # Tidy up
-        cmds.parent([self.__dashed_transform,
-                     self.__solid_transform,
-                     self.lattice_handle,
+        cmds.parent(transforms, self.top_node)
+        cmds.parent([self.lattice_handle,
                      self.lattice_base,
                      self.start_grp,
                      self.end_grp], self.top_node)
 
         self.nodes = [self.top_node,
-                      self.__dashed_transform,
-                      self.__solid_transform,
                       self.lattice_handle,
                       self.lattice_base,
                       self.start,
                       self.end,
                       self.state_node]
 
-        
+        self.nodes.extend(transforms)
 
     def __create_nodes(self):
         '''
         '''
+
+        print 'geo'
+        print self.__geometry
 
         # Create visibility network
         self.state_node = cmds.createNode('reverse', name=libName.set_suffix(libName.append_description(self.name, 'state'), 'rev'))
@@ -270,8 +325,9 @@ class Connector(Node):
         for attr in ['inputX', 'inputY', 'inputZ']:
             cmds.setAttr('%s.%s' % (self.state_node, attr), k=False)
 
-        cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__solid_transform)
-        cmds.connectAttr('%s.outputX' % self.state_node, '%s.visibility' % self.__dashed_transform)
+        for axis in ["X", "Y", "Z", "N"]:
+            cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__get_transform(axis, "solid"))
+            cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__get_transform(axis, "dashed"))
 
         aliases = cmds.aimConstraint(self.parent.constraint, q=True, wal=True)
         targets = cmds.aimConstraint(self.parent.constraint, q=True, tl=True)
@@ -289,6 +345,14 @@ class Connector(Node):
 
         cmds.connectAttr('%s.outColorR' % condition, '%s.display' % self.state_node)
         cmds.setAttr('%s.aimAt' % self.parent.joint, len(enums)-1)
+
+        # aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+        for alias in aliases:
+            if not cmds.listConnections('%s.%s' % (self.parent.constraint, alias),
+                                        source=True,
+                                        destination=False,
+                                        plugs=True):
+                cmds.setAttr('%s.%s' % (self.parent.constraint, alias), 0)
 
     def __create_shader(self):
         '''
@@ -310,16 +374,11 @@ class Connector(Node):
             cmds.setAttr('%s.incandescence' % shader, *rgb, type='float3')
             cmds.setAttr('%s.diffuse' % shader, 0)
 
-        self.set_axis(self.DEFAULT_AXIS)
+        for axis in ["X", "Y", "Z", "N"]:
+            self.set_axis(axis)
 
     def __create_attribtues(self):
         pass
-
-    def exists(self):
-        '''
-        '''
-
-        return cmds.objExists(self.top_node)
 
     def remove(self):
 
@@ -343,14 +402,22 @@ class Connector(Node):
     def reinit(self):
         '''
         '''
+        print 'reinit'
+        # _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
+        # if not cmds.ls(_top_node):
+        #     return None
+        if not self.exists():
+            return self
 
-        _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
-        if not cmds.ls(_top_node):
-            return None
+        self.top_node = cmds.ls(self.name)[0]
+        # self.__dashed_transform = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed'), 'nrb'))[0]
+        # self.__solid_transform = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid'), 'nrb'))[0]
+        # self.__dashed_shapes = cmds.listRelatives(self.__dashed_transform, children=True, type="mesh")
+        # self.__solid_shapes = cmds.listRelatives(self.__solid_transform, children=True, type="mesh")
+        solidX = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid%s' % axis.upper()), 'cncGeo'))[0]
+        dashedX = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed%s' % axis.upper()), 'cncGeo'))[0]
+        self.__geometry["X"] = dict(solid=solidX, dashed=dashedX)
 
-        self.top_node = cmds.ls(libName.set_suffix(self.name, '%sGrp' % self.SUFFIX))[0]
-        self.__dashed_transform = cmds.ls(libName.append_description(self.name, 'dashed'))[0]
-        self.__solid_transform = cmds.ls(libName.append_description(self.name, 'solid'))[0]
         self.start = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))[0]
         self.start_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))[0]
         self.end = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))[0]
@@ -370,6 +437,16 @@ class Connector(Node):
                                          type='condition',
                                          source=True,
                                          destination=False)[0]
+
+        red, red_sg = libShader.get_shader(libName.create_name('C', 'red', 0, 'shd'))
+        green, green_sg = libShader.get_shader(libName.create_name('C', 'green', 0, 'shd'))
+        blue, blue_sg = libShader.get_shader(libName.create_name('C', 'blue', 0, 'shd'))
+        none, none_sg = libShader.get_shader(libName.create_name('C', 'none', 0, 'shd'))
+
+        self.shaders['X'] = dict(shader=red, sg = red_sg)
+        self.shaders['Y'] = dict(shader=green, sg = green_sg)
+        self.shaders['Z'] = dict(shader=blue, sg = blue_sg)
+        self.shaders['N'] = dict(shader=none, sg = none_sg)
 
         # aim_aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
         # cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
@@ -414,9 +491,8 @@ class Connector(Node):
     def create(self):
         '''
         '''
-
-        _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
-        if cmds.ls(_top_node):
+        print 'c'
+        if self.exists():
             return self.reinit()
 
         self.__create_top_node()

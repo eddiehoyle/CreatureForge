@@ -38,11 +38,10 @@ class Guide(Node):
         self.constraint = None
         self.orient = None
 
-        # self.connectors = {}
-        self.trash = []
+        self.__trash = []
 
     def exists(self):
-        '''Does the guide exist in Maya'''
+        '''Does the guide exist in Maya?'''
         return cmds.objExists(self.name)
 
     @property
@@ -131,17 +130,17 @@ class Guide(Node):
         return False
 
     def set_parent(self, guide):
-        '''Set parent to be guide'''
-
+        '''Set guide to be parent of self'''
+        print 'f'
         # Try to parent to itself
         if self.name == guide.name:
             log.warning("Cannot parent '%s' to itself" % self.joint)
             return None
 
         # Is guide already parent
-        # if self.parent and self.parent.name == guide.name:
-        #     log.debug("'%s' is already a parent of '%s'" % (guide.joint, self.joint))
-        #     return self.parent
+        if self.parent and self.parent.name == guide.name:
+            log.debug("'%s' is already a parent of '%s'" % (guide.joint, self.joint))
+            return self.parent
 
         # Is guide below self in hierarchy
         if guide.has_parent(self):
@@ -165,7 +164,6 @@ class Guide(Node):
             return None
 
         # Guide is already a child of self
-        # if guide.name in self.children:
         if self.has_child(guide):
             log.info("'%s' is already a child of '%s'" % (guide.joint, self.joint))
             return self.children[guide.name]
@@ -184,13 +182,11 @@ class Guide(Node):
 
     def add_aim(self, guide):
         '''
-        self aims at guide
-        self --> guide
-
-        self is always parent
-        guide is always child
+        Create a new child aim relationship between self and guide.
+        Guide is considered to be the child of self. Any constraint
+        and attribute updates are added to self, as well as the connector.
         '''
-
+        print 'aim'
         # Already has child connector?
         if guide.name in self.connectors:
             return self.connectors[guide.name]
@@ -202,21 +198,19 @@ class Guide(Node):
                            upVector=(0, 1, 0),
                            mo=False)
 
+        # Edit aim attribute on joint to include new child
         enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
         enums.append(guide.aim)
         cmds.addAttr('%s.aimAt' % self.joint, e=True, en=':'.join(enums))
 
+        # Create connector
         con = Connector(self, guide)
         con.create()
 
-        cmds.parent(guide.joint, self.joint, a=True)
+        # Turn off all im
 
-        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
-        for alias in aliases:
-            if not cmds.listConnections('%s.%s' % (self.constraint, alias), source=True,
-                                                                              destination=False,
-                                                                              plugs=True):
-                cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
+        # Parent new guide under self
+        cmds.parent(guide.joint, self.joint, a=True)
 
         return guide
 
@@ -330,7 +324,7 @@ class Guide(Node):
 
         # Tidy up
         cmds.parent([self.up, self.aim], self.setup_node)
-        self.trash.extend([_cube, _sphere])
+        self.__trash.extend([_cube, _sphere])
 
     def create_attribtues(self):
 
@@ -380,18 +374,19 @@ class Guide(Node):
         '''Delete trash nodes'''
 
         try:
-            cmds.delete(self.trash)
+            cmds.delete(self.__trash)
         except Exception:
             pass
 
-        self.trash = []
+        self.__trash = []
 
     def reinit(self):
         '''
         '''
+        print 'reinit'
 
         if not cmds.objExists(self.name):
-            log.info('Cannot reinit \'%s\' as guide does not exist.' % self.name)
+            print('Cannot reinit \'%s\' as guide does not exist.' % self.name)
             return None
 
         self.joint = cmds.ls(self.name)[0]
