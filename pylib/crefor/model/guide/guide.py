@@ -5,6 +5,7 @@
 
 import re
 from maya import cmds
+from collections import OrderedDict
 from crefor.lib import libName, libAttr, libShader
 from crefor.model import Node
 from crefor.model.guide.connector import Connector
@@ -19,6 +20,27 @@ class Guide(Node):
     RADIUS = 1.0
     DEFAULT_AIMS = ['world', 'local']
     UP_SCALE_VALUE = RADIUS/3.3
+
+    # AIM_ORDER = ["XY", "XZ",
+    #              "YX", "YZ",
+    #              "ZX", "ZY"]
+
+    # __order = ["XY", "XZ",
+    #            "YX", "YZ",
+    #            "ZX", "ZY"]
+    AIM_ORDER = OrderedDict([("XY", (0, 0, 0)),
+                             ("XZ", (-90, 0, 0)),
+                             ("YX", (0, -180, -90)),
+                             ("YZ", (0, -90, -90)),
+                             ("ZX", (-90, 180, -90)),
+                             ("ZY", (-90, 90, -90))])
+
+    # AIM_ORDER = OrderedDict({"XY": (0, 0, 0),
+    #                            "XZ": (-90, 0, 0),
+    #                            "YX": (0, -180, -90),
+    #                            "YZ": (0, -90, -90),
+    #                            "ZX": (-90, 180, -90),
+    #                            "ZY": (-90, 90, -90)})
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
@@ -193,7 +215,6 @@ class Guide(Node):
 
         cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up,
                            worldUpType='object',
-                           offset=(0, 0, 0),
                            aimVector=(1, 0, 0),
                            upVector=(0, 1, 0),
                            mo=False)
@@ -279,7 +300,7 @@ class Guide(Node):
     def get_child(self, name):
         return self.children.get(name, None)
 
-    def create_nodes(self):
+    def __create_nodes(self):
         
         # Create joint and parent sphere under
         # cmds.select(cl=True)
@@ -322,18 +343,26 @@ class Guide(Node):
         cmds.setAttr('%s.aimAt' % self.joint, k=False)
         cmds.setAttr('%s.aimAt' % self.joint, cb=True)
 
+        # cmds.addAttr(self.joint, ln='aimAxis', at='enum', en="X:Y:Z")
+        # cmds.setAttr('%s.aimAxis' % self.joint, k=False)
+        # cmds.setAttr('%s.aimAxis' % self.joint, cb=True)
+
+        cmds.addAttr(self.joint, ln='aimOrder', at='enum', en=":".join(self.AIM_ORDER.keys()))
+        cmds.setAttr('%s.aimOrder' % self.joint, k=False)
+        cmds.setAttr('%s.aimOrder' % self.joint, cb=True)
+
         # Tidy up
         cmds.parent([self.up, self.aim], self.setup_node)
         self.__trash.extend([_cube, _sphere])
 
-    def create_attribtues(self):
+    def __create_attribtues(self):
 
         cmds.addAttr(self.joint, ln='debug', at='bool', min=0, max=1, dv=0)
         cmds.setAttr('%s.debug' % self.joint, k=False)
         cmds.setAttr('%s.debug' % self.joint, cb=True)
         cmds.connectAttr('%s.debug' % self.joint, '%s.displayLocalAxis' % self.aim)
 
-    def create_aim(self):
+    def __create_aim(self):
         '''
         '''
 
@@ -359,7 +388,22 @@ class Guide(Node):
         aim_aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
         cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
 
-    def create_shader(self):
+        # Create custom aim constraint offsets
+        aim_order_pma = cmds.createNode("plusMinusAverage", name="pma")
+        cmds.connectAttr("%s.output3D" % aim_order_pma, "%s.offset" % self.constraint)
+
+        for pair_index, pair in enumerate(self.AIM_ORDER.keys()):
+            pair_cond = cmds.createNode("condition")
+            cmds.connectAttr("%s.aimOrder" % self.joint, "%s.firstTerm" % pair_cond)
+            cmds.setAttr("%s.secondTerm" % pair_cond, pair_index)
+
+            cmds.setAttr("%s.colorIfTrue" % pair_cond, *self.AIM_ORDER[pair], type="float3")
+            cmds.setAttr("%s.colorIfFalse" % pair_cond, *(0, 0, 0), type="float3")
+
+            cmds.connectAttr("%s.outColor" % pair_cond, "%s.input3D[%s]" % (aim_order_pma, pair_index))
+
+
+    def __create_shader(self):
 
         self.shader, self.sg = libShader.get_or_create_shader(libName.set_suffix(self.name, 'shd'), 'lambert')
         cmds.sets(self.shapes, edit=True, forceElement=self.sg)
@@ -370,7 +414,7 @@ class Guide(Node):
         cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.diffuse' % self.shader, 0)
 
-    def cleanup(self):
+    def __cleanup(self):
         '''Delete trash nodes'''
 
         try:
@@ -410,11 +454,11 @@ class Guide(Node):
         if cmds.objExists(self.name):
             return self.reinit()
 
-        self.create_nodes()
-        self.create_attribtues()
-        self.create_aim()
-        self.create_shader()
-        self.cleanup()
+        self.__create_nodes()
+        self.__create_attribtues()
+        self.__create_aim()
+        self.__create_shader()
+        self.__cleanup()
 
         cmds.select(cl=True)
 

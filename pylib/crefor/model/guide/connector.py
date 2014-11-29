@@ -13,7 +13,7 @@ class Connector(Node):
 
     SUFFIX = 'cnc'
     RADIUS = 0.4
-    DASHED_COUNT = 5
+    DASHED_COUNT = 3
     DEFAULT_AXIS = 'X'
     CLUSTER_OFFSET = 1.0
 
@@ -146,8 +146,9 @@ class Connector(Node):
     def __get_all_transforms(self):
         transforms = []
         for axis in self.__geometry:
-            for _type in self.__geometry[axis]:
-                transforms.append(self.__geometry[axis][_type])
+                solid = self.__get_transform(axis, "solid")
+                dashed = self.__get_transform(axis, "dashed")
+                transforms.extend([solid, dashed])
         return transforms
 
     def __get_all_shapes(self):
@@ -167,21 +168,27 @@ class Connector(Node):
                                   children=True,
                                   type="mesh") or []
 
+    def __get_grp(self, axis):
+        return self.__geometry.get(axis, {}).get("grp", None)
+
+    def __get_all_grps(self):
+        return [self.__get_grp(axis) for axis in ["X", "Y", "Z", "N"]]
+
     def __create_geometry(self):
         '''
         '''
 
         geometry = {}
 
-        solidX, dashedX = self.__create_geometry_axis('X')
-        solidY, dashedY = self.__create_geometry_axis('Y')
-        solidZ, dashedZ = self.__create_geometry_axis('Z')
-        solidN, dashedN = self.__create_geometry_axis('N')
+        grpX, solidX, dashedX = self.__create_geometry_axis('X')
+        grpY, solidY, dashedY = self.__create_geometry_axis('Y')
+        grpZ, solidZ, dashedZ = self.__create_geometry_axis('Z')
+        grpN, solidN, dashedN = self.__create_geometry_axis('N')
 
-        geometry["X"] = dict(solid=solidX, dashed=dashedX)
-        geometry["Y"] = dict(solid=solidY, dashed=dashedY)
-        geometry["Z"] = dict(solid=solidZ, dashed=dashedZ)
-        geometry["N"] = dict(solid=solidN, dashed=dashedN)
+        geometry["X"] = dict(solid=solidX, dashed=dashedX, grp=grpX)
+        geometry["Y"] = dict(solid=solidY, dashed=dashedY, grp=grpY)
+        geometry["Z"] = dict(solid=solidZ, dashed=dashedZ, grp=grpZ)
+        geometry["N"] = dict(solid=solidN, dashed=dashedN, grp=grpN)
 
         self.__geometry = geometry
 
@@ -190,7 +197,7 @@ class Connector(Node):
         '''
 
         # Create solid geometry
-        __solid_transform = cmds.polyCylinder(name=libName.set_suffix(libName.append_description(self.name,
+        solid = cmds.polyCylinder(name=libName.set_suffix(libName.append_description(self.name,
                                                                                                  'solid%s' % axis.upper()),
                                                                                                  'cncGeo'),
                                               r=self.RADIUS,
@@ -201,7 +208,6 @@ class Connector(Node):
                                               rcp=0,
                                               cuv=3,
                                               ch=0)[0]
-        # __solid_shapes = cmds.listRelatives(__solid_transform, type='mesh', children=True)
 
         # Create dashed geometry
         pieces = []
@@ -218,17 +224,20 @@ class Connector(Node):
             pieces.append(piece)
             cmds.move(((1.0/((self.DASHED_COUNT*2)+1))*index)+offset, piece, y=True)
 
-        __dashed_transform = cmds.polyUnite(pieces,
-                                                 ch=False,
-                                                 name=libName.set_suffix(libName.append_description(self.name,
-                                                                                                    'dashed%s' % axis.upper()),
-                                                                                                    'cncGeo'))[0]
-        # __dashed_shapes = cmds.listRelatives(__dashed_transform, type='mesh', children=True)
+        dashed = cmds.polyUnite(pieces,
+                                ch=False,
+                                name=libName.set_suffix(libName.append_description(self.name,
+                                                                                   'dashed%s' % axis.upper()),
+                                                                                   'cncGeo'))[0]
 
-        cmds.xform(__dashed_transform, cp=True)
-        cmds.move(-0.5, __dashed_transform, y=True)
+        cmds.xform(dashed, cp=True)
+        cmds.move(-0.5, dashed, y=True)
 
-        return (__solid_transform, __dashed_transform)
+        grp = cmds.group([solid, dashed], name=libName.set_suffix(libName.append_description(self.name,
+                                                                                             'connector%s' % axis.upper()),
+                                                                                             'grp'))
+
+        return (grp, solid, dashed)
 
     def __create_deformers(self):
         '''
@@ -236,14 +245,13 @@ class Connector(Node):
         '''
 
         transforms = self.__get_all_transforms()
-        shaoes = self.__get_all_shapes()
 
         # Create lattice
         lattice, lattice_handle, lattice_base = cmds.lattice(transforms,
-                                                              divisions=(2, 2, 2),
-                                                              objectCentered=True,
-                                                              ldv=(2, 2, 2),
-                                                              ol=True)
+                                                             divisions=(2, 2, 2),
+                                                             objectCentered=True,
+                                                             ldv=(2, 2, 2),
+                                                             ol=True)
 
         self.lattice = cmds.rename(lattice, libName.set_suffix(self.name, 'ltc'))
         self.lattice_handle = cmds.rename(lattice_handle, libName.set_suffix(self.name, 'lth'))
@@ -292,7 +300,8 @@ class Connector(Node):
         cmds.pointConstraint(self.child.joint, self.end_grp, mo=False)
 
         # Tidy up
-        cmds.parent(transforms, self.top_node)
+        # cmds.parent(transforms, self.top_node)
+        cmds.parent(self.__get_all_grps(), self.top_node)
         cmds.parent([self.lattice_handle,
                      self.lattice_base,
                      self.start_grp,
@@ -302,8 +311,7 @@ class Connector(Node):
                       self.lattice_handle,
                       self.lattice_base,
                       self.start,
-                      self.end,
-                      self.state_node]
+                      self.end]
 
         self.nodes.extend(transforms)
 
@@ -311,23 +319,17 @@ class Connector(Node):
         '''
         '''
 
-        print 'geo'
-        print self.__geometry
-
         # Create visibility network
-        self.state_node = cmds.createNode('reverse', name=libName.set_suffix(libName.append_description(self.name, 'state'), 'rev'))
+        # self.state_node = cmds.createNode('reverse', name=libName.set_suffix(libName.append_description(self.name, 'state'), 'rev'))
 
-        cmds.addAttr(self.state_node, ln='display', at='enum', en='dashed:solid', dv=0)
-        cmds.setAttr('%s.display' % self.state_node, k=False)
-        cmds.setAttr('%s.display' % self.state_node, cb=True)
-        cmds.connectAttr('%s.display' % self.state_node, '%s.inputX' % self.state_node)
+        # cmds.addAttr(self.state_node, ln='display', at='enum', en='dashed:solid', dv=0)
+        # cmds.setAttr('%s.display' % self.state_node, k=False)
+        # cmds.setAttr('%s.display' % self.state_node, cb=True)
+        # cmds.connectAttr('%s.display' % self.state_node, '%s.inputX' % self.state_node)
 
-        for attr in ['inputX', 'inputY', 'inputZ']:
-            cmds.setAttr('%s.%s' % (self.state_node, attr), k=False)
+        # for attr in ['inputX', 'inputY', 'inputZ']:
+        #     cmds.setAttr('%s.%s' % (self.state_node, attr), k=False)
 
-        for axis in ["X", "Y", "Z", "N"]:
-            cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__get_transform(axis, "solid"))
-            cmds.connectAttr('%s.display' % self.state_node, '%s.visibility' % self.__get_transform(axis, "dashed"))
 
         aliases = cmds.aimConstraint(self.parent.constraint, q=True, wal=True)
         targets = cmds.aimConstraint(self.parent.constraint, q=True, tl=True)
@@ -343,10 +345,97 @@ class Connector(Node):
         cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.parent.constraint, aliases[index]))
         self.nodes.append(condition)
 
-        cmds.connectAttr('%s.outColorR' % condition, '%s.display' % self.state_node)
+        # cmds.connectAttr('%s.outColorR' % condition, '%s.display' % self.state_node)
         cmds.setAttr('%s.aimAt' % self.parent.joint, len(enums)-1)
 
-        # aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+
+        for axis_index, axis in enumerate(["X", "Y", "Z"]):
+
+            axis_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axis%s' % axis), 'con'))
+            cmds.connectAttr("%s.aimOrder" % self.parent.joint, "%s.firstTerm" % axis_cond)
+
+            '''
+            0, 1, 2
+            needs to be
+            0, 1, 2, 3, 4, 5
+
+            pairs
+            0, 1
+            2, 3
+            4, 5
+
+            operation must be equals
+            con 0 xy
+            True 1
+            False 0
+
+            con 0 xz
+            True 0
+            False 1
+
+
+            '''
+
+            axis_index = (axis_index * 2)
+
+            # Deteremine axis index
+            # axis_index = axis_index if not axis_index % 2 else axis_index - 1
+            print "axis", axis,axis_index
+            cmds.setAttr("%s.secondTerm" % axis_cond, axis_index  + 1)
+            cmds.setAttr("%s.colorIfTrueR" % axis_cond, 1)
+            cmds.setAttr("%s.colorIfFalseR" % axis_cond, 0)
+
+            other_con = cmds.createNode("condition")
+            cmds.connectAttr("%s.aimOrder" % self.parent.joint, "%s.firstTerm" % other_con)
+            cmds.setAttr("%s.secondTerm" % other_con, axis_index)
+            cmds.setAttr("%s.colorIfTrueR" % other_con, 1)
+            cmds.setAttr("%s.colorIfFalseR" % other_con, 0)
+            cmds.connectAttr("%s.outColorR" % other_con, "%s.colorIfFalseR" % axis_cond)
+            cmds.connectAttr("%s.aimAt" % self.parent.joint, "%s.colorIfTrueR" % other_con)
+
+            grp = self.__get_grp(axis)
+            cmds.connectAttr("%s.outColorR" % axis_cond, "%s.visibility" % grp)
+
+            # Determine solid or dashed
+            state_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'con'))
+            cmds.connectAttr("%s.aimAt" % self.parent.joint, "%s.firstTerm" % state_cond)
+            cmds.setAttr("%s.secondTerm" % state_cond, enum_index)
+            cmds.setAttr("%s.colorIfTrueR" % state_cond, 1)
+            cmds.setAttr("%s.colorIfFalseR" % state_cond, 0)
+
+            state_rev = cmds.createNode("reverse", name=libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'rev'))
+
+            solid = self.__get_transform(axis, "solid")
+            dashed = self.__get_transform(axis, "dashed")
+            cmds.connectAttr("%s.outColorR" % state_cond, "%s.inputX" % state_rev)
+            cmds.connectAttr("%s.outputX" % state_rev, "%s.visibility" % dashed)
+            cmds.connectAttr("%s.outColorR" % state_cond, "%s.visibility" % solid)
+
+            cmds.connectAttr("%s.aimAt" % self.parent.joint, "%s.colorIfTrueR" % axis_cond)
+
+        # N axis
+        axis = "N"
+        n_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axis%s' % axis), 'con'))
+        cmds.connectAttr("%s.aimAt" % self.parent.joint, "%s.firstTerm" % n_cond)
+        cmds.setAttr("%s.secondTerm" % n_cond, 0)
+        cmds.setAttr("%s.colorIfTrueR" % n_cond, 1)
+        cmds.setAttr("%s.colorIfFalseR" % n_cond, 0)
+
+        grp = self.__get_grp(axis)
+        cmds.connectAttr("%s.outColorR" % n_cond, "%s.visibility" % grp)
+
+        # Determine solid or dashed
+        n_state_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'con'))
+        cmds.connectAttr("%s.aimAt" % self.parent.joint, "%s.firstTerm" % n_state_cond)
+        cmds.setAttr("%s.secondTerm" % n_state_cond, 0)
+        cmds.setAttr("%s.colorIfTrueR" % n_state_cond, 1)
+        cmds.setAttr("%s.colorIfFalseR" % n_state_cond, 0)
+
+        solid = self.__get_transform(axis, "solid")
+        dashed = self.__get_transform(axis, "dashed")
+        cmds.setAttr("%s.visibility" % solid, 0)
+        cmds.setAttr("%s.visibility" % dashed, 1)
+
         for alias in aliases:
             if not cmds.listConnections('%s.%s' % (self.parent.constraint, alias),
                                         source=True,
@@ -359,10 +448,10 @@ class Connector(Node):
         Get or create RGB or None shaders
         '''
 
-        red, red_sg = libShader.get_or_create_shader(libName.create_name('C', 'red', 0, 'shd'), 'lambert')
-        green, green_sg = libShader.get_or_create_shader(libName.create_name('C', 'green', 0, 'shd'), 'lambert')
-        blue, blue_sg = libShader.get_or_create_shader(libName.create_name('C', 'blue', 0, 'shd'), 'lambert')
-        none, none_sg = libShader.get_or_create_shader(libName.create_name('C', 'none', 0, 'shd'), 'lambert')
+        red, red_sg = libShader.get_or_create_shader(libName.create_name('N', 'red', 0, 'shd'), 'lambert')
+        green, green_sg = libShader.get_or_create_shader(libName.create_name('N', 'green', 0, 'shd'), 'lambert')
+        blue, blue_sg = libShader.get_or_create_shader(libName.create_name('N', 'blue', 0, 'shd'), 'lambert')
+        none, none_sg = libShader.get_or_create_shader(libName.create_name('N', 'none', 0, 'shd'), 'lambert')
 
         self.shaders['X'] = dict(shader=red, sg = red_sg)
         self.shaders['Y'] = dict(shader=green, sg = green_sg)
@@ -388,13 +477,10 @@ class Connector(Node):
         cmds.delete(self.nodes)
 
         self.top_node = None
-        self.__dashed_transform = None
-        self.__solid_transform = None
         self.lattice_handle = None
         self.lattice_base = None
         self.start = None
         self.end = None
-        self.state_node = None
 
         return Connector(self.parent, self.child)
 
@@ -402,6 +488,7 @@ class Connector(Node):
     def reinit(self):
         '''
         '''
+
         print 'reinit'
         # _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
         # if not cmds.ls(_top_node):
@@ -410,19 +497,16 @@ class Connector(Node):
             return self
 
         self.top_node = cmds.ls(self.name)[0]
-        # self.__dashed_transform = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed'), 'nrb'))[0]
-        # self.__solid_transform = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid'), 'nrb'))[0]
-        # self.__dashed_shapes = cmds.listRelatives(self.__dashed_transform, children=True, type="mesh")
-        # self.__solid_shapes = cmds.listRelatives(self.__solid_transform, children=True, type="mesh")
-        solidX = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid%s' % axis.upper()), 'cncGeo'))[0]
-        dashedX = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed%s' % axis.upper()), 'cncGeo'))[0]
-        self.__geometry["X"] = dict(solid=solidX, dashed=dashedX)
+        for axis in ["X", "Y", "Z", "N"]:
+            solidX = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid%s' % axis.upper()), 'cncGeo'))[0]
+            dashedX = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed%s' % axis.upper()), 'cncGeo'))[0]
+            self.__geometry[axis] = dict(solid=solidX, dashed=dashedX)
 
         self.start = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))[0]
         self.start_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))[0]
         self.end = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))[0]
         self.end_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))[0]
-        self.state_node = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state'), 'rev'))[0]
+        # self.state_node = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state'), 'rev'))[0]
         self.lattice_handle = cmds.ls(libName.set_suffix(self.name, 'lth'))[0]
         self.lattice_base = cmds.ls(libName.set_suffix(self.name, 'ltb'))[0]
 
@@ -438,10 +522,10 @@ class Connector(Node):
                                          source=True,
                                          destination=False)[0]
 
-        red, red_sg = libShader.get_shader(libName.create_name('C', 'red', 0, 'shd'))
-        green, green_sg = libShader.get_shader(libName.create_name('C', 'green', 0, 'shd'))
-        blue, blue_sg = libShader.get_shader(libName.create_name('C', 'blue', 0, 'shd'))
-        none, none_sg = libShader.get_shader(libName.create_name('C', 'none', 0, 'shd'))
+        red, red_sg = libShader.get_shader(libName.create_name('N', 'red', 0, 'shd'))
+        green, green_sg = libShader.get_shader(libName.create_name('N', 'green', 0, 'shd'))
+        blue, blue_sg = libShader.get_shader(libName.create_name('N', 'blue', 0, 'shd'))
+        none, none_sg = libShader.get_shader(libName.create_name('N', 'none', 0, 'shd'))
 
         self.shaders['X'] = dict(shader=red, sg = red_sg)
         self.shaders['Y'] = dict(shader=green, sg = green_sg)
@@ -475,15 +559,12 @@ class Connector(Node):
         # print '-'*40
 
         self.nodes = [self.top_node,
-                      self.__dashed_transform,
-                      self.__solid_transform,
                       self.lattice_handle,
                       self.lattice_base,
                       self.start,
                       self.end,
                       self.start_grp,
                       self.end_grp,
-                      self.state_node,
                       condition]
 
         return self

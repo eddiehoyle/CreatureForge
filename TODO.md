@@ -1,5 +1,8 @@
 # IMPORTANT
-* Just added 4 dashed/solid transforms for easier axis recognition in connectors. its unfinished!!
+* Get axis swap working with 4x geometry setup
+
+## Stretch goal
+* Rebuild connector model after messing it up so much
 
 ## Guide model
 * Write more docstrings
@@ -13,7 +16,7 @@
 * ~~Write re-init logic~~
 * ~~Stress test guides parent and child logic, make sure nodes are being tidied up~~
 * ~~Add custom aim targets~~
-* Add support for aim with X, Y or Z
+* ~~Add support for aim with X, Y or Z~~
 * ~~Refactor to build on from Maya joints to allow for hierarchy and pivot movement~~
 * ~~Atm guide hierarchy are properties, returning string of parent or children. Revert this back to guide objects~~
 * Write axis swap logic (to chang from pointing down X to Y, Z)
