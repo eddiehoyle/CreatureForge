@@ -1,13 +1,13 @@
 # IMPORTANT
-* Get axis swap working with 4x geometry setup
+* Tidy up guide and connector nodels after major refector
 
 ## Stretch goal
-* Rebuild connector model after messing it up so much
+* Create a name class that is much more easier and shorthand to work with
 
 ## Guide model
+* ~~Get axis swap working with 4x geometry setup~~
 * Write more docstrings
 * ~~Write reinit from string~~
-* Consider a shader swap setup to allow for XYZ axis swaps?
 * ~~Move aimConstraint to point at child aim transform, not guide~~
 * ~~Create condition node graph for aimConstraint~~
 * ~~Add up aim control shapes to be visible to user~~
@@ -19,10 +19,14 @@
 * ~~Add support for aim with X, Y or Z~~
 * ~~Refactor to build on from Maya joints to allow for hierarchy and pivot movement~~
 * ~~Atm guide hierarchy are properties, returning string of parent or children. Revert this back to guide objects~~
-* Write axis swap logic (to chang from pointing down X to Y, Z)
+* ~~Write axis swap logic (to chang from pointing down X to Y, Z)~~
+
+## Completed stretch
+* ~~Rebuild connector model after messing it up so much~~
 
 ## Connector model
-* ~~Write reinit for connector class~~
+* Write reinit for connector class
+* ~~Add NXYZ logic~~
 
 ## Core
 * Write logging tool

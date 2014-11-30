@@ -66,7 +66,7 @@ def set_suffix(name, position):
     data[3] = position
     return create_name(*data)
 
-def append_description(name, descrption):
+def append_description(name, description):
     data = _decompile(name)
-    data[1] = '%s%s' % (data[1], descrption.capitalize())
+    data[1] = '%s%s' % (data[1], "%s%s" % (description[0].upper(), description[1:]))
     return create_name(*data)

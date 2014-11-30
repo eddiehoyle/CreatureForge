@@ -3,7 +3,6 @@
 '''
 '''
 
-import re
 from maya import cmds
 from collections import OrderedDict
 from crefor.lib import libName, libAttr, libShader
@@ -21,26 +20,12 @@ class Guide(Node):
     DEFAULT_AIMS = ['world', 'local']
     UP_SCALE_VALUE = RADIUS/3.3
 
-    # AIM_ORDER = ["XY", "XZ",
-    #              "YX", "YZ",
-    #              "ZX", "ZY"]
-
-    # __order = ["XY", "XZ",
-    #            "YX", "YZ",
-    #            "ZX", "ZY"]
     AIM_ORDER = OrderedDict([("XY", (0, 0, 0)),
                              ("XZ", (-90, 0, 0)),
                              ("YX", (0, -180, -90)),
                              ("YZ", (0, -90, -90)),
                              ("ZX", (-90, 180, -90)),
                              ("ZY", (-90, 90, -90))])
-
-    # AIM_ORDER = OrderedDict({"XY": (0, 0, 0),
-    #                            "XZ": (-90, 0, 0),
-    #                            "YX": (0, -180, -90),
-    #                            "YZ": (0, -90, -90),
-    #                            "ZX": (-90, 180, -90),
-    #                            "ZY": (-90, 90, -90)})
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
@@ -61,10 +46,6 @@ class Guide(Node):
         self.orient = None
 
         self.__trash = []
-
-    def exists(self):
-        '''Does the guide exist in Maya?'''
-        return cmds.objExists(self.name)
 
     @property
     def short_name(self):
@@ -104,6 +85,10 @@ class Guide(Node):
         for _child in self.children.values():
             data[_child.name] = Connector(self, _child).reinit()
         return data
+
+    def exists(self):
+        '''Does the guide exist in Maya?'''
+        return cmds.objExists(self.name)
 
     def set_scale(self, value):
         '''Scale guide and related connectors'''
@@ -303,9 +288,11 @@ class Guide(Node):
     def __create_nodes(self):
         
         # Create joint and parent sphere under
-        # cmds.select(cl=True)
+        cmds.select(cl=True)
         self.joint = cmds.createNode('joint', name=self.name)
-        # cmds.select(cl=True)
+        cmds.setAttr("%s.radius" % self.joint, cb=False)
+        cmds.setAttr("%s.radius" % self.joint, l=True)
+        cmds.select(cl=True)
 
         _sphere = cmds.sphere(radius=self.RADIUS, ch=False)[0]
         self.shapes = cmds.listRelatives(_sphere, type='nurbsSurface', children=True)
@@ -315,9 +302,6 @@ class Guide(Node):
         # Setup node
         self.setup_node = cmds.group(name=libName.set_suffix(self.name, 'setup'), empty=True)
         cmds.pointConstraint(self.joint, self.setup_node, mo=False)
-
-        # for attr in ['parent', 'children', 'connectors']:
-        #     cmds.addAttr(self.setup_node, ln=attr, dt='string')
 
         # Create up transform
         self.up = cmds.group(name=libName.set_suffix(self.name, 'up'), empty=True)
@@ -342,10 +326,6 @@ class Guide(Node):
         cmds.addAttr(self.joint, ln='aimAt', at='enum', en='local')
         cmds.setAttr('%s.aimAt' % self.joint, k=False)
         cmds.setAttr('%s.aimAt' % self.joint, cb=True)
-
-        # cmds.addAttr(self.joint, ln='aimAxis', at='enum', en="X:Y:Z")
-        # cmds.setAttr('%s.aimAxis' % self.joint, k=False)
-        # cmds.setAttr('%s.aimAxis' % self.joint, cb=True)
 
         cmds.addAttr(self.joint, ln='aimOrder', at='enum', en=":".join(self.AIM_ORDER.keys()))
         cmds.setAttr('%s.aimOrder' % self.joint, k=False)
