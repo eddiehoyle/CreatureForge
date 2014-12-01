@@ -38,7 +38,7 @@ class Connector(Node):
         self.__shaders = {}
 
         # Collection of nodes for re-init
-        self.nodes = []
+        self.__nodes = []
 
     @property
     def parent(self):
@@ -283,13 +283,13 @@ class Connector(Node):
                      self.end_grp], self.top_node)
 
         # # Define nodes
-        # self.nodes = [self.top_node,
+        # self.__nodes = [self.top_node,
         #               self.lattice_handle,
         #               self.lattice_base,
         #               self.start,
         #               self.end]
 
-        # self.nodes.extend(transforms)
+        # self.__nodes.extend(transforms)
 
     def __create_visibilty_network(self):
         """
@@ -307,15 +307,18 @@ class Connector(Node):
 
         # Create condition that turns on aim for child constraint if
         # enum index is set to match childs name
-        condition = cmds.createNode('condition', name=libName.set_suffix(self.name, 'cond'))
-        cmds.setAttr('%s.secondTerm' % condition, enum_index)
-        cmds.setAttr('%s.colorIfTrueR' % condition, 1)
-        cmds.setAttr('%s.colorIfFalseR' % condition, 0)
-        cmds.connectAttr('%s.aimAt' % self.__parent.joint, '%s.firstTerm' % condition)
-        cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.__parent.constraint, aliases[index]))
+        aim_cond = cmds.createNode('condition', name=libName.set_suffix(self.name, 'cond'))
+        cmds.setAttr('%s.secondTerm' % aim_cond, enum_index)
+        cmds.setAttr('%s.colorIfTrueR' % aim_cond, 1)
+        cmds.setAttr('%s.colorIfFalseR' % aim_cond, 0)
+        cmds.connectAttr('%s.aimAt' % self.__parent.joint, '%s.firstTerm' % aim_cond)
+        cmds.connectAttr('%s.outColorR' % aim_cond, '%s.%s' % (self.__parent.constraint, aliases[index]))
 
         # Set enum to match child aim
         cmds.setAttr('%s.aimAt' % self.__parent.joint, enum_index)
+
+        # Store
+        self.__nodes.append(aim_cond)
 
         # Loop through X, Y and Z axis to create vis network for
         # solid and dashed geometry state
@@ -326,22 +329,22 @@ class Connector(Node):
             grp = self.__get_grp(axis)
 
             # Condition that allows odd indexes to be visible
-            odd_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axis%s' % axis), 'con'))
-            cmds.connectAttr("%s.aimOrder" % self.__parent.joint, "%s.firstTerm" % odd_cond)
-            cmds.setAttr("%s.secondTerm" % odd_cond, axis_index  + 1)
-            cmds.setAttr("%s.colorIfTrueR" % odd_cond, 1)
-            cmds.setAttr("%s.colorIfFalseR" % odd_cond, 0)
-            cmds.connectAttr("%s.outColorR" % odd_cond, "%s.visibility" % grp)
-            cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.colorIfTrueR" % odd_cond)
-
-            # A secondary condition that allows odds to be visible
-            even_cond = cmds.createNode("condition")
+            even_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisEven%s' % axis), 'con'))
             cmds.connectAttr("%s.aimOrder" % self.__parent.joint, "%s.firstTerm" % even_cond)
-            cmds.setAttr("%s.secondTerm" % even_cond, axis_index)
+            cmds.setAttr("%s.secondTerm" % even_cond, axis_index  + 1)
             cmds.setAttr("%s.colorIfTrueR" % even_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % even_cond, 0)
-            cmds.connectAttr("%s.outColorR" % even_cond, "%s.colorIfFalseR" % odd_cond)
+            cmds.connectAttr("%s.outColorR" % even_cond, "%s.visibility" % grp)
             cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.colorIfTrueR" % even_cond)
+
+            # A secondary condition that allows odds to be visible
+            odd_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisOdd%s' % axis), 'con'))
+            cmds.connectAttr("%s.aimOrder" % self.__parent.joint, "%s.firstTerm" % odd_cond)
+            cmds.setAttr("%s.secondTerm" % odd_cond, axis_index)
+            cmds.setAttr("%s.colorIfTrueR" % odd_cond, 1)
+            cmds.setAttr("%s.colorIfFalseR" % odd_cond, 0)
+            cmds.connectAttr("%s.outColorR" % odd_cond, "%s.colorIfFalseR" % even_cond)
+            cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.colorIfTrueR" % odd_cond)
 
             # A state condition that determines which geometry is display, solid or dashed
             state_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'con'))
@@ -359,6 +362,8 @@ class Connector(Node):
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.inputX" % state_rev)
             cmds.connectAttr("%s.outputX" % state_rev, "%s.visibility" % dashed)
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.visibility" % solid)
+
+            self.__nodes.extend([odd_cond, even_cond, state_rev, state_cond])
 
         # The N axis is when world/local aim is set on parent joint aim
         # This allows for grey dashed geometry to be visible
@@ -381,6 +386,8 @@ class Connector(Node):
         cmds.setAttr("%s.visibility" % solid, 0)
         cmds.setAttr("%s.visibility" % dashed, 1)
 
+        self.__nodes.append(n_cond)
+
         # Loop through all aliases on and set non-connected attributes to be 0
         for alias in aliases:
             if not cmds.listConnections('%s.%s' % (self.__parent.constraint, alias),
@@ -394,25 +401,20 @@ class Connector(Node):
         Get or create X(R), Y(G), Z(B) or N(Grey) shaders
         """
 
-        red, red_sg = libShader.get_or_create_shader(libName.create_name('N', 'red', 0, 'shd'), 'lambert')
-        green, green_sg = libShader.get_or_create_shader(libName.create_name('N', 'green', 0, 'shd'), 'lambert')
-        blue, blue_sg = libShader.get_or_create_shader(libName.create_name('N', 'blue', 0, 'shd'), 'lambert')
-        none, none_sg = libShader.get_or_create_shader(libName.create_name('N', 'none', 0, 'shd'), 'lambert')
+        shader_data = {"X": (1, 0, 0),
+                       "Y": (0, 1, 0),
+                       "Z": (0, 0, 1),
+                       "N": (0.7, 0.7, 0.7)}
 
-        self.__shaders['X'] = dict(shader=red, sg = red_sg)
-        self.__shaders['Y'] = dict(shader=green, sg = green_sg)
-        self.__shaders['Z'] = dict(shader=blue, sg = blue_sg)
-        self.__shaders['N'] = dict(shader=none, sg = none_sg)
+        for axis, rgb in shader_data.items():
+            shader, sg = libShader.get_or_create_shader(libName.create_name('N', "color%s" % axis, 0, 'shd'), "lambert")
 
-        # Set RGB values for shaders
-        for shader, rgb in zip([red, green, blue, none], [(1, 0, 0), (0, 1, 0), (0, 0, 1), (0.7, 0.7, 0.7)]):
             cmds.setAttr('%s.color' % shader, *rgb, type='float3')
             cmds.setAttr('%s.incandescence' % shader, *rgb, type='float3')
             cmds.setAttr('%s.diffuse' % shader, 0)
 
-        # Assign shaders
-        for axis in ["X", "Y", "Z", "N"]:
-            sg = self.__shaders[axis]["sg"]
+            self.__shaders[axis] = dict(shader=shader, sg=sg)
+
             cmds.sets(self.__get_shapes(axis, "solid"), edit=True, forceElement=sg)
             cmds.sets(self.__get_shapes(axis, "dashed"), edit=True, forceElement=sg)
 
@@ -421,10 +423,10 @@ class Connector(Node):
 
     def remove(self):
 
-        if not self.nodes:
+        if not self.__nodes:
             return self
 
-        # cmds.delete(self.nodes)
+        # cmds.delete(self.__nodes)
 
         # self.top_node = None
         # self.lattice_handle = None
@@ -436,33 +438,50 @@ class Connector(Node):
 
 
     def reinit(self):
-        '''
-        '''
+        """
+        Reinitialise all transforms, shaders, deformers
+        """
 
-        print 'reinit'
-        # _top_node = libName.set_suffix(self.name, '%sGrp' % self.SUFFIX)
-        # if not cmds.ls(_top_node):
-        #     return None
         if not self.exists():
             return self
 
+        # Top node
         self.top_node = cmds.ls(self.name)[0]
-        for axis in ["X", "Y", "Z", "N"]:
-            solidX = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid%s' % axis.upper()), 'cncGeo'))[0]
-            dashedX = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed%s' % axis.upper()), 'cncGeo'))[0]
-            grp  = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'connector%s' % axis.upper()), 'grp'))[0]
-            self.__geometry[axis] = dict(solid=solidX, dashed=dashedX, grp=grp)
 
+        # Axis related nodes
+        for axis in ["X", "Y", "Z"]:
+
+            # Geometry and groups
+            solid = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid%s' % axis.upper()), 'cncGeo'))[0]
+            dashed = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed%s' % axis.upper()), 'cncGeo'))[0]
+            grp  = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'connector%s' % axis.upper()), 'grp'))[0]
+            self.__geometry[axis] = dict(solid=solid, dashed=dashed, grp=grp)
+
+            # Shaders
+            shader, sg = libShader.get_shader(libName.create_name('N', "color%s" % axis, 0, 'shd'))
+            self.__shaders[axis] = dict(shader=shader, sg=sg)
+
+            # Conditions and other network nodes
+            aim_cond = cmds.ls(libName.set_suffix(self.name, 'cond'))[0]
+            even_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisEven%s' % axis), 'con'))
+            odd_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisOdd%s' % axis), 'con'))
+            state_cond = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'con'))[0]
+            state_rev = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'rev'))[0]
+
+        axis = "N"
+        n_cond = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'axis%s' % axis), 'con'))[0]
+
+        # Clusters
         self.start = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))[0]
         self.start_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))[0]
         self.end = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))[0]
         self.end_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))[0]
-
-        self.lattice_handle = cmds.ls(libName.set_suffix(self.name, 'lth'))[0]
-        self.lattice_base = cmds.ls(libName.set_suffix(self.name, 'ltb'))[0]
-
         self.start_grp = cmds.listRelatives(self.start, parent=True)[0]
         self.end_grp = cmds.listRelatives(self.end, parent=True)[0]
+
+        # Lattices
+        self.lattice_handle = cmds.ls(libName.set_suffix(self.name, 'lth'))[0]
+        self.lattice_base = cmds.ls(libName.set_suffix(self.name, 'ltb'))[0]
 
         aliases = cmds.aimConstraint(self.__parent.constraint, q=True, wal=True)
         targets = cmds.aimConstraint(self.__parent.constraint, q=True, tl=True)
@@ -473,17 +492,15 @@ class Connector(Node):
                                          source=True,
                                          destination=False)[0]
 
-        red, red_sg = libShader.get_shader(libName.create_name('N', 'red', 0, 'shd'))
-        green, green_sg = libShader.get_shader(libName.create_name('N', 'green', 0, 'shd'))
-        blue, blue_sg = libShader.get_shader(libName.create_name('N', 'blue', 0, 'shd'))
-        none, none_sg = libShader.get_shader(libName.create_name('N', 'none', 0, 'shd'))
 
-        self.__shaders['X'] = dict(shader=red, sg = red_sg)
-        self.__shaders['Y'] = dict(shader=green, sg = green_sg)
-        self.__shaders['Z'] = dict(shader=blue, sg = blue_sg)
-        self.__shaders['N'] = dict(shader=none, sg = none_sg)
+        # Set nodes
+        geometry = self.__get_all_transforms()
+        self.__nodes.extend(geometry)
 
-        self.nodes = [self.top_node,
+        grps = self.__get_all_grps()
+        self.__nodes.extend(grps)
+
+        self.__nodes = [self.top_node,
                       self.lattice_handle,
                       self.lattice_base,
                       self.start,
@@ -497,7 +514,7 @@ class Connector(Node):
     def create(self):
         '''
         '''
-        print 'c'
+
         if self.exists():
             return self.reinit()
 
