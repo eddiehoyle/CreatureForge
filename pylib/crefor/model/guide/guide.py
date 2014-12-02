@@ -30,6 +30,8 @@ class Guide(Node):
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
 
+        self.joint = None
+
         # Constraint utils
         self.up = None
         self.aim = None
@@ -64,7 +66,7 @@ class Guide(Node):
     @property
     def parent(self):
         '''Get parent joint and return guide object'''
-        _parent = cmds.listRelatives(self.joint, parent=True, type='joint')
+        _parent = cmds.listRelatives(self.joint, parent=True, type='joint') if self.exists() else None
         if _parent:
             return Guide(*libName._decompile(_parent[0])[0:3]).reinit()
         return None
@@ -121,9 +123,10 @@ class Guide(Node):
 
     def is_parent(self, guide):
         '''Is guide the immediate parent of self'''
-        _parent = self.parent
-        if _parent:
-            return guide.joint is _parent.joint
+        # print 'p', self.parent.joint
+        # print 'g', guide.joint
+        if self.parent:
+            return guide.joint == self.parent.joint
         return False
 
     def has_parent(self, guide):
@@ -138,7 +141,7 @@ class Guide(Node):
 
     def set_parent(self, guide):
         '''Set guide to be parent of self'''
-        print 'f'
+
         # Try to parent to itself
         if self.name == guide.name:
             log.warning("Cannot parent '%s' to itself" % self.joint)
@@ -193,7 +196,7 @@ class Guide(Node):
         Guide is considered to be the child of self. Any constraint
         and attribute updates are added to self, as well as the connector.
         '''
-        print 'aim'
+
         # Already has child connector?
         if guide.name in self.connectors:
             return self.connectors[guide.name]
@@ -212,8 +215,6 @@ class Guide(Node):
         # Create connector
         con = Connector(self, guide)
         con.create()
-
-        # Turn off all im
 
         # Parent new guide under self
         cmds.parent(guide.joint, self.joint, a=True)
@@ -405,13 +406,11 @@ class Guide(Node):
         self.__trash = []
 
     def reinit(self):
-        '''
-        '''
-        print 'reinit'
+        """
+        """
 
         if not cmds.objExists(self.name):
-            print('Cannot reinit \'%s\' as guide does not exist.' % self.name)
-            return None
+            raise Exception('Cannot reinit \'%s\' as guide does not exist.' % self.name)
 
         self.joint = cmds.ls(self.name)[0]
         self.shapes = cmds.listRelatives(self.joint, type='nurbsSurface', children=True)
@@ -428,8 +427,8 @@ class Guide(Node):
         return self
 
     def create(self):
-        '''
-        '''
+        """
+        """
 
         if cmds.objExists(self.name):
             return self.reinit()
@@ -444,3 +443,8 @@ class Guide(Node):
 
         return self
 
+    def remove(self):
+        """
+        """
+
+        return self

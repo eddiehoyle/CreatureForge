@@ -16,7 +16,7 @@ class Connector(Node):
     CLUSTER_OFFSET = 1.0
 
     def __init__(self, parent, child):
-        super(Connector, self).__init__(*libName._decompile(child.name)[:-1])
+        super(Connector, self).__init__(*libName._decompile(str(child))[:-1])
 
         # Guides
         self.__parent = parent
@@ -57,23 +57,6 @@ class Connector(Node):
         if self.exists():
             cmds.setAttr('%s.scale' % self.start, *(value, value, value), type='float3')
             cmds.setAttr('%s.scale' % self.end, *(value, value, value), type='float3')
-
-    # def set_start_offset(self, value):
-    #     if self.start and self.end:
-    #         cmds.move(value * -1, self.start, y=True)
-
-    # def set_end_offset(self, value):
-    #     if self.start and self.end:
-    #         cmds.move(value, self.end, y=True)
-
-    # def set_aim_scale(self, value):
-    #     if self.aim:
-    #         cmds.setAttr('%s.scale' % self.aim, value, value, value, type='float3')
-
-    # def set_connector_scale(self, value):
-    #     if self.start and self.end:
-    #         self.set_start_scale(value)
-    #         self.set_end_scale(value)
 
     def set_start_scale(self, value):
         if self.start:

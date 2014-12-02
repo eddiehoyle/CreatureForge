@@ -23,3 +23,47 @@ class Node(object):
                                         self.descrption,
                                         self.index,
                                         self.SUFFIX)
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return "%s(position=%s, descrption=%s, index=%s)" % (self.__class__.__name__,
+                                                             self.position,
+                                                             self.descrption,
+                                                             self.index)
+
+    def __eq__(self, other):
+        try:
+            return self.name == other.name
+        except Exception:
+            return False
+
+    def __ne__(self, other):
+        try:
+            return self.name != other.name
+        except Exception:
+            return False
+
+    def __lt__(self, other):
+        try:
+            return self.index < other.index
+        except Exception:
+            return False
+
+    def __gt__(self, other):
+        try:
+            return self.index > other.index
+        except Exception:
+            return False
+
+    def __le__(self, other):
+        try:
+            return self.index <= other.index
+        except Exception:
+            return False
+
+    def __ge__(self, other):
+        try:
+            return self.index >= other.index
+        except Exception:
+            return False
