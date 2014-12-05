@@ -1,0 +1,17 @@
+crefor.model package
+====================
+
+Subpackages
+-----------
+
+.. toctree::
+
+    crefor.model.guide
+
+Module contents
+---------------
+
+.. automodule:: crefor.model
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,213 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>crefor.view.layouts &mdash; crefor  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="crefor  documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for crefor.view.layouts</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Source:</span>
+<span class="sd">https://qt.gitorious.org/pyside/pyside-examples/raw/060dca8e4b82f301dfb33a7182767eaf8ad3d024:examples/layouts/flowlayout.py</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">PySide.QtCore</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">PySide.QtGui</span> <span class="kn">import</span> <span class="o">*</span>
+
+<div class="viewcode-block" id="FlowLayout"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout">[docs]</a><span class="k">class</span> <span class="nc">FlowLayout</span><span class="p">(</span><span class="n">QLayout</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Custom layout that mimics the behaviour of a flow layout&quot;&quot;&quot;</span>
+ 
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">margin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">spacing</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a new FlowLayout instance.</span>
+<span class="sd">        This layout will reorder the items automatically.</span>
+<span class="sd">        @param parent (QWidget)</span>
+<span class="sd">        @param margin (int)</span>
+<span class="sd">        @param spacing (int)&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FlowLayout</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="n">spacing</span><span class="p">)</span>
+ 
+        <span class="bp">self</span><span class="o">.</span><span class="n">itemList</span> <span class="o">=</span> <span class="p">[]</span>
+ 
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete all the items in this layout&quot;&quot;&quot;</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">takeAt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">item</span><span class="p">:</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">takeAt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+ 
+<div class="viewcode-block" id="FlowLayout.addItem"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.addItem">[docs]</a>    <span class="k">def</span> <span class="nf">addItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add an item at the end of the layout.</span>
+<span class="sd">        This is automatically called when you do addWidget()</span>
+<span class="sd">        item (QWidgetItem)&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.count"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.count">[docs]</a>    <span class="k">def</span> <span class="nf">count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the number of items in the this layout</span>
+<span class="sd">        @return (int)&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="p">)</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.itemAt"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.itemAt">[docs]</a>    <span class="k">def</span> <span class="nf">itemAt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the item at the given index</span>
+<span class="sd">        @param index (int)</span>
+<span class="sd">        @return (QWidgetItem)&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">None</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.takeAt"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.takeAt">[docs]</a>    <span class="k">def</span> <span class="nf">takeAt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Remove an item at the given index</span>
+<span class="sd">        @param index (int)</span>
+<span class="sd">        @return (None)&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">None</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.insertWidget"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.insertWidget">[docs]</a>    <span class="k">def</span> <span class="nf">insertWidget</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">widget</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Insert a widget at a given index</span>
+<span class="sd">        @param index (int)</span>
+<span class="sd">        @param widget (QWidget)&quot;&quot;&quot;</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="n">QWidgetItem</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.expandingDirections"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.expandingDirections">[docs]</a>    <span class="k">def</span> <span class="nf">expandingDirections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This layout grows only in the horizontal dimension&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Qt</span><span class="o">.</span><span class="n">Orientations</span><span class="p">(</span><span class="n">Qt</span><span class="o">.</span><span class="n">Horizontal</span> <span class="o">|</span> <span class="n">Qt</span><span class="o">.</span><span class="n">Vertical</span><span class="p">)</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.hasHeightForWidth"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.hasHeightForWidth">[docs]</a>    <span class="k">def</span> <span class="nf">hasHeightForWidth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;If this layout&#39;s preferred height depends on its width</span>
+<span class="sd">        @return (boolean) Always True&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">True</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.heightForWidth"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.heightForWidth">[docs]</a>    <span class="k">def</span> <span class="nf">heightForWidth</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the preferred height a layout item with the given width</span>
+<span class="sd">        @param width (int)&quot;&quot;&quot;</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doLayout</span><span class="p">(</span><span class="n">QRect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">height</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.setGeometry"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.setGeometry">[docs]</a>    <span class="k">def</span> <span class="nf">setGeometry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rect</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the geometry of this layout</span>
+<span class="sd">        @param rect (QRect)&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FlowLayout</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setGeometry</span><span class="p">(</span><span class="n">rect</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">doLayout</span><span class="p">(</span><span class="n">rect</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.sizeHint"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.sizeHint">[docs]</a>    <span class="k">def</span> <span class="nf">sizeHint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the preferred size of this layout</span>
+<span class="sd">        @return (QSize) The minimum size&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">minimumSize</span><span class="p">()</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.minimumSize"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.minimumSize">[docs]</a>    <span class="k">def</span> <span class="nf">minimumSize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the minimum size of this layout</span>
+<span class="sd">        @return (QSize)&quot;&quot;&quot;</span>
+        <span class="c"># Calculate the size</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="n">QSize</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">size</span><span class="o">.</span><span class="n">expandedTo</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">minimumSize</span><span class="p">())</span>
+        <span class="c"># Add the margins</span>
+        <span class="n">size</span> <span class="o">+=</span> <span class="n">QSize</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">size</span>
+ </div>
+<div class="viewcode-block" id="FlowLayout.doLayout"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.layouts.FlowLayout.doLayout">[docs]</a>    <span class="k">def</span> <span class="nf">doLayout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rect</span><span class="p">,</span> <span class="n">testOnly</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Layout all the items</span>
+<span class="sd">        @param rect (QRect) Rect where in the items have to be laid out</span>
+<span class="sd">        @param testOnly (boolean) Do the actual layout&quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">x</span><span class="p">()</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">y</span><span class="p">()</span>
+        <span class="n">lineHeight</span> <span class="o">=</span> <span class="mi">0</span>
+ 
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">itemList</span><span class="p">:</span>
+            <span class="n">spaceX</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">spaceY</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">nextX</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">item</span><span class="o">.</span><span class="n">sizeHint</span><span class="p">()</span><span class="o">.</span><span class="n">width</span><span class="p">()</span> <span class="o">+</span> <span class="n">spaceX</span>
+            <span class="k">if</span> <span class="n">nextX</span> <span class="o">-</span> <span class="n">spaceX</span> <span class="o">&gt;</span> <span class="n">rect</span><span class="o">.</span><span class="n">right</span><span class="p">()</span> <span class="ow">and</span> <span class="n">lineHeight</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">x</span><span class="p">()</span>
+                <span class="n">y</span> <span class="o">=</span> <span class="n">y</span> <span class="o">+</span> <span class="n">lineHeight</span> <span class="o">+</span> <span class="n">spaceY</span>
+                <span class="n">nextX</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">item</span><span class="o">.</span><span class="n">sizeHint</span><span class="p">()</span><span class="o">.</span><span class="n">width</span><span class="p">()</span> <span class="o">+</span> <span class="n">spaceX</span>
+                <span class="n">lineHeight</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">testOnly</span><span class="p">:</span>
+                <span class="n">item</span><span class="o">.</span><span class="n">setGeometry</span><span class="p">(</span><span class="n">QRect</span><span class="p">(</span><span class="n">QPoint</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">item</span><span class="o">.</span><span class="n">sizeHint</span><span class="p">()))</span>
+ 
+            <span class="n">x</span> <span class="o">=</span> <span class="n">nextX</span>
+            <span class="n">lineHeight</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">lineHeight</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">sizeHint</span><span class="p">()</span><span class="o">.</span><span class="n">height</span><span class="p">())</span>
+ 
+        <span class="k">return</span> <span class="n">y</span> <span class="o">+</span> <span class="n">lineHeight</span> <span class="o">-</span> <span class="n">rect</span><span class="o">.</span><span class="n">y</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h3><a href="../../../index.html">Table Of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">Api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Eddie Hoyle.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

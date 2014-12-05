@@ -1,0 +1,50 @@
+crefor package
+==============
+
+Subpackages
+-----------
+
+.. toctree::
+
+    crefor.control
+    crefor.lib
+    crefor.model
+    crefor.tests
+    crefor.tools
+    crefor.view
+
+Submodules
+----------
+
+crefor.api module
+-----------------
+
+.. automodule:: crefor.api
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.decorators module
+------------------------
+
+.. automodule:: crefor.decorators
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.doctest module
+---------------------
+
+.. automodule:: crefor.doctest
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: crefor
+    :members:
+    :undoc-members:
+    :show-inheritance:

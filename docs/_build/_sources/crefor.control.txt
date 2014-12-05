@@ -1,0 +1,22 @@
+crefor.control package
+======================
+
+Submodules
+----------
+
+crefor.control.guide module
+---------------------------
+
+.. automodule:: crefor.control.guide
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: crefor.control
+    :members:
+    :undoc-members:
+    :show-inheritance:

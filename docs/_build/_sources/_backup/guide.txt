@@ -1,0 +1,11 @@
+crefor.model.guide package
+==========================
+
+
+Module contents
+---------------
+
+.. automodule:: crefor.model.guide
+    :members:
+    :undoc-members:
+    :show-inheritance:

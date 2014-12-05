@@ -1,0 +1,179 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>crefor.view.guide &mdash; crefor  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="crefor  documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for crefor.view.guide</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">PySide.QtCore</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">PySide.QtGui</span> <span class="kn">import</span> <span class="o">*</span>
+
+
+<span class="c"># from crefor.view.layouts import FlowLayout</span>
+
+<div class="viewcode-block" id="GuideTools"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.guide.GuideTools">[docs]</a><span class="k">class</span> <span class="nc">GuideTools</span><span class="p">(</span><span class="n">QWidget</span><span class="p">):</span>
+
+    <span class="n">BUTTON_SIZE</span> <span class="o">=</span> <span class="mi">30</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GuideTools</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">buttons</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_ui</span><span class="p">()</span>
+        <span class="c"># self.setFixedSize(self.sizeHint())</span>
+
+<div class="viewcode-block" id="GuideTools.setup_ui"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.guide.GuideTools.setup_ui">[docs]</a>    <span class="k">def</span> <span class="nf">setup_ui</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c"># self.layout = FlowLayout()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">QHBoxLayout</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__add_button</span><span class="p">(</span><span class="s">&#39;set_parent&#39;</span><span class="p">,</span>
+                          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span>
+                                       <span class="s">&#39;icons/setParent.png&#39;</span><span class="p">),</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">__set_parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__add_button</span><span class="p">(</span><span class="s">&#39;add_child&#39;</span><span class="p">,</span>
+                          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span>
+                                       <span class="s">&#39;icons/addChild.png&#39;</span><span class="p">),</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">__add_child</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__add_button</span><span class="p">(</span><span class="s">&#39;remove_parent&#39;</span><span class="p">,</span>
+                          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span>
+                                       <span class="s">&#39;icons/removeParent.png&#39;</span><span class="p">),</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">__remove_parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__add_button</span><span class="p">(</span><span class="s">&#39;duplicate&#39;</span><span class="p">,</span>
+                          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span>
+                                       <span class="s">&#39;icons/duplicate.png&#39;</span><span class="p">),</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">__duplicate</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__add_button</span><span class="p">(</span><span class="s">&#39;create_hierarchy&#39;</span><span class="p">,</span>
+                          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span>
+                                       <span class="s">&#39;icons/createHierarchy.png&#39;</span><span class="p">),</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">__create_hierarchy</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__add_button</span><span class="p">(</span><span class="s">&#39;cycle_aim&#39;</span><span class="p">,</span>
+                          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span>
+                                       <span class="s">&#39;icons/cycleAim.png&#39;</span><span class="p">),</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">__cycle_aim</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="s">&quot;Guide tools&quot;</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__add_button</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">object_name</span><span class="p">,</span> <span class="n">icon_path</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+
+        
+        <span class="c"># button.setObjectName(object_name)</span>
+        <span class="n">button</span> <span class="o">=</span> <span class="n">QPushButton</span><span class="p">()</span>
+        <span class="n">button</span><span class="o">.</span><span class="n">setIcon</span><span class="p">(</span><span class="n">QIcon</span><span class="p">(</span><span class="n">QPixmap</span><span class="p">(</span><span class="n">icon_path</span><span class="p">)))</span>
+        <span class="n">button</span><span class="o">.</span><span class="n">setFixedSize</span><span class="p">(</span><span class="n">QSize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BUTTON_SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">BUTTON_SIZE</span><span class="p">))</span>
+        <span class="n">button</span><span class="o">.</span><span class="n">setIconSize</span><span class="p">(</span><span class="n">QSize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BUTTON_SIZE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">BUTTON_SIZE</span><span class="p">))</span>
+        <span class="n">button</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">button</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buttons</span><span class="p">[</span><span class="n">object_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">button</span>
+
+<div class="viewcode-block" id="GuideTools.sizeHint"><a class="viewcode-back" href="../../../_backup/view.html#crefor.view.guide.GuideTools.sizeHint">[docs]</a>    <span class="k">def</span> <span class="nf">sizeHint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">QSize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BUTTON_SIZE</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buttons</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="bp">self</span><span class="o">.</span><span class="n">BUTTON_SIZE</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__set_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;__set_parent&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__add_child</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;__add_child&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__remove_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;__remove_parent&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__duplicate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;__duplicate&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__create_hierarchy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;__create_hierarchy&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__cycle_aim</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;__cycle_aim&#39;</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h3><a href="../../../index.html">Table Of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">Api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Eddie Hoyle.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

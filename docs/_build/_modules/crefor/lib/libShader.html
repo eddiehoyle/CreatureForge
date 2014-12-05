@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>crefor.lib.libShader &mdash; crefor  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="crefor  documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for crefor.lib.libShader</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">maya</span> <span class="kn">import</span> <span class="n">cmds</span>
+
+<div class="viewcode-block" id="get_rgb_from_position"><a class="viewcode-back" href="../../../_backup/crefor.lib.html#crefor.lib.libShader.get_rgb_from_position">[docs]</a><span class="k">def</span> <span class="nf">get_rgb_from_position</span><span class="p">(</span><span class="n">position</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="n">position</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;L&#39;</span><span class="p">):</span>
+        <span class="n">color</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">position</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;R&#39;</span><span class="p">):</span>
+        <span class="n">color</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">position</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;C&#39;</span><span class="p">):</span>
+        <span class="n">color</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">color</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">color</span>
+</div>
+<div class="viewcode-block" id="get_shader"><a class="viewcode-back" href="../../../_backup/crefor.lib.html#crefor.lib.libShader.get_shader">[docs]</a><span class="k">def</span> <span class="nf">get_shader</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="n">cmds</span><span class="o">.</span><span class="n">objExists</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">name</span><span class="p">,</span> <span class="n">cmds</span><span class="o">.</span><span class="n">listConnections</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;shadingEngine&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="get_or_create_shader"><a class="viewcode-back" href="../../../_backup/crefor.lib.html#crefor.lib.libShader.get_or_create_shader">[docs]</a><span class="k">def</span> <span class="nf">get_or_create_shader</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">shader_type</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="n">cmds</span><span class="o">.</span><span class="n">objExists</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="n">shader</span><span class="p">,</span> <span class="n">sg</span> <span class="o">=</span> <span class="n">get_shader</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cmds</span><span class="o">.</span><span class="n">nodeType</span><span class="p">(</span><span class="n">shader</span><span class="p">)</span> <span class="o">==</span> <span class="n">shader_type</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">shader</span><span class="p">,</span> <span class="n">sg</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Name already exists: </span><span class="si">%s</span><span class="s"> (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">),</span>
+                                                              <span class="n">cmds</span><span class="o">.</span><span class="n">nodeType</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">create_shader</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">shader_type</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="create_shader"><a class="viewcode-back" href="../../../_backup/crefor.lib.html#crefor.lib.libShader.create_shader">[docs]</a><span class="k">def</span> <span class="nf">create_shader</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">shader_type</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="n">cmds</span><span class="o">.</span><span class="n">objExists</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Name already exists: </span><span class="si">%s</span><span class="s"> (</span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">),</span>
+                                                              <span class="n">cmds</span><span class="o">.</span><span class="n">nodeType</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+
+    <span class="n">shader</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">shadingNode</span><span class="p">(</span><span class="n">shader_type</span><span class="p">,</span> <span class="n">asShader</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">sg</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">sets</span><span class="p">(</span><span class="n">renderable</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">noSurfaceShader</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">empty</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">SG&#39;</span> <span class="o">%</span> <span class="n">shader</span><span class="p">)</span>
+    <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.outColor&#39;</span> <span class="o">%</span> <span class="n">shader</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.surfaceShader&#39;</span> <span class="o">%</span> <span class="n">sg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">shader</span><span class="p">,</span> <span class="n">sg</span><span class="p">]</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h3><a href="../../../index.html">Table Of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">Api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Eddie Hoyle.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

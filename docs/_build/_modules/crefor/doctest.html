@@ -1,0 +1,201 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>crefor.doctest &mdash; crefor  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="crefor  documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for crefor.doctest</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;This module illustrates how to write your docstring in OpenAlea</span>
+<span class="sd">and other projects related to OpenAlea.&quot;&quot;&quot;</span>
+
+<span class="n">__license__</span> <span class="o">=</span> <span class="s">&quot;Cecill-C&quot;</span>
+<span class="n">__revision__</span> <span class="o">=</span> <span class="s">&quot; $Id: actor.py 1586 2009-01-30 15:56:25Z cokelaer $ &quot;</span>
+<span class="n">__docformat__</span> <span class="o">=</span> <span class="s">&#39;reStructuredText&#39;</span>
+
+
+<div class="viewcode-block" id="MainClass1"><a class="viewcode-back" href="../../_backup/crefor.html#crefor.doctest.MainClass1">[docs]</a><span class="k">class</span> <span class="nc">MainClass1</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This class docstring shows how to use sphinx and rst syntax</span>
+
+<span class="sd">    The first line is brief explanation, which may be completed with </span>
+<span class="sd">    a longer one. For instance to discuss about its methods. The only</span>
+<span class="sd">    method here is :func:`function1`&#39;s. The main idea is to document</span>
+<span class="sd">    the class and methods&#39;s arguments with </span>
+
+<span class="sd">    - **parameters**, **types**, **return** and **return types**::</span>
+
+<span class="sd">          :param arg1: description</span>
+<span class="sd">          :param arg2: description</span>
+<span class="sd">          :type arg1: type description</span>
+<span class="sd">          :type arg1: type description</span>
+<span class="sd">          :return: return description</span>
+<span class="sd">          :rtype: the return type description</span>
+
+<span class="sd">    - and to provide sections such as **Example** using the double commas syntax::</span>
+
+<span class="sd">          :Example:</span>
+
+<span class="sd">          followed by a blank line !</span>
+
+<span class="sd">      which appears as follow:</span>
+
+<span class="sd">      :Example:</span>
+
+<span class="sd">      followed by a blank line</span>
+
+<span class="sd">    - Finally special sections such as **See Also**, **Warnings**, **Notes**</span>
+<span class="sd">      use the sphinx syntax (*paragraph directives*)::</span>
+
+<span class="sd">          .. seealso:: blabla</span>
+<span class="sd">          .. warnings also:: blabla</span>
+<span class="sd">          .. note:: blabla</span>
+<span class="sd">          .. todo:: blabla</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        There are many other Info fields but they may be redundant:</span>
+<span class="sd">            * param, parameter, arg, argument, key, keyword: Description of a</span>
+<span class="sd">              parameter.</span>
+<span class="sd">            * type: Type of a parameter.</span>
+<span class="sd">            * raises, raise, except, exception: That (and when) a specific</span>
+<span class="sd">              exception is raised.</span>
+<span class="sd">            * var, ivar, cvar: Description of a variable.</span>
+<span class="sd">            * returns, return: Description of the return value.</span>
+<span class="sd">            * rtype: Return type.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        There are many other directives such as versionadded, versionchanged,</span>
+<span class="sd">        rubric, centered, ... See the sphinx documentation for more details.</span>
+
+<span class="sd">    Here below is the results of the :func:`function1` docstring.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="MainClass1.function1"><a class="viewcode-back" href="../../_backup/crefor.html#crefor.doctest.MainClass1.function1">[docs]</a>    <span class="k">def</span> <span class="nf">function1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="n">arg3</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns (arg1 / arg2) + arg3</span>
+
+<span class="sd">        This is a longer explanation, which may include math with latex syntax</span>
+<span class="sd">        :math:`\\alpha`.</span>
+<span class="sd">        Then, you need to provide optional subsection in this order (just to be</span>
+<span class="sd">        consistent and have a uniform documentation. Nothing prevent you to</span>
+<span class="sd">        switch the order):</span>
+
+<span class="sd">          - parameters using ``:param &lt;name&gt;: &lt;description&gt;``</span>
+<span class="sd">          - type of the parameters ``:type &lt;name&gt;: &lt;description&gt;``</span>
+<span class="sd">          - returns using ``:returns: &lt;description&gt;``</span>
+<span class="sd">          - examples (doctest)</span>
+<span class="sd">          - seealso using ``.. seealso:: text``</span>
+<span class="sd">          - notes using ``.. note:: text``</span>
+<span class="sd">          - warning using ``.. warning:: text``</span>
+<span class="sd">          - todo ``.. todo:: text``</span>
+
+<span class="sd">        **Advantages**:</span>
+<span class="sd">         - Uses sphinx markups, which will certainly be improved in future</span>
+<span class="sd">           version</span>
+<span class="sd">         - Nice HTML output with the See Also, Note, Warnings directives</span>
+
+
+<span class="sd">        **Drawbacks**:</span>
+<span class="sd">         - Just looking at the docstring, the parameter, type and  return</span>
+<span class="sd">           sections do not appear nicely</span>
+
+<span class="sd">        :param arg1: the first value</span>
+<span class="sd">        :param arg2: the first value</span>
+<span class="sd">        :param arg3: the first value</span>
+<span class="sd">        :type arg1: int, float,...</span>
+<span class="sd">        :type arg2: int, float,...</span>
+<span class="sd">        :type arg3: int, float,...</span>
+<span class="sd">        :returns: arg1/arg2 +arg3</span>
+<span class="sd">        :rtype: int, float</span>
+
+<span class="sd">        :Example:</span>
+
+<span class="sd">        &gt;&gt;&gt; import template</span>
+<span class="sd">        &gt;&gt;&gt; a = template.MainClass1()</span>
+<span class="sd">        &gt;&gt;&gt; a.function1(1,1,1)</span>
+<span class="sd">        2</span>
+
+<span class="sd">        .. note:: can be useful to emphasize</span>
+<span class="sd">            important feature</span>
+<span class="sd">        .. seealso:: :class:`MainClass2`</span>
+<span class="sd">        .. warning:: arg2 must be non-zero.</span>
+<span class="sd">        .. todo:: check that arg2 is non zero.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">arg1</span><span class="o">/</span><span class="n">arg2</span> <span class="o">+</span> <span class="n">arg3</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h3><a href="../../index.html">Table Of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Eddie Hoyle.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

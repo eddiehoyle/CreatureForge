@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>crefor.control.guide &mdash; crefor  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="crefor  documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for crefor.control.guide</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">ass</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">crefor</span> <span class="kn">import</span> <span class="n">decorators</span>
+<span class="kn">from</span> <span class="nn">crefor.lib</span> <span class="kn">import</span> <span class="n">libName</span><span class="p">,</span> <span class="n">libShader</span><span class="p">,</span> <span class="n">libAttr</span>
+<span class="kn">from</span> <span class="nn">crefor.model.guide.guide</span> <span class="kn">import</span> <span class="n">Guide</span>
+
+<div class="viewcode-block" id="NodeException"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.NodeException">[docs]</a><span class="k">class</span> <span class="nc">NodeException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="guides"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.guides">[docs]</a><span class="k">def</span> <span class="nf">guides</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Guide validation decorator</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">Guide</span><span class="p">(</span><span class="o">*</span><span class="n">libName</span><span class="o">.</span><span class="n">_decompile</span><span class="p">(</span><span class="n">arg</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">reinit</span><span class="p">()</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+
+            <span class="k">raise</span> <span class="n">NodeException</span><span class="p">(</span><span class="s">&quot;Error: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">inner</span>
+</div>
+<span class="nd">@decorators.name</span>
+<span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+
+    <span class="k">return</span> <span class="n">Guide</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="n">position</span><span class="p">,</span>
+                 <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+                 <span class="n">index</span><span class="o">=</span><span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ass"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.ass">[docs]</a><span class="k">def</span> <span class="nf">ass</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    fuck</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">a</span><span class="o">+</span><span class="n">b</span>
+</div>
+<span class="nd">@guides</span>
+<div class="viewcode-block" id="set_parent"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.set_parent">[docs]</a><span class="k">def</span> <span class="nf">set_parent</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+    <span class="c">#: Doc comment for class attribute Foo.bar.</span>
+    <span class="c">#: It can have multiple lines.</span>
+    <span class="k">return</span> <span class="n">child</span><span class="o">.</span><span class="n">set_parent</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+</div>
+<span class="nd">@guides</span>
+<div class="viewcode-block" id="add_child"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.add_child">[docs]</a><span class="k">def</span> <span class="nf">add_child</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;add_child(parent, child)</span>
+
+<span class="sd">    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus,</span>
+<span class="sd">    sollicitudin malesuada elit, vitae efficitur sapien porttitor eu. Duis semper,</span>
+<span class="sd">    eros in cursus tristique, magna dui dapibus eros, id pellentesque nulla</span>
+<span class="sd">    neque at lacus. Suspendisse tincidunt sem eu rhoncus vulputate. Sed vel</span>
+<span class="sd">    felis a enim rhoncus malesuada. Sed nec luctus est, ac maximus nibh.</span>
+<span class="sd">    Interdum et malesuada fames ac ante ipsum primis in faucibus.</span>
+
+<span class="sd">    :param      parent:     Parent guide child will be added to.</span>
+<span class="sd">    :param      child:      Child guide that will be added to parent.</span>
+
+<span class="sd">    :type       parent:     str</span>
+<span class="sd">    :type       child:      str</span>
+
+<span class="sd">    :returns:   int</span>
+<span class="sd">    :rtype:     int</span>
+
+<span class="sd">    **Example**:</span>
+
+<span class="sd">    &gt;&gt;&gt; add_child(&quot;C_arm_0_gde&quot;, &quot;C_spine_0_gde&quot;)</span>
+<span class="sd">    True</span>
+
+<span class="sd">    .. note:: ass titties</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="c"># return parent.add_child(child)</span>
+</div>
+<span class="nd">@guides</span>
+<div class="viewcode-block" id="has_parent"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.has_parent">[docs]</a><span class="k">def</span> <span class="nf">has_parent</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">child</span><span class="o">.</span><span class="n">has_parent</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+</div>
+<span class="nd">@guides</span>
+<div class="viewcode-block" id="has_child"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.has_child">[docs]</a><span class="k">def</span> <span class="nf">has_child</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">child</span><span class="o">.</span><span class="n">has_parent</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+</div>
+<span class="nd">@guides</span>
+<div class="viewcode-block" id="is_parent"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.is_parent">[docs]</a><span class="k">def</span> <span class="nf">is_parent</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">parent</span><span class="o">.</span><span class="n">is_parent</span><span class="p">(</span><span class="n">child</span><span class="p">)</span>
+</div>
+<span class="nd">@guides</span>
+<div class="viewcode-block" id="remove_guide"><a class="viewcode-back" href="../../../_backup/crefor.control.html#crefor.control.guide.remove_guide">[docs]</a><span class="k">def</span> <span class="nf">remove_guide</span><span class="p">(</span><span class="n">guide</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">guide</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<h3><a href="../../../index.html">Table Of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">Api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Eddie Hoyle.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

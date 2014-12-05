@@ -1,0 +1,22 @@
+crefor.tools package
+====================
+
+Submodules
+----------
+
+crefor.tools.kill module
+------------------------
+
+.. automodule:: crefor.tools.kill
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: crefor.tools
+    :members:
+    :undoc-members:
+    :show-inheritance:

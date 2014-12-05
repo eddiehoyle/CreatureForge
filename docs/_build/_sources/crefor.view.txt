@@ -1,0 +1,46 @@
+crefor.view package
+===================
+
+Submodules
+----------
+
+crefor.view.guide module
+------------------------
+
+.. automodule:: crefor.view.guide
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.view.layouts module
+--------------------------
+
+.. automodule:: crefor.view.layouts
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.view.main module
+-----------------------
+
+.. automodule:: crefor.view.main
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.view.widgets module
+--------------------------
+
+.. automodule:: crefor.view.widgets
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: crefor.view
+    :members:
+    :undoc-members:
+    :show-inheritance:

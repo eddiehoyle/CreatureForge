@@ -447,4 +447,5 @@ class Guide(Node):
         """
         """
 
+
         return self

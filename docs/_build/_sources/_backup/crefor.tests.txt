@@ -1,0 +1,30 @@
+crefor.tests package
+====================
+
+Submodules
+----------
+
+crefor.tests.guide module
+-------------------------
+
+.. automodule:: crefor.tests.guide
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.tests.runtests module
+----------------------------
+
+.. automodule:: crefor.tests.runtests
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: crefor.tests
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,605 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>crefor.model.guide.connector &mdash; crefor  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="top" title="crefor  documentation" href="../../../../index.html" />
+    <link rel="up" title="crefor.model" href="../../model.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../../model.html" accesskey="U">crefor.model</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for crefor.model.guide.connector</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">maya</span> <span class="kn">import</span> <span class="n">cmds</span>
+<span class="kn">from</span> <span class="nn">crefor.model</span> <span class="kn">import</span> <span class="n">Node</span>
+<span class="kn">from</span> <span class="nn">crefor.lib</span> <span class="kn">import</span> <span class="n">libName</span><span class="p">,</span> <span class="n">libShader</span><span class="p">,</span> <span class="n">libAttr</span>
+
+<span class="k">class</span> <span class="nc">Connector</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+<div class="viewcode-block" id="Connector"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector">[docs]</a>
+    <span class="n">SUFFIX</span> <span class="o">=</span> <span class="s">&#39;cnc&#39;</span>
+    <span class="n">RADIUS</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">DASHED_COUNT</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">CLUSTER_OFFSET</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">child</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Connector</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">libName</span><span class="o">.</span><span class="n">_decompile</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">child</span><span class="p">))[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c"># Guides</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span> <span class="o">=</span> <span class="n">parent</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__child</span> <span class="o">=</span> <span class="n">child</span>
+
+        <span class="c"># Top grp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">top_node</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># Cluster transforms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># Cluster nodes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_cl</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_cl</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># Geometry</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__shaders</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c"># Collection of nodes for re-init</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__nodes</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Connector.parent"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.parent">[docs]</a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span>
+
+    <span class="nd">@property</span></div>
+    <span class="k">def</span> <span class="nf">child</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Connector.child"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.child">[docs]</a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__child</span>
+
+    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
+<div class="viewcode-block" id="Connector.exists"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.exists">[docs]</a>        <span class="sd">&#39;&#39;&#39;Does connector exist&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">cmds</span><span class="o">.</span><span class="n">objExists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_scale</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span></div>
+<div class="viewcode-block" id="Connector.set_scale"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.set_scale">[docs]</a>        <span class="sd">&#39;&#39;&#39;Scale start and end clusters&#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.scale&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">),</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;float3&#39;</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.scale&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">),</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;float3&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_start_scale</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span></div>
+<div class="viewcode-block" id="Connector.set_start_scale"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.set_start_scale">[docs]</a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">:</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.scale&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;float3&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_end_scale</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span></div>
+<div class="viewcode-block" id="Connector.set_end_scale"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.set_end_scale">[docs]</a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">:</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.scale&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;float3&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__get_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span></div>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get axis and state transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__get_all_transforms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all dashed and solid geometry</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">transforms</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="p">:</span>
+                <span class="n">transforms</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">__get_transform</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="s">&quot;solid&quot;</span><span class="p">),</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">__get_transform</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="s">&quot;dashed&quot;</span><span class="p">)])</span>
+        <span class="k">return</span> <span class="n">transforms</span>
+
+    <span class="k">def</span> <span class="nf">__get_shapes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get axis and state shapes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">cmds</span><span class="o">.</span><span class="n">listRelatives</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+                                  <span class="n">children</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                  <span class="nb">type</span><span class="o">=</span><span class="s">&quot;mesh&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__get_all_shapes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all dashed and solid shapes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">shapes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="p">[</span><span class="n">axis</span><span class="p">]:</span>
+                <span class="n">shapes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cmds</span><span class="o">.</span><span class="n">listRelatives</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="p">[</span><span class="n">axis</span><span class="p">][</span><span class="n">_type</span><span class="p">],</span>
+                                                 <span class="n">children</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                                 <span class="nb">type</span><span class="o">=</span><span class="s">&quot;mesh&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])</span>
+        <span class="k">return</span> <span class="n">shapes</span>
+
+    <span class="k">def</span> <span class="nf">__get_grp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get group of axis, parent of solid and dashed geometry</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;grp&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__get_all_grps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all groups of dashed and solid geometry</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__get_grp</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;X&quot;</span><span class="p">,</span> <span class="s">&quot;Y&quot;</span><span class="p">,</span> <span class="s">&quot;Z&quot;</span><span class="p">,</span> <span class="s">&quot;N&quot;</span><span class="p">]]</span>
+
+    <span class="k">def</span> <span class="nf">__create_top_node</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Top node is a group node that is parent of all connector nodes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">top_node</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                   <span class="n">empty</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.inheritsTransform&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">top_node</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">parent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">top_node</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">setup_node</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__create_geometry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creat X, Y, Z and N solid and dashed geometry</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;X&quot;</span><span class="p">,</span> <span class="s">&quot;Y&quot;</span><span class="p">,</span> <span class="s">&quot;Z&quot;</span><span class="p">,</span> <span class="s">&quot;N&quot;</span><span class="p">]:</span>
+
+            <span class="c"># Create solid geometry</span>
+            <span class="n">solid</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">polyCylinder</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                                                                                     <span class="s">&#39;solid</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="o">.</span><span class="n">upper</span><span class="p">()),</span>
+                                                                                                     <span class="s">&#39;cncGeo&#39;</span><span class="p">),</span>
+                                                  <span class="n">r</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">RADIUS</span><span class="p">,</span>
+                                                  <span class="n">h</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                                  <span class="n">sx</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                                                  <span class="n">sz</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                                  <span class="n">ax</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                                                  <span class="n">rcp</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                                  <span class="n">cuv</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+                                                  <span class="n">ch</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c"># Create dashed geometry</span>
+            <span class="n">pieces</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">DASHED_COUNT</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span><span class="o">/</span><span class="mi">2</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">DASHED_COUNT</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span> <span class="mi">2</span><span class="p">):</span>
+                <span class="n">piece</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">polyCylinder</span><span class="p">(</span><span class="n">r</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">RADIUS</span><span class="p">,</span>
+                                          <span class="n">h</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">DASHED_COUNT</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)),</span>
+                                          <span class="n">sx</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                                          <span class="n">sz</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                          <span class="n">ax</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                                          <span class="n">rcp</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                          <span class="n">cuv</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+                                          <span class="n">ch</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">pieces</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">piece</span><span class="p">)</span>
+                <span class="n">cmds</span><span class="o">.</span><span class="n">move</span><span class="p">(((</span><span class="mf">1.0</span><span class="o">/</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">DASHED_COUNT</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span><span class="o">*</span><span class="n">index</span><span class="p">)</span><span class="o">+</span><span class="n">offset</span><span class="p">,</span> <span class="n">piece</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+            <span class="n">dashed</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">polyUnite</span><span class="p">(</span><span class="n">pieces</span><span class="p">,</span>
+                                    <span class="n">ch</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                                    <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                                                                       <span class="s">&#39;dashed</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="o">.</span><span class="n">upper</span><span class="p">()),</span>
+                                                                                       <span class="s">&#39;cncGeo&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">cmds</span><span class="o">.</span><span class="n">xform</span><span class="p">(</span><span class="n">dashed</span><span class="p">,</span> <span class="n">cp</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">dashed</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+            <span class="c"># Create group</span>
+            <span class="n">grp</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">group</span><span class="p">([</span><span class="n">solid</span><span class="p">,</span> <span class="n">dashed</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                                                                                 <span class="s">&#39;connector</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="o">.</span><span class="n">upper</span><span class="p">()),</span>
+                                                                                                 <span class="s">&#39;grp&#39;</span><span class="p">))</span>
+
+            <span class="c"># Store solid, dashed and grp</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">solid</span><span class="o">=</span><span class="n">solid</span><span class="p">,</span> <span class="n">dashed</span><span class="o">=</span><span class="n">dashed</span><span class="p">,</span> <span class="n">grp</span><span class="o">=</span><span class="n">grp</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__create_deformers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create lattice and clusters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_all_transforms</span><span class="p">()</span>
+
+        <span class="c"># Create lattice</span>
+        <span class="n">lattice</span><span class="p">,</span> <span class="n">lattice_handle</span><span class="p">,</span> <span class="n">lattice_base</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">lattice</span><span class="p">(</span><span class="n">transforms</span><span class="p">,</span>
+                                                             <span class="n">divisions</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                                                             <span class="n">objectCentered</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                                             <span class="n">ldivisions</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                                                             <span class="n">outsideLattice</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="c"># Rename lattice</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;ltc&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">lattice_handle</span><span class="p">,</span> <span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;lth&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_base</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">lattice_base</span><span class="p">,</span> <span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;ltb&#39;</span><span class="p">))</span>
+
+        <span class="c"># Move lattice points to 0 on Y (worldspace)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.pt[*][*][*]&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+
+        <span class="n">_</span><span class="p">,</span> <span class="n">_start</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">cluster</span><span class="p">([</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.pt[0:1][1][0]&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span><span class="p">,</span>
+                                  <span class="s">&#39;</span><span class="si">%s</span><span class="s">.pt[0:1][1][1]&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span><span class="p">])</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_end</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">cluster</span><span class="p">([</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.pt[0:1][0][0]&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span><span class="p">,</span>
+                                <span class="s">&#39;</span><span class="si">%s</span><span class="s">.pt[0:1][0][1]&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">_start</span><span class="p">,</span>
+                                 <span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">),</span>
+                                 <span class="s">&#39;clh&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">_end</span><span class="p">,</span>
+                               <span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">),</span>
+                               <span class="s">&#39;clh&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_cl</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">Cluster&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+                                    <span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">),</span>
+                                    <span class="s">&#39;cls&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_cl</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">Cluster&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span>
+                                  <span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">),</span>
+                                  <span class="s">&#39;cls&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_grp</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+                                    <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+                                                            <span class="s">&#39;</span><span class="si">%s</span><span class="s">Grp&#39;</span> <span class="o">%</span> <span class="n">libName</span><span class="o">.</span><span class="n">get_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_grp</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span>
+                                  <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span>
+                                                          <span class="s">&#39;</span><span class="si">%s</span><span class="s">Grp&#39;</span> <span class="o">%</span> <span class="n">libName</span><span class="o">.</span><span class="n">get_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">)))</span>
+
+        <span class="c"># Hide visibility of deformers</span>
+        <span class="k">for</span> <span class="n">clh</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_grp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_grp</span><span class="p">]:</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">xform</span><span class="p">(</span><span class="n">clh</span><span class="p">,</span> <span class="n">piv</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">ws</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.visibility&#39;</span> <span class="o">%</span> <span class="n">clh</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.visibility&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.visibility&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_base</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c"># Apply offset transforms to clusters</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CLUSTER_OFFSET</span> <span class="o">*</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CLUSTER_OFFSET</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="c"># Aim clusters at each other</span>
+        <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_grp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_grp</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">180</span><span class="p">,</span> <span class="o">-</span><span class="mi">90</span><span class="p">)),</span>
+                     <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end_grp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_grp</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">90</span><span class="p">))]:</span>
+            <span class="n">grp_0</span><span class="p">,</span> <span class="n">grp_1</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">data</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">aimConstraint</span><span class="p">(</span><span class="n">grp_0</span><span class="p">,</span> <span class="n">grp_1</span><span class="p">,</span>
+                               <span class="n">worldUpType</span><span class="o">=</span><span class="s">&#39;scene&#39;</span><span class="p">,</span>
+                               <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span>
+                               <span class="n">aimVector</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                               <span class="n">upVector</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                               <span class="n">maintainOffset</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="c"># Constrain parent and child joints to cluster grps</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">pointConstraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_grp</span><span class="p">,</span> <span class="n">mo</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">pointConstraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__child</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_grp</span><span class="p">,</span> <span class="n">mo</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="c"># Parent geometry groups</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">parent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__get_all_grps</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">top_node</span><span class="p">)</span>
+
+        <span class="c"># Parent deformers</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">parent</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span><span class="p">,</span>
+                     <span class="bp">self</span><span class="o">.</span><span class="n">lattice_base</span><span class="p">,</span>
+                     <span class="bp">self</span><span class="o">.</span><span class="n">start_grp</span><span class="p">,</span>
+                     <span class="bp">self</span><span class="o">.</span><span class="n">end_grp</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">top_node</span><span class="p">)</span>
+
+        <span class="c"># # Define nodes</span>
+        <span class="c"># self.__nodes = [self.top_node,</span>
+        <span class="c">#               self.lattice_handle,</span>
+        <span class="c">#               self.lattice_base,</span>
+        <span class="c">#               self.start,</span>
+        <span class="c">#               self.end]</span>
+
+        <span class="c"># self.__nodes.extend(transforms)</span>
+
+    <span class="k">def</span> <span class="nf">__create_visibilty_network</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create visibility nodes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c"># Query aliases and target list from parent aim constraint</span>
+        <span class="n">aliases</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">aimConstraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">wal</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">aimConstraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">tl</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__child</span><span class="o">.</span><span class="n">aim</span><span class="p">)</span>
+
+        <span class="c"># Query parent joint enum items</span>
+        <span class="n">enums</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">attributeQuery</span><span class="p">(</span><span class="s">&#39;aimAt&#39;</span><span class="p">,</span> <span class="n">node</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="n">listEnum</span><span class="o">=</span><span class="bp">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">)</span>
+        <span class="n">enum_index</span> <span class="o">=</span> <span class="n">enums</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__child</span><span class="o">.</span><span class="n">aim</span><span class="p">)</span>
+
+        <span class="c"># Create condition that turns on aim for child constraint if</span>
+        <span class="c"># enum index is set to match childs name</span>
+        <span class="n">aim_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">createNode</span><span class="p">(</span><span class="s">&#39;condition&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;cond&#39;</span><span class="p">))</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.secondTerm&#39;</span> <span class="o">%</span> <span class="n">aim_cond</span><span class="p">,</span> <span class="n">enum_index</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.colorIfTrueR&#39;</span> <span class="o">%</span> <span class="n">aim_cond</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.colorIfFalseR&#39;</span> <span class="o">%</span> <span class="n">aim_cond</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.aimAt&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.firstTerm&#39;</span> <span class="o">%</span> <span class="n">aim_cond</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.outColorR&#39;</span> <span class="o">%</span> <span class="n">aim_cond</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="n">aliases</span><span class="p">[</span><span class="n">index</span><span class="p">]))</span>
+
+        <span class="c"># Set enum to match child aim</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.aimAt&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="n">enum_index</span><span class="p">)</span>
+
+        <span class="c"># Store</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">aim_cond</span><span class="p">)</span>
+
+        <span class="c"># Loop through X, Y and Z axis to create vis network for</span>
+        <span class="c"># solid and dashed geometry state</span>
+        <span class="k">for</span> <span class="n">axis_index</span><span class="p">,</span> <span class="n">axis</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="s">&quot;X&quot;</span><span class="p">,</span> <span class="s">&quot;Y&quot;</span><span class="p">,</span> <span class="s">&quot;Z&quot;</span><span class="p">]):</span>
+
+            <span class="c"># Axis are [XY, XZ, YX, YZ, ZX, ZY]</span>
+            <span class="n">axis_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">axis_index</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">grp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_grp</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+
+            <span class="c"># Condition that allows odd indexes to be visible</span>
+            <span class="n">even_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">createNode</span><span class="p">(</span><span class="s">&quot;condition&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;axisEven</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;con&#39;</span><span class="p">))</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.aimOrder&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.firstTerm&quot;</span> <span class="o">%</span> <span class="n">even_cond</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.secondTerm&quot;</span> <span class="o">%</span> <span class="n">even_cond</span><span class="p">,</span> <span class="n">axis_index</span>  <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfTrueR&quot;</span> <span class="o">%</span> <span class="n">even_cond</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfFalseR&quot;</span> <span class="o">%</span> <span class="n">even_cond</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.outColorR&quot;</span> <span class="o">%</span> <span class="n">even_cond</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.visibility&quot;</span> <span class="o">%</span> <span class="n">grp</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.aimAt&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfTrueR&quot;</span> <span class="o">%</span> <span class="n">even_cond</span><span class="p">)</span>
+
+            <span class="c"># A secondary condition that allows odds to be visible</span>
+            <span class="n">odd_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">createNode</span><span class="p">(</span><span class="s">&quot;condition&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;axisOdd</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;con&#39;</span><span class="p">))</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.aimOrder&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.firstTerm&quot;</span> <span class="o">%</span> <span class="n">odd_cond</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.secondTerm&quot;</span> <span class="o">%</span> <span class="n">odd_cond</span><span class="p">,</span> <span class="n">axis_index</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfTrueR&quot;</span> <span class="o">%</span> <span class="n">odd_cond</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfFalseR&quot;</span> <span class="o">%</span> <span class="n">odd_cond</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.outColorR&quot;</span> <span class="o">%</span> <span class="n">odd_cond</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfFalseR&quot;</span> <span class="o">%</span> <span class="n">even_cond</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.aimAt&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfTrueR&quot;</span> <span class="o">%</span> <span class="n">odd_cond</span><span class="p">)</span>
+
+            <span class="c"># A state condition that determines which geometry is display, solid or dashed</span>
+            <span class="n">state_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">createNode</span><span class="p">(</span><span class="s">&quot;condition&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;state</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;con&#39;</span><span class="p">))</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.aimAt&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.firstTerm&quot;</span> <span class="o">%</span> <span class="n">state_cond</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.secondTerm&quot;</span> <span class="o">%</span> <span class="n">state_cond</span><span class="p">,</span> <span class="n">enum_index</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfTrueR&quot;</span> <span class="o">%</span> <span class="n">state_cond</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfFalseR&quot;</span> <span class="o">%</span> <span class="n">state_cond</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+            <span class="c"># Geometry</span>
+            <span class="n">solid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_transform</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="s">&quot;solid&quot;</span><span class="p">)</span>
+            <span class="n">dashed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_transform</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="s">&quot;dashed&quot;</span><span class="p">)</span>
+
+            <span class="c"># A reverse node is needed to allow for alternate geometry visibility</span>
+            <span class="n">state_rev</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">createNode</span><span class="p">(</span><span class="s">&quot;reverse&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;state</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;rev&#39;</span><span class="p">))</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.outColorR&quot;</span> <span class="o">%</span> <span class="n">state_cond</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.inputX&quot;</span> <span class="o">%</span> <span class="n">state_rev</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.outputX&quot;</span> <span class="o">%</span> <span class="n">state_rev</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.visibility&quot;</span> <span class="o">%</span> <span class="n">dashed</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.outColorR&quot;</span> <span class="o">%</span> <span class="n">state_cond</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.visibility&quot;</span> <span class="o">%</span> <span class="n">solid</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">__nodes</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">odd_cond</span><span class="p">,</span> <span class="n">even_cond</span><span class="p">,</span> <span class="n">state_rev</span><span class="p">,</span> <span class="n">state_cond</span><span class="p">])</span>
+
+        <span class="c"># The N axis is when world/local aim is set on parent joint aim</span>
+        <span class="c"># This allows for grey dashed geometry to be visible</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="s">&quot;N&quot;</span>
+        <span class="n">grp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_grp</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+
+        <span class="c"># N condition is True if aim is index 0</span>
+        <span class="n">n_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">createNode</span><span class="p">(</span><span class="s">&quot;condition&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;axis</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;con&#39;</span><span class="p">))</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.secondTerm&quot;</span> <span class="o">%</span> <span class="n">n_cond</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfTrueR&quot;</span> <span class="o">%</span> <span class="n">n_cond</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.colorIfFalseR&quot;</span> <span class="o">%</span> <span class="n">n_cond</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.aimAt&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">joint</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.firstTerm&quot;</span> <span class="o">%</span> <span class="n">n_cond</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">connectAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.outColorR&quot;</span> <span class="o">%</span> <span class="n">n_cond</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.visibility&quot;</span> <span class="o">%</span> <span class="n">grp</span><span class="p">)</span>
+
+        <span class="c"># Get geometry of N axis</span>
+        <span class="n">solid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_transform</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="s">&quot;solid&quot;</span><span class="p">)</span>
+        <span class="n">dashed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_transform</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="s">&quot;dashed&quot;</span><span class="p">)</span>
+
+        <span class="c"># Solid is False, dashed is True</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.visibility&quot;</span> <span class="o">%</span> <span class="n">solid</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">.visibility&quot;</span> <span class="o">%</span> <span class="n">dashed</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n_cond</span><span class="p">)</span>
+
+        <span class="c"># Loop through all aliases on and set non-connected attributes to be 0</span>
+        <span class="k">for</span> <span class="n">alias</span> <span class="ow">in</span> <span class="n">aliases</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">cmds</span><span class="o">.</span><span class="n">listConnections</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="n">alias</span><span class="p">),</span>
+                                        <span class="n">source</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                        <span class="n">destination</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                                        <span class="n">plugs</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+                <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="n">alias</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__create_shader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get or create X(R), Y(G), Z(B) or N(Grey) shaders</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">shader_data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;X&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                       <span class="s">&quot;Y&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                       <span class="s">&quot;Z&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                       <span class="s">&quot;N&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.7</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">)}</span>
+
+        <span class="k">for</span> <span class="n">axis</span><span class="p">,</span> <span class="n">rgb</span> <span class="ow">in</span> <span class="n">shader_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">shader</span><span class="p">,</span> <span class="n">sg</span> <span class="o">=</span> <span class="n">libShader</span><span class="o">.</span><span class="n">get_or_create_shader</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">create_name</span><span class="p">(</span><span class="s">&#39;N&#39;</span><span class="p">,</span> <span class="s">&quot;color</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#39;shd&#39;</span><span class="p">),</span> <span class="s">&quot;lambert&quot;</span><span class="p">)</span>
+
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.color&#39;</span> <span class="o">%</span> <span class="n">shader</span><span class="p">,</span> <span class="o">*</span><span class="n">rgb</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;float3&#39;</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.incandescence&#39;</span> <span class="o">%</span> <span class="n">shader</span><span class="p">,</span> <span class="o">*</span><span class="n">rgb</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&#39;float3&#39;</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">setAttr</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.diffuse&#39;</span> <span class="o">%</span> <span class="n">shader</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">__shaders</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">shader</span><span class="o">=</span><span class="n">shader</span><span class="p">,</span> <span class="n">sg</span><span class="o">=</span><span class="n">sg</span><span class="p">)</span>
+
+            <span class="n">cmds</span><span class="o">.</span><span class="n">sets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__get_shapes</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="s">&quot;solid&quot;</span><span class="p">),</span> <span class="n">edit</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">forceElement</span><span class="o">=</span><span class="n">sg</span><span class="p">)</span>
+            <span class="n">cmds</span><span class="o">.</span><span class="n">sets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__get_shapes</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="s">&quot;dashed&quot;</span><span class="p">),</span> <span class="n">edit</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">forceElement</span><span class="o">=</span><span class="n">sg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__create_attribtues</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Connector.remove"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.remove">[docs]</a>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__nodes</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+        <span class="c"># cmds.delete(self.__nodes)</span>
+
+        <span class="c"># self.top_node = None</span>
+        <span class="c"># self.lattice_handle = None</span>
+        <span class="c"># self.lattice_base = None</span>
+        <span class="c"># self.start = None</span>
+        <span class="c"># self.end = None</span>
+
+        <span class="k">return</span> <span class="n">Connector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__child</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">reinit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
+<div class="viewcode-block" id="Connector.reinit"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.reinit">[docs]</a>        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reinitialise all transforms, shaders, deformers</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+        <span class="c"># Top node</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">top_node</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c"># Axis related nodes</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;X&quot;</span><span class="p">,</span> <span class="s">&quot;Y&quot;</span><span class="p">,</span> <span class="s">&quot;Z&quot;</span><span class="p">]:</span>
+
+            <span class="c"># Geometry and groups</span>
+            <span class="n">solid</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;solid</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="o">.</span><span class="n">upper</span><span class="p">()),</span> <span class="s">&#39;cncGeo&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">dashed</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;dashed</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="o">.</span><span class="n">upper</span><span class="p">()),</span> <span class="s">&#39;cncGeo&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">grp</span>  <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;connector</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="o">.</span><span class="n">upper</span><span class="p">()),</span> <span class="s">&#39;grp&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__geometry</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">solid</span><span class="o">=</span><span class="n">solid</span><span class="p">,</span> <span class="n">dashed</span><span class="o">=</span><span class="n">dashed</span><span class="p">,</span> <span class="n">grp</span><span class="o">=</span><span class="n">grp</span><span class="p">)</span>
+
+            <span class="c"># Shaders</span>
+            <span class="n">shader</span><span class="p">,</span> <span class="n">sg</span> <span class="o">=</span> <span class="n">libShader</span><span class="o">.</span><span class="n">get_shader</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">create_name</span><span class="p">(</span><span class="s">&#39;N&#39;</span><span class="p">,</span> <span class="s">&quot;color</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#39;shd&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__shaders</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">shader</span><span class="o">=</span><span class="n">shader</span><span class="p">,</span> <span class="n">sg</span><span class="o">=</span><span class="n">sg</span><span class="p">)</span>
+
+            <span class="c"># Conditions and other network nodes</span>
+            <span class="n">aim_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;cond&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">even_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">createNode</span><span class="p">(</span><span class="s">&quot;condition&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;axisEven</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;con&#39;</span><span class="p">))</span>
+            <span class="n">odd_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">createNode</span><span class="p">(</span><span class="s">&quot;condition&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;axisOdd</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;con&#39;</span><span class="p">))</span>
+            <span class="n">state_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;state</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;con&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">state_rev</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;state</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;rev&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">axis</span> <span class="o">=</span> <span class="s">&quot;N&quot;</span>
+        <span class="n">n_cond</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;axis</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">axis</span><span class="p">),</span> <span class="s">&#39;con&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c"># Clusters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">),</span> <span class="s">&#39;clh&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_cl</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;start&#39;</span><span class="p">),</span> <span class="s">&#39;cls&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">),</span> <span class="s">&#39;clh&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_cl</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">append_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">),</span> <span class="s">&#39;cls&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_grp</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">listRelatives</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_grp</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">listRelatives</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c"># Lattices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;lth&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_base</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">libName</span><span class="o">.</span><span class="n">set_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;ltb&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">aliases</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">aimConstraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">wal</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">aimConstraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">tl</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__child</span><span class="o">.</span><span class="n">aim</span><span class="p">)</span>
+
+        <span class="n">condition</span> <span class="o">=</span> <span class="n">cmds</span><span class="o">.</span><span class="n">listConnections</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__parent</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="n">aliases</span><span class="p">[</span><span class="n">index</span><span class="p">]),</span>
+                                         <span class="nb">type</span><span class="o">=</span><span class="s">&#39;condition&#39;</span><span class="p">,</span>
+                                         <span class="n">source</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                         <span class="n">destination</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+        <span class="c"># Set nodes</span>
+        <span class="n">geometry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_all_transforms</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__nodes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span>
+
+        <span class="n">grps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_all_grps</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__nodes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">grps</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__nodes</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">top_node</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">lattice_handle</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">lattice_base</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">start_grp</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">end_grp</span><span class="p">,</span>
+                      <span class="n">condition</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
+<div class="viewcode-block" id="Connector.create"><a class="viewcode-back" href="../../../../crefor.model.guide.html#crefor.model.guide.connector.Connector.create">[docs]</a>        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reinit</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__create_top_node</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__create_geometry</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__create_deformers</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__create_visibilty_network</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__create_attribtues</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__create_shader</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_start_scale</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_end_scale</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+</pre></div></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">crefor  documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../../model.html" >crefor.model</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Eddie Hoyle.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

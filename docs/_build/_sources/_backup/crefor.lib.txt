@@ -1,0 +1,46 @@
+crefor.lib package
+==================
+
+Submodules
+----------
+
+crefor.lib.libAttr module
+-------------------------
+
+.. automodule:: crefor.lib.libAttr
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.lib.libName module
+-------------------------
+
+.. automodule:: crefor.lib.libName
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.lib.libPython module
+---------------------------
+
+.. automodule:: crefor.lib.libPython
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+crefor.lib.libShader module
+---------------------------
+
+.. automodule:: crefor.lib.libShader
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: crefor.lib
+    :members:
+    :undoc-members:
+    :show-inheritance:
