@@ -37,6 +37,7 @@ class Guide(Node):
         self.aim = None
 
         # Node all setup stuff is parented under
+        self.nodes = []
         self.setup_node = None
 
         # Constraint default options
@@ -48,6 +49,22 @@ class Guide(Node):
         self.orient = None
 
         self.__trash = []
+
+    def _decompile(self):
+        """_decompile(self)
+
+        Decompile name into components.
+
+        :returns:   List of name componenets
+        :rtype:     list
+
+        **Example**:
+
+        >>> guide = Guide("C", "spine", 0).create()
+        >>> guide._decompile()
+        # Result: ["C", "spine", 0, "gde"] #
+        """
+        return libName._decompile(self.name)
 
     @property
     def short_name(self):
@@ -123,8 +140,6 @@ class Guide(Node):
 
     def is_parent(self, guide):
         '''Is guide the immediate parent of self'''
-        # print 'p', self.parent.joint
-        # print 'g', guide.joint
         if self.parent:
             return guide.joint == self.parent.joint
         return False
@@ -221,13 +236,15 @@ class Guide(Node):
 
         return guide
 
-    def remove_connector(self, guide):
-        '''
+    def __remove_connector(self, guide):
+        """
         Child centric connector remove
-        '''
+        """
+        print "__remove_connector", guide
         if guide.name in self.connectors:
-            self.connectors[guide.name].remove()
+            self.connectors[guide.name]._remove()
             del self.connectors[guide.name]
+            print "connectors done"
 
     def remove_parent(self):
         '''
@@ -241,6 +258,7 @@ class Guide(Node):
     def remove_child(self, guide):
         '''
         '''
+
         self.remove_aim(guide)
 
     def remove_aim(self, guide):
@@ -257,7 +275,7 @@ class Guide(Node):
             return None
 
         # Remove connector
-        self.remove_connector(guide)
+        self.__remove_connector(guide)
 
         # Parent guide to world
         cmds.parent(guide.joint, world=True)
@@ -295,6 +313,8 @@ class Guide(Node):
         cmds.setAttr("%s.radius" % self.joint, l=True)
         cmds.select(cl=True)
 
+        self.nodes.append(self.joint)
+
         _sphere = cmds.sphere(radius=self.RADIUS, ch=False)[0]
         self.shapes = cmds.listRelatives(_sphere, type='nurbsSurface', children=True)
         cmds.parent(self.shapes, self.joint, r=True, s=True)
@@ -304,12 +324,15 @@ class Guide(Node):
         self.setup_node = cmds.group(name=libName.set_suffix(self.name, 'setup'), empty=True)
         cmds.pointConstraint(self.joint, self.setup_node, mo=False)
 
+        self.nodes.append(self.setup_node)
+
         # Create up transform
         self.up = cmds.group(name=libName.set_suffix(self.name, 'up'), empty=True)
         _cube = cmds.nurbsCube(p=(0, 0, 0), ax=(0, 1, 0), lr=1, hr=1, d=1, u=1, v=1, ch=0)[0]
         _cube_shapes = cmds.listRelatives(_cube, type='nurbsSurface', ad=True)
         cmds.parent(_cube_shapes, self.up, r=True, s=True)
         cmds.setAttr('%s.translateY' % self.up, 2)
+        self.nodes.append(self.up)
 
         # Scale up
         _clh = cmds.cluster(_cube_shapes)[1]
@@ -323,6 +346,7 @@ class Guide(Node):
         # Create main aim transform
         self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
         cmds.setAttr('%s.translateX' % self.aim, -0.00000001)
+        self.nodes.append(self.aim)
 
         cmds.addAttr(self.joint, ln='aimAt', at='enum', en='local')
         cmds.setAttr('%s.aimAt' % self.joint, k=False)
@@ -352,7 +376,13 @@ class Guide(Node):
         aliases = cmds.orientConstraint(self.orient, q=True, wal=True)
         targets = cmds.orientConstraint(self.orient, q=True, tl=True)
         index = targets.index(self.joint)
-        condition = cmds.createNode('condition')
+        condition = cmds.createNode('condition',
+                                    name=libName.set_suffix(libName.append_description(self.name,
+                                                                                       'local'),
+                                                                                       'cond'))
+
+        self.nodes.append(condition)
+
         cmds.setAttr('%s.secondTerm' % condition, index)
         cmds.setAttr('%s.colorIfTrueR' % condition, 1)
         cmds.setAttr('%s.colorIfFalseR' % condition, 0)
@@ -368,6 +398,7 @@ class Guide(Node):
                                                  worldUpType='object')[0]
         aim_aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
         cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
+        self.nodes.append(self.constraint)
 
         # Create custom aim constraint offsets
         aim_order_pma = cmds.createNode("plusMinusAverage", name="pma")
@@ -387,6 +418,7 @@ class Guide(Node):
     def __create_shader(self):
 
         self.shader, self.sg = libShader.get_or_create_shader(libName.set_suffix(self.name, 'shd'), 'lambert')
+        self.nodes.extend([self.sg, self.shader])
         cmds.sets(self.shapes, edit=True, forceElement=self.sg)
 
         # rgb = libShader.get_rgb_from_position(self.position)
@@ -423,6 +455,18 @@ class Guide(Node):
         self.setup_node = cmds.ls(libName.set_suffix(self.name, 'setup'))[0]
         
         self.up = cmds.ls(libName.set_suffix(self.name, 'up'))[0]
+        condition = cmds.ls(libName.set_suffix(libName.append_description(self.name,
+                                                                          "local"),
+                                                                          "cond"))[0]
+
+        self.nodes = [self.joint,
+                      self.aim,
+                      self.constraint,
+                      self.sg,
+                      self.shader,
+                      self.setup_node,
+                      self.up,
+                      condition]
 
         return self
 
@@ -446,6 +490,18 @@ class Guide(Node):
     def remove(self):
         """
         """
+
+        parent = self.parent
+
+        print self.name, 'removing', self.parent
+        if parent:
+
+            for key, child in self.children.items():
+                child.set_parent(parent)
+
+            self.parent.remove_child(self)
+
+        cmds.delete(self.nodes)
 
 
         return self

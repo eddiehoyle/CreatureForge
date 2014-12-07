@@ -9,25 +9,6 @@ from crefor import decorators
 from crefor.lib import libName
 from crefor.model.guide.guide import Guide
 
-class NodeException(Exception):
-    pass
-
-
-def guides(func):
-    """
-    Guide validation decorator
-    """
-
-    @wraps(func)
-    def inner(*args, **kwargs):
-        try:
-            args = [Guide(*libName._decompile(arg)[:-1]).reinit() for arg in args]
-        except Exception as e:
-
-            raise NodeException("Error: %s" % e)
-        return func(*args, **kwargs)
-    return inner
-
 @decorators.name
 def create(position, description, index=0):
     """create(position, description, index=0)
@@ -44,14 +25,14 @@ def create(position, description, index=0):
     **Example**:
 
     >>> create("C", "spine", index=0)
-    True
+    # Result: Guide(C_spine_0_gde) # 
     """
 
     return Guide(position=position,
                  description=description,
                  index=index).create()
 
-@guides
+@decorators.guides
 def set_parent(child, parent):
     """set_parent(child, parent)
     Set child guides parent.
@@ -60,17 +41,17 @@ def set_parent(child, parent):
     :param      child:      Child guide that will be added to parent.
     :type       parent:     str
     :type       child:      str
-    :returns:   Guide
+    :returns:   Parent guide
 
     **Example**:
 
     >>> set_parent("C_arm_0_gde", "C_spine_0_gde")
-    True
+    # Result: Guide(C_spine_0_gde) # 
     """
 
     return child.set_parent(parent)
 
-@guides
+@decorators.guides
 def add_child(parent, child):
     """add_child(parent, child)
     Add a child guide to parent guide
@@ -79,40 +60,103 @@ def add_child(parent, child):
     :param      child:      Child guide that will be added to parent.
     :type       parent:     str
     :type       child:      str
-    :returns:   Guide
+    :rtype:                 crefor.model.guide.Guide
 
     **Example**:
 
     >>> add_child("C_arm_0_gde", "C_spine_0_gde")
-    True
+    # Result: Guide(C_spine_0_gde) # 
     """
 
     return parent.add_child(child)
 
-@guides
-def has_parent(child, parent):
-    """
+@decorators.guides
+def has_parent(guide):
+    """has_parent(child, parent)
+    Does the child have parent anywhere in it's hierarchy?
+
+    :param      guide:      Guide that will checked
+    :type       guide:      str, Guide
+    :rtype:                 bool
+
+    **Example**:
+
+    >>> has_parent("C_root_0_gde")
+    # Result: False # 
     """
 
-    return child.has_parent(parent)
+    return bool(child.parent)
 
-@guides
+@decorators.guides
 def has_child(parent, child):
-    """
+    """has_child(parent, child)
+    Is guide an immediate child of parent?
+
+    :param      parent:     Parent guide child will be added to.
+    :param      child:      Child guide that will be added to parent.
+    :type       parent:     str
+    :type       child:      str
+    :rtype:                 bool
+
+    **Example**:
+
+    >>> has_child("C_spine_0_gde", "C_arm_0_gde")
+    # Result: True # 
     """
 
     return child.has_parent(parent)
 
-@guides
-def is_parent(child, parent):
-    """
+@decorators.guides
+def is_parent(parent, child):
+    """is_parent(child, parent)
+    Is guide the immediate parent of child?
+
+    :param      parent:     Child guide that will check for parent
+    :param      child:      Parent guide that will check for child
+    :type       parent:     str
+    :type       child:      str
+    :rtype:                 bool
+
+    **Example**:
+
+    >>> is_parent("C_spine_0_gde", "C_arm_0_gde")
+    # Result: True # 
     """
 
     return parent.is_parent(child)
 
-@guides
-def remove_guide(guide):
-    """
+@decorators.guides
+def remove(guide):
+    """remove(guide)
+    Remove guide from scene
+
+    :param      guide:      Guide to be removed
+    :type       guide:      str, Guide
+
+    **Example**:
+
+    >>> remove("C_arm_0_gde")
+    >>> cmds.ls("C_arm_0_gde")
+    # Result: False #
     """
 
-    return guide.remove()
+    guide.remove()
+
+@decorators.guides
+def remove_parent(guide):
+    """remove_parent(guide)
+    Remove guides parent if available
+
+    Remove guide from scene
+
+    :param      guide:      Guide to be removed
+    :type       guide:      str, Guide
+
+    **Example**:
+
+    >>> remove_parent("C_arm_0_gde")
+    >>> cmds.ls("C_arm_0_gde")
+    # Result: False #
+    """
+
+    guide.remove_parent()

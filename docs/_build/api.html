@@ -74,14 +74,14 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Guide</p>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">crefor.model.guide.Guide</p>
 </td>
 </tr>
 </tbody>
 </table>
 <p><strong>Example</strong>:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">add_child</span><span class="p">(</span><span class="s">&quot;C_arm_0_gde&quot;</span><span class="p">,</span> <span class="s">&quot;C_spine_0_gde&quot;</span><span class="p">)</span>
-<span class="go">True</span>
+<span class="go"># Result: Guide(C_spine_0_gde) # </span>
 </pre></div>
 </div>
 </dd></dl>
@@ -108,30 +108,124 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 </table>
 <p><strong>Example</strong>:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">create</span><span class="p">(</span><span class="s">&quot;C&quot;</span><span class="p">,</span> <span class="s">&quot;spine&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-<span class="go">True</span>
+<span class="go"># Result: Guide(C_spine_0_gde) # </span>
 </pre></div>
 </div>
 </dd></dl>
 
 <dl class="function">
 <dt id="crefor.api.has_child">
-<tt class="descclassname">crefor.api.</tt><tt class="descname">has_child</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#crefor.api.has_child" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descclassname">crefor.api.</tt><tt class="descname">has_child</tt><big>(</big><em>parent</em>, <em>child</em><big>)</big><a class="headerlink" href="#crefor.api.has_child" title="Permalink to this definition">¶</a></dt>
+<dd><p>Is guide an immediate child of parent?</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>parent</strong> (<em>str</em>) &#8211; Parent guide child will be added to.</li>
+<li><strong>child</strong> (<em>str</em>) &#8211; Child guide that will be added to parent.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">bool</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example</strong>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">has_child</span><span class="p">(</span><span class="s">&quot;C_spine_0_gde&quot;</span><span class="p">,</span> <span class="s">&quot;C_arm_0_gde&quot;</span><span class="p">)</span>
+<span class="go"># Result: True # </span>
+</pre></div>
+</div>
+</dd></dl>
 
 <dl class="function">
 <dt id="crefor.api.has_parent">
-<tt class="descclassname">crefor.api.</tt><tt class="descname">has_parent</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#crefor.api.has_parent" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descclassname">crefor.api.</tt><tt class="descname">has_parent</tt><big>(</big><em>child</em>, <em>parent</em><big>)</big><a class="headerlink" href="#crefor.api.has_parent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does the child have parent anywhere in it&#8217;s hierarchy?</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>guide</strong> (<em>str, Guide</em>) &#8211; Guide that will checked</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example</strong>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">has_parent</span><span class="p">(</span><span class="s">&quot;C_root_0_gde&quot;</span><span class="p">)</span>
+<span class="go"># Result: False # </span>
+</pre></div>
+</div>
+</dd></dl>
 
 <dl class="function">
 <dt id="crefor.api.is_parent">
-<tt class="descclassname">crefor.api.</tt><tt class="descname">is_parent</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#crefor.api.is_parent" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descclassname">crefor.api.</tt><tt class="descname">is_parent</tt><big>(</big><em>child</em>, <em>parent</em><big>)</big><a class="headerlink" href="#crefor.api.is_parent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Is guide the immediate parent of child?</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>parent</strong> (<em>str</em>) &#8211; Child guide that will check for parent</li>
+<li><strong>child</strong> (<em>str</em>) &#8211; Parent guide that will check for child</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">bool</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example</strong>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">is_parent</span><span class="p">(</span><span class="s">&quot;C_spine_0_gde&quot;</span><span class="p">,</span> <span class="s">&quot;C_arm_0_gde&quot;</span><span class="p">)</span>
+<span class="go"># Result: True # </span>
+</pre></div>
+</div>
+</dd></dl>
 
 <dl class="function">
-<dt id="crefor.api.remove_guide">
-<tt class="descclassname">crefor.api.</tt><tt class="descname">remove_guide</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#crefor.api.remove_guide" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="crefor.api.remove">
+<tt class="descclassname">crefor.api.</tt><tt class="descname">remove</tt><big>(</big><em>guide</em><big>)</big><a class="headerlink" href="#crefor.api.remove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove guide from scene</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>guide</strong> (<em>str, Guide</em>) &#8211; Guide to be removed</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example</strong>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">remove</span><span class="p">(</span><span class="s">&quot;C_arm_0_gde&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s">&quot;C_arm_0_gde&quot;</span><span class="p">)</span>
+<span class="go"># Result: False #</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="crefor.api.remove_parent">
+<tt class="descclassname">crefor.api.</tt><tt class="descname">remove_parent</tt><big>(</big><em>guide</em><big>)</big><a class="headerlink" href="#crefor.api.remove_parent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove guides parent if available</p>
+<p>Remove guide from scene</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>guide</strong> (<em>str, Guide</em>) &#8211; Guide to be removed</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example</strong>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">remove_parent</span><span class="p">(</span><span class="s">&quot;C_arm_0_gde&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cmds</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s">&quot;C_arm_0_gde&quot;</span><span class="p">)</span>
+<span class="go"># Result: False #</span>
+</pre></div>
+</div>
+</dd></dl>
 
 <dl class="function">
 <dt id="crefor.api.set_parent">
@@ -147,14 +241,14 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Guide</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Parent guide</p>
 </td>
 </tr>
 </tbody>
 </table>
 <p><strong>Example</strong>:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">set_parent</span><span class="p">(</span><span class="s">&quot;C_arm_0_gde&quot;</span><span class="p">,</span> <span class="s">&quot;C_spine_0_gde&quot;</span><span class="p">)</span>
-<span class="go">True</span>
+<span class="go"># Result: Guide(C_spine_0_gde) # </span>
 </pre></div>
 </div>
 </dd></dl>

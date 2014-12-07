@@ -27,10 +27,11 @@ class Node(object):
         return self.name
 
     def __repr__(self):
-        return "%s(position=%s, descrption=%s, index=%s)" % (self.__class__.__name__,
-                                                             self.position,
-                                                             self.descrption,
-                                                             self.index)
+        # return "%s(position=%s, descrption=%s, index=%s)" % (self.__class__.__name__,
+        #                                                      self.position,
+        #                                                      self.descrption,
+        #                                                      self.index)
+        return "%s(%s)" % (self.__class__.__name__, self.name)
 
     def __eq__(self, other):
         try:

@@ -4,10 +4,12 @@
 """
 
 from crefor.lib import libName
+from crefor.model.guide.guide import Guide
+from crefor.exceptions import NodeException
 from functools import wraps
 
 def name(func):
-    """
+    """name(func)
     Node name validation
     """
 
@@ -20,10 +22,18 @@ def name(func):
         return func(*args, **kwargs)
     return inner
 
-def test(ass):
-    """This function translates foo into bar
-
-    :param ass: A string to be converted
-    :returns: A bar formatted string
+def guides(func):
+    """guides(func)
+    Guide validation decorator
     """
-    return ass
+
+    @wraps(func)
+    def inner(*args, **kwargs):
+        try:
+            args = [Guide(*libName._decompile(str(guide))[:-1]).reinit() for guide in args]
+
+        except Exception as e:
+            raise NodeException("Error: %s" % e)
+
+        return func(*args, **kwargs)
+    return inner

@@ -128,6 +128,7 @@ class Connector(Node):
                                    empty=True)
         cmds.setAttr('%s.inheritsTransform' % self.top_node, False)
         cmds.parent(self.top_node, self.__parent.setup_node)
+        self.__nodes.append(self.top_node)
 
     def __create_geometry(self):
         """
@@ -404,18 +405,22 @@ class Connector(Node):
     def __create_attribtues(self):
         pass
 
-    def remove(self):
+    def _remove(self):
+        """
+        """
+
+        print 'in connector', self.name, 'nodes', self.__nodes
 
         if not self.__nodes:
             return self
 
-        # cmds.delete(self.__nodes)
+        cmds.delete(self.__nodes)
 
-        # self.top_node = None
-        # self.lattice_handle = None
-        # self.lattice_base = None
-        # self.start = None
-        # self.end = None
+        
+        self.__nodes = []
+        self.__geometry = {}
+
+        print 'in connector', self.name, 'after', self.__nodes
 
         return Connector(self.__parent, self.__child)
 
@@ -432,6 +437,7 @@ class Connector(Node):
         self.top_node = cmds.ls(self.name)[0]
 
         # Axis related nodes
+        axis_nodes = []
         for axis in ["X", "Y", "Z"]:
 
             # Geometry and groups
@@ -450,9 +456,16 @@ class Connector(Node):
             odd_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisOdd%s' % axis), 'con'))
             state_cond = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'con'))[0]
             state_rev = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'rev'))[0]
+            axis_nodes.extend([aim_cond, even_cond, odd_cond, state_cond, state_rev])
 
         axis = "N"
+        solid = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid%s' % axis.upper()), 'cncGeo'))[0]
+        dashed = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed%s' % axis.upper()), 'cncGeo'))[0]
+        grp  = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'connector%s' % axis.upper()), 'grp'))[0]
+        self.__geometry[axis] = dict(solid=solid, dashed=dashed, grp=grp)
+
         n_cond = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'axis%s' % axis), 'con'))[0]
+        axis_nodes.append(n_cond)
 
         # Clusters
         self.start = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))[0]
@@ -476,21 +489,26 @@ class Connector(Node):
                                          destination=False)[0]
 
 
-        # Set nodes
+        # Non-dag nodes
+        self.__nodes.extend(axis_nodes)
+
+        # Geometry
         geometry = self.__get_all_transforms()
         self.__nodes.extend(geometry)
 
+        # Groups
         grps = self.__get_all_grps()
         self.__nodes.extend(grps)
 
+        # Other
         self.__nodes = [self.top_node,
-                      self.lattice_handle,
-                      self.lattice_base,
-                      self.start,
-                      self.end,
-                      self.start_grp,
-                      self.end_grp,
-                      condition]
+                        self.lattice_handle,
+                        self.lattice_base,
+                        self.start,
+                        self.end,
+                        self.start_grp,
+                        self.end_grp,
+                        condition]
 
         return self
 
