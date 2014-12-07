@@ -1,12 +1,12 @@
 # IMPORTANT
-* Tidy up guide and connector nodels after major refector
+* Get guide.remove() working correctly. This means strict guide and connector reinit()
 
 ## Stretch goal
 * Create a name class that is much more easier and shorthand to work with
 
 ## Guide model
 * ~~Get axis swap working with 4x geometry setup~~
-* Write more docstrings
+* ~~Write more docstrings~~
 * ~~Write reinit from string~~
 * ~~Move aimConstraint to point at child aim transform, not guide~~
 * ~~Create condition node graph for aimConstraint~~
@@ -20,6 +20,8 @@
 * ~~Refactor to build on from Maya joints to allow for hierarchy and pivot movement~~
 * ~~Atm guide hierarchy are properties, returning string of parent or children. Revert this back to guide objects~~
 * ~~Write axis swap logic (to chang from pointing down X to Y, Z)~~
+* ~~Add some methods to guide view~~
+* ~~Start working on Sphinx documentation~~
 
 ## Completed stretch
 * ~~Rebuild connector model after messing it up so much~~
