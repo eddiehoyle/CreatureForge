@@ -137,7 +137,7 @@ def remove(guide):
 
     >>> remove("C_arm_0_gde")
     >>> cmds.ls("C_arm_0_gde")
-    # Result: False #
+    # Result: [] #
     """
 
     guide.remove()
@@ -155,8 +155,8 @@ def remove_parent(guide):
     **Example**:
 
     >>> remove_parent("C_arm_0_gde")
-    >>> cmds.ls("C_arm_0_gde")
-    # Result: False #
+    >>> cmds.listRelatives("C_arm_0_gde", parent=True, type="joint")
+    # Result: [] #
     """
 
     guide.remove_parent()

@@ -4,6 +4,7 @@
 '''
 
 from maya import cmds
+import json
 from collections import OrderedDict
 from crefor.lib import libName, libAttr, libShader
 from crefor.model import Node
@@ -37,7 +38,6 @@ class Guide(Node):
         self.aim = None
 
         # Node all setup stuff is parented under
-        self.nodes = []
         self.setup_node = None
 
         # Constraint default options
@@ -49,6 +49,8 @@ class Guide(Node):
         self.orient = None
 
         self.__trash = []
+
+        self.__burn_nodes = dict(nondag=[])
 
     def _decompile(self):
         """_decompile(self)
@@ -64,7 +66,25 @@ class Guide(Node):
         >>> guide._decompile()
         # Result: ["C", "spine", 0, "gde"] #
         """
+
         return libName._decompile(self.name)
+
+    @property
+    def nodes(self):
+        """nodes(self)
+        Return important nodes from Guide class
+
+        :returns:   Dictionary of important nodes in {"attr": "value"} format
+        :rtype:     dict
+
+        **Example**:
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.nodes
+        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
+        """
+
+        return json.loads(cmds.getAttr("%s.snapshotNodes" % self.setup_node)) if self.exists() else {}
 
     @property
     def short_name(self):
@@ -236,16 +256,6 @@ class Guide(Node):
 
         return guide
 
-    def __remove_connector(self, guide):
-        """
-        Child centric connector remove
-        """
-        print "__remove_connector", guide
-        if guide.name in self.connectors:
-            self.connectors[guide.name]._remove()
-            del self.connectors[guide.name]
-            print "connectors done"
-
     def remove_parent(self):
         '''
         If have a parent, tell parent to remove aim to self
@@ -275,7 +285,9 @@ class Guide(Node):
             return None
 
         # Remove connector
-        self.__remove_connector(guide)
+        if guide.name in self.connectors:
+            self.connectors[guide.name]._remove()
+            del self.connectors[guide.name]
 
         # Parent guide to world
         cmds.parent(guide.joint, world=True)
@@ -313,8 +325,6 @@ class Guide(Node):
         cmds.setAttr("%s.radius" % self.joint, l=True)
         cmds.select(cl=True)
 
-        self.nodes.append(self.joint)
-
         _sphere = cmds.sphere(radius=self.RADIUS, ch=False)[0]
         self.shapes = cmds.listRelatives(_sphere, type='nurbsSurface', children=True)
         cmds.parent(self.shapes, self.joint, r=True, s=True)
@@ -324,15 +334,12 @@ class Guide(Node):
         self.setup_node = cmds.group(name=libName.set_suffix(self.name, 'setup'), empty=True)
         cmds.pointConstraint(self.joint, self.setup_node, mo=False)
 
-        self.nodes.append(self.setup_node)
-
         # Create up transform
         self.up = cmds.group(name=libName.set_suffix(self.name, 'up'), empty=True)
         _cube = cmds.nurbsCube(p=(0, 0, 0), ax=(0, 1, 0), lr=1, hr=1, d=1, u=1, v=1, ch=0)[0]
         _cube_shapes = cmds.listRelatives(_cube, type='nurbsSurface', ad=True)
         cmds.parent(_cube_shapes, self.up, r=True, s=True)
         cmds.setAttr('%s.translateY' % self.up, 2)
-        self.nodes.append(self.up)
 
         # Scale up
         _clh = cmds.cluster(_cube_shapes)[1]
@@ -346,7 +353,7 @@ class Guide(Node):
         # Create main aim transform
         self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
         cmds.setAttr('%s.translateX' % self.aim, -0.00000001)
-        self.nodes.append(self.aim)
+        
 
         cmds.addAttr(self.joint, ln='aimAt', at='enum', en='local')
         cmds.setAttr('%s.aimAt' % self.joint, k=False)
@@ -360,12 +367,21 @@ class Guide(Node):
         cmds.parent([self.up, self.aim], self.setup_node)
         self.__trash.extend([_cube, _sphere])
 
+        self.__burn_nodes["aim"] = self.aim
+        self.__burn_nodes["joint"] = self.joint
+        self.__burn_nodes["shapes"] = self.shapes
+        self.__burn_nodes["setup_node"] = self.setup_node
+        self.__burn_nodes["up"] = self.up
+
     def __create_attribtues(self):
 
         cmds.addAttr(self.joint, ln='debug', at='bool', min=0, max=1, dv=0)
         cmds.setAttr('%s.debug' % self.joint, k=False)
         cmds.setAttr('%s.debug' % self.joint, cb=True)
         cmds.connectAttr('%s.debug' % self.joint, '%s.displayLocalAxis' % self.aim)
+
+        cmds.addAttr(self.setup_node, ln='snapshotNodes', dt='string')
+        cmds.setAttr('%s.snapshotNodes' % self.setup_node, k=False)
 
     def __create_aim(self):
         '''
@@ -381,7 +397,6 @@ class Guide(Node):
                                                                                        'local'),
                                                                                        'cond'))
 
-        self.nodes.append(condition)
 
         cmds.setAttr('%s.secondTerm' % condition, index)
         cmds.setAttr('%s.colorIfTrueR' % condition, 1)
@@ -398,7 +413,6 @@ class Guide(Node):
                                                  worldUpType='object')[0]
         aim_aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
         cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
-        self.nodes.append(self.constraint)
 
         # Create custom aim constraint offsets
         aim_order_pma = cmds.createNode("plusMinusAverage", name="pma")
@@ -414,12 +428,17 @@ class Guide(Node):
 
             cmds.connectAttr("%s.outColor" % pair_cond, "%s.input3D[%s]" % (aim_order_pma, pair_index))
 
+        self.__burn_nodes["nondag"].append(condition)
+        self.__burn_nodes["constraint"] = self.constraint
+
 
     def __create_shader(self):
 
         self.shader, self.sg = libShader.get_or_create_shader(libName.set_suffix(self.name, 'shd'), 'lambert')
-        self.nodes.extend([self.sg, self.shader])
         cmds.sets(self.shapes, edit=True, forceElement=self.sg)
+
+        self.__burn_nodes["shader"] = self.shader
+        self.__burn_nodes["sg"] = self.sg
 
         # rgb = libShader.get_rgb_from_position(self.position)
         rgb = (1, 1, 0)
@@ -427,15 +446,19 @@ class Guide(Node):
         cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.diffuse' % self.shader, 0)
 
-    def __cleanup(self):
-        '''Delete trash nodes'''
+    def __post(self):
+        """
+        Post node creation
+        """
 
+        # Clean up trash
         try:
             cmds.delete(self.__trash)
         except Exception:
             pass
 
-        self.__trash = []
+        # Burn in nodes
+        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
 
     def reinit(self):
         """
@@ -444,29 +467,8 @@ class Guide(Node):
         if not cmds.objExists(self.name):
             raise Exception('Cannot reinit \'%s\' as guide does not exist.' % self.name)
 
-        self.joint = cmds.ls(self.name)[0]
-        self.shapes = cmds.listRelatives(self.joint, type='nurbsSurface', children=True)
-        self.aim = cmds.ls(libName.set_suffix(self.name, 'aim'))[0]
-        self.constraint = cmds.listRelatives(self.aim, children=True, type='aimConstraint')[0]
-
-        self.sg = cmds.listConnections(self.shapes, type='shadingEngine')[0]
-        self.shader = cmds.listConnections('%s.surfaceShader' % self.sg)[0]
-
-        self.setup_node = cmds.ls(libName.set_suffix(self.name, 'setup'))[0]
-        
-        self.up = cmds.ls(libName.set_suffix(self.name, 'up'))[0]
-        condition = cmds.ls(libName.set_suffix(libName.append_description(self.name,
-                                                                          "local"),
-                                                                          "cond"))[0]
-
-        self.nodes = [self.joint,
-                      self.aim,
-                      self.constraint,
-                      self.sg,
-                      self.shader,
-                      self.setup_node,
-                      self.up,
-                      condition]
+        for key, item in self.nodes.items():
+            setattr(self, key, item)
 
         return self
 
@@ -481,9 +483,7 @@ class Guide(Node):
         self.__create_attribtues()
         self.__create_aim()
         self.__create_shader()
-        self.__cleanup()
-
-        cmds.select(cl=True)
+        self.__post()
 
         return self
 
@@ -501,7 +501,7 @@ class Guide(Node):
 
             self.parent.remove_child(self)
 
-        cmds.delete(self.nodes)
+        # cmds.delete(self.nodes)
 
 
         return self

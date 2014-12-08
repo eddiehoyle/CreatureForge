@@ -1,4 +1,6 @@
+
 # IMPORTANT
+* Burn in nodes at creation. Reinit reads from this attribute
 * Get guide.remove() working correctly. This means strict guide and connector reinit()
 
 ## Stretch goal

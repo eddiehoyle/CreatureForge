@@ -4,6 +4,7 @@
 '''
 '''
 
+import json
 from maya import cmds
 from crefor.model import Node
 from crefor.lib import libName, libShader, libAttr
@@ -23,7 +24,7 @@ class Connector(Node):
         self.__child = child
 
         # Top grp
-        self.top_node = None
+        self.setup_node = None
 
         # Cluster transforms
         self.start = None
@@ -38,7 +39,12 @@ class Connector(Node):
         self.__shaders = {}
 
         # Collection of nodes for re-init
-        self.__nodes = []
+        self.__burn_nodes = dict(nondags=[])
+        self.__burn_geometry = {}
+
+    @property
+    def nodes(self):
+        pass
 
     @property
     def parent(self):
@@ -124,11 +130,11 @@ class Connector(Node):
         Top node is a group node that is parent of all connector nodes
         """
 
-        self.top_node = cmds.group(name=self.name,
+        self.setup_node = cmds.group(name=self.name,
                                    empty=True)
-        cmds.setAttr('%s.inheritsTransform' % self.top_node, False)
-        cmds.parent(self.top_node, self.__parent.setup_node)
-        self.__nodes.append(self.top_node)
+        cmds.setAttr('%s.inheritsTransform' % self.setup_node, False)
+        cmds.parent(self.setup_node, self.__parent.setup_node)
+        self.__burn_nodes["top_node"] = self.setup_node
 
     def __create_geometry(self):
         """
@@ -257,23 +263,20 @@ class Connector(Node):
         cmds.pointConstraint(self.__parent.joint, self.start_grp, mo=False)
         cmds.pointConstraint(self.__child.joint, self.end_grp, mo=False)
 
+        # Store nodes
+        self.__burn_nodes["lattice_handle"] = self.lattice_handle
+        self.__burn_nodes["lattice_base"] = self.lattice_base
+        self.__burn_nodes["start_grp"] = self.start_grp
+        self.__burn_nodes["end_grp"] = self.end_grp
+
         # Parent geometry groups
-        cmds.parent(self.__get_all_grps(), self.top_node)
+        cmds.parent(self.__get_all_grps(), self.setup_node)
 
         # Parent deformers
         cmds.parent([self.lattice_handle,
                      self.lattice_base,
                      self.start_grp,
-                     self.end_grp], self.top_node)
-
-        # # Define nodes
-        # self.__nodes = [self.top_node,
-        #               self.lattice_handle,
-        #               self.lattice_base,
-        #               self.start,
-        #               self.end]
-
-        # self.__nodes.extend(transforms)
+                     self.end_grp], self.setup_node)
 
     def __create_visibilty_network(self):
         """
@@ -302,7 +305,7 @@ class Connector(Node):
         cmds.setAttr('%s.aimAt' % self.__parent.joint, enum_index)
 
         # Store
-        self.__nodes.append(aim_cond)
+        self.__burn_nodes["nondags"].append(aim_cond)
 
         # Loop through X, Y and Z axis to create vis network for
         # solid and dashed geometry state
@@ -347,7 +350,7 @@ class Connector(Node):
             cmds.connectAttr("%s.outputX" % state_rev, "%s.visibility" % dashed)
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.visibility" % solid)
 
-            self.__nodes.extend([odd_cond, even_cond, state_rev, state_cond])
+            self.__burn_nodes["nondags"].extend([odd_cond, even_cond, state_rev, state_cond])
 
         # The N axis is when world/local aim is set on parent joint aim
         # This allows for grey dashed geometry to be visible
@@ -370,7 +373,7 @@ class Connector(Node):
         cmds.setAttr("%s.visibility" % solid, 0)
         cmds.setAttr("%s.visibility" % dashed, 1)
 
-        self.__nodes.append(n_cond)
+        self.__burn_nodes["nondags"].append(n_cond)
 
         # Loop through all aliases on and set non-connected attributes to be 0
         for alias in aliases:
@@ -403,26 +406,30 @@ class Connector(Node):
             cmds.sets(self.__get_shapes(axis, "dashed"), edit=True, forceElement=sg)
 
     def __create_attribtues(self):
-        pass
+        """
+        """
+
+        print "self.setup_node", self.setup_node
+        for key in ["snapshotNodes", "snapshotGeometry"]:
+            cmds.addAttr(self.setup_node, ln=key, dt='string')
+            cmds.setAttr('%s.%s' % (self.setup_node, key), k=False)
 
     def _remove(self):
         """
         """
 
-        print 'in connector', self.name, 'nodes', self.__nodes
-
-        if not self.__nodes:
+        if not self.__burn_nodes:
             return self
 
-        cmds.delete(self.__nodes)
-
-        
-        self.__nodes = []
-        self.__geometry = {}
-
-        print 'in connector', self.name, 'after', self.__nodes
+        cmds.delete(self.__burn_nodes)
 
         return Connector(self.__parent, self.__child)
+
+    def __post(self):
+        """
+        """
+        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
+        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_geometry), type="string")
 
 
     def reinit(self):
@@ -434,7 +441,7 @@ class Connector(Node):
             return self
 
         # Top node
-        self.top_node = cmds.ls(self.name)[0]
+        self.setup_node = cmds.ls(self.name)[0]
 
         # Axis related nodes
         axis_nodes = []
@@ -488,27 +495,26 @@ class Connector(Node):
                                          source=True,
                                          destination=False)[0]
 
-
         # Non-dag nodes
-        self.__nodes.extend(axis_nodes)
+        # self.__burn_nodes["nondags"].extend(axis_nodes)
 
-        # Geometry
-        geometry = self.__get_all_transforms()
-        self.__nodes.extend(geometry)
+        # # Geometry
+        # geometry = self.__get_all_transforms()
+        # self.__burn_nodes.extend(geometry)
 
-        # Groups
-        grps = self.__get_all_grps()
-        self.__nodes.extend(grps)
+        # # Groups
+        # grps = self.__get_all_grps()
+        # self.__burn_nodes.extend(grps)
 
-        # Other
-        self.__nodes = [self.top_node,
-                        self.lattice_handle,
-                        self.lattice_base,
-                        self.start,
-                        self.end,
-                        self.start_grp,
-                        self.end_grp,
-                        condition]
+        # # Other
+        # self.__burn_nodes = [self.setup_node,
+        #                 self.lattice_handle,
+        #                 self.lattice_base,
+        #                 self.start,
+        #                 self.end,
+        #                 self.start_grp,
+        #                 self.end_grp,
+        #                 condition]
 
         return self
 
@@ -520,11 +526,12 @@ class Connector(Node):
             return self.reinit()
 
         self.__create_top_node()
+        self.__create_attribtues()
         self.__create_geometry()
         self.__create_deformers()
         self.__create_visibilty_network()
-        self.__create_attribtues()
         self.__create_shader()
+        self.__post()
 
         self.set_start_scale(1)
         self.set_end_scale(0.1)
