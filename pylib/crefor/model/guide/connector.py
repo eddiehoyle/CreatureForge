@@ -5,6 +5,7 @@
 '''
 
 import json
+from copy import deepcopy
 from maya import cmds
 from crefor.model import Node
 from crefor.lib import libName, libShader, libAttr
@@ -17,14 +18,11 @@ class Connector(Node):
     CLUSTER_OFFSET = 1.0
 
     def __init__(self, parent, child):
-        super(Connector, self).__init__(*libName._decompile(str(child))[:-1])
+        super(Connector, self).__init__(*child._decompile()[:-1])
 
         # Guides
         self.__parent = parent
         self.__child = child
-
-        # Top grp
-        self.setup_node = None
 
         # Cluster transforms
         self.start = None
@@ -39,12 +37,64 @@ class Connector(Node):
         self.__shaders = {}
 
         # Collection of nodes for re-init
-        self.__burn_nodes = dict(nondags=[])
+        self.__burn_nodes = dict()
+        self.__burn_nondag = []
         self.__burn_geometry = {}
 
     @property
     def nodes(self):
-        pass
+        """nodes(self)
+        Return important nodes from Guide class
+
+        :returns:   Dictionary of important nodes in {"attr": "value"} format
+        :rtype:     dict
+
+        **Example**:
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.nodes
+        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
+        """
+
+        return json.loads(cmds.getAttr("%s.snapshotNodes" % self.setup_node)) if self.exists() else {}
+
+    @property
+    def nondag(self):
+        """nodes(self)
+        Return important nodes from Guide class
+
+        :returns:   Dictionary of important nodes in {"attr": "value"} format
+        :rtype:     dict
+
+        **Example**:
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.nodes
+        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
+        """
+
+        return json.loads(cmds.getAttr("%s.snapshotNondag" % self.setup_node)) if self.exists() else {}
+
+    @property
+    def geometry(self):
+        """geometry(self)
+        Return geometry from Guide class
+
+        :returns:   Dictionary of important nodes in {"attr": "value"} format
+        :rtype:     dict
+
+        **Example**:
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.nodes
+        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
+        """
+
+        return json.loads(cmds.getAttr("%s.snapshotGeometry" % self.setup_node)) if self.exists() else {}
+
+    @property
+    def setup_node(self):
+        return libName.set_suffix(libName.append_description(self.name, "cnc"), "setup")
 
     @property
     def parent(self):
@@ -55,8 +105,10 @@ class Connector(Node):
         return self.__child
 
     def exists(self):
-        '''Does connector exist'''
-        return cmds.objExists(self.name)
+        """exists(self)
+        Does connector exist
+        """
+        return cmds.objExists(self.setup_node)
 
     def set_scale(self, value):
         '''Scale start and end clusters'''
@@ -130,11 +182,9 @@ class Connector(Node):
         Top node is a group node that is parent of all connector nodes
         """
 
-        self.setup_node = cmds.group(name=self.name,
-                                   empty=True)
+        cmds.group(name=libName.set_suffix(self.setup_node, 'setup'), empty=True)
         cmds.setAttr('%s.inheritsTransform' % self.setup_node, False)
         cmds.parent(self.setup_node, self.__parent.setup_node)
-        self.__burn_nodes["top_node"] = self.setup_node
 
     def __create_geometry(self):
         """
@@ -145,8 +195,8 @@ class Connector(Node):
 
             # Create solid geometry
             solid = cmds.polyCylinder(name=libName.set_suffix(libName.append_description(self.name,
-                                                                                                     'solid%s' % axis.upper()),
-                                                                                                     'cncGeo'),
+                                                                                         'solid%s' % axis.upper()),
+                                                                                         'cncGeo'),
                                                   r=self.RADIUS,
                                                   h=1,
                                                   sx=16,
@@ -187,6 +237,9 @@ class Connector(Node):
 
             # Store solid, dashed and grp
             self.__geometry[axis] = dict(solid=solid, dashed=dashed, grp=grp)
+
+        # Burn geometry
+        self.__burn_geometry = deepcopy(self.__geometry)
 
     def __create_deformers(self):
         """
@@ -305,7 +358,8 @@ class Connector(Node):
         cmds.setAttr('%s.aimAt' % self.__parent.joint, enum_index)
 
         # Store
-        self.__burn_nodes["nondags"].append(aim_cond)
+        # self.__burn_nodes["nondag"].append(aim_cond)
+        self.__burn_nondag.append(aim_cond)
 
         # Loop through X, Y and Z axis to create vis network for
         # solid and dashed geometry state
@@ -350,7 +404,8 @@ class Connector(Node):
             cmds.connectAttr("%s.outputX" % state_rev, "%s.visibility" % dashed)
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.visibility" % solid)
 
-            self.__burn_nodes["nondags"].extend([odd_cond, even_cond, state_rev, state_cond])
+            # self.__burn_nodes["nondag"].extend([odd_cond, even_cond, state_rev, state_cond])
+            self.__burn_nondag.extend([odd_cond, even_cond, state_rev, state_cond])
 
         # The N axis is when world/local aim is set on parent joint aim
         # This allows for grey dashed geometry to be visible
@@ -373,7 +428,8 @@ class Connector(Node):
         cmds.setAttr("%s.visibility" % solid, 0)
         cmds.setAttr("%s.visibility" % dashed, 1)
 
-        self.__burn_nodes["nondags"].append(n_cond)
+        # self.__burn_nodes["nondag"].append(n_cond)
+        self.__burn_nondag.append(n_cond)
 
         # Loop through all aliases on and set non-connected attributes to be 0
         for alias in aliases:
@@ -409,28 +465,17 @@ class Connector(Node):
         """
         """
 
-        print "self.setup_node", self.setup_node
-        for key in ["snapshotNodes", "snapshotGeometry"]:
+        for key in ["snapshotNodes", "snapshotGeometry", "snapshotNondag"]:
             cmds.addAttr(self.setup_node, ln=key, dt='string')
             cmds.setAttr('%s.%s' % (self.setup_node, key), k=False)
-
-    def _remove(self):
-        """
-        """
-
-        if not self.__burn_nodes:
-            return self
-
-        cmds.delete(self.__burn_nodes)
-
-        return Connector(self.__parent, self.__child)
 
     def __post(self):
         """
         """
-        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
-        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_geometry), type="string")
 
+        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
+        cmds.setAttr("%s.snapshotNondag" % self.setup_node, json.dumps(self.__burn_nondag), type="string")
+        cmds.setAttr("%s.snapshotGeometry" % self.setup_node, json.dumps(self.__burn_geometry), type="string")
 
     def reinit(self):
         """
@@ -438,83 +483,11 @@ class Connector(Node):
         """
 
         if not self.exists():
-            return self
+            raise Exception('Cannot reinit \'%s\' as connector does not exist.' % self.name)
 
-        # Top node
-        self.setup_node = cmds.ls(self.name)[0]
-
-        # Axis related nodes
-        axis_nodes = []
-        for axis in ["X", "Y", "Z"]:
-
-            # Geometry and groups
-            solid = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid%s' % axis.upper()), 'cncGeo'))[0]
-            dashed = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed%s' % axis.upper()), 'cncGeo'))[0]
-            grp  = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'connector%s' % axis.upper()), 'grp'))[0]
-            self.__geometry[axis] = dict(solid=solid, dashed=dashed, grp=grp)
-
-            # Shaders
-            shader, sg = libShader.get_shader(libName.create_name('N', "color%s" % axis, 0, 'shd'))
-            self.__shaders[axis] = dict(shader=shader, sg=sg)
-
-            # Conditions and other network nodes
-            aim_cond = cmds.ls(libName.set_suffix(self.name, 'cond'))[0]
-            even_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisEven%s' % axis), 'con'))
-            odd_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisOdd%s' % axis), 'con'))
-            state_cond = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'con'))[0]
-            state_rev = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'rev'))[0]
-            axis_nodes.extend([aim_cond, even_cond, odd_cond, state_cond, state_rev])
-
-        axis = "N"
-        solid = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'solid%s' % axis.upper()), 'cncGeo'))[0]
-        dashed = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'dashed%s' % axis.upper()), 'cncGeo'))[0]
-        grp  = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'connector%s' % axis.upper()), 'grp'))[0]
-        self.__geometry[axis] = dict(solid=solid, dashed=dashed, grp=grp)
-
-        n_cond = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'axis%s' % axis), 'con'))[0]
-        axis_nodes.append(n_cond)
-
-        # Clusters
-        self.start = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'clh'))[0]
-        self.start_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'start'), 'cls'))[0]
-        self.end = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'clh'))[0]
-        self.end_cl = cmds.ls(libName.set_suffix(libName.append_description(self.name, 'end'), 'cls'))[0]
-        self.start_grp = cmds.listRelatives(self.start, parent=True)[0]
-        self.end_grp = cmds.listRelatives(self.end, parent=True)[0]
-
-        # Lattices
-        self.lattice_handle = cmds.ls(libName.set_suffix(self.name, 'lth'))[0]
-        self.lattice_base = cmds.ls(libName.set_suffix(self.name, 'ltb'))[0]
-
-        aliases = cmds.aimConstraint(self.__parent.constraint, q=True, wal=True)
-        targets = cmds.aimConstraint(self.__parent.constraint, q=True, tl=True)
-        index = targets.index(self.__child.aim)
-
-        condition = cmds.listConnections('%s.%s' % (self.__parent.constraint, aliases[index]),
-                                         type='condition',
-                                         source=True,
-                                         destination=False)[0]
-
-        # Non-dag nodes
-        # self.__burn_nodes["nondags"].extend(axis_nodes)
-
-        # # Geometry
-        # geometry = self.__get_all_transforms()
-        # self.__burn_nodes.extend(geometry)
-
-        # # Groups
-        # grps = self.__get_all_grps()
-        # self.__burn_nodes.extend(grps)
-
-        # # Other
-        # self.__burn_nodes = [self.setup_node,
-        #                 self.lattice_handle,
-        #                 self.lattice_base,
-        #                 self.start,
-        #                 self.end,
-        #                 self.start_grp,
-        #                 self.end_grp,
-        #                 condition]
+        # Get setup node:
+        for key, item in self.nodes.items():
+            setattr(self, key, item)
 
         return self
 
@@ -535,3 +508,16 @@ class Connector(Node):
 
         self.set_start_scale(1)
         self.set_end_scale(0.1)
+
+    def remove(self):
+        """
+        """
+
+        geometry = []
+        for axis in self.geometry:
+            geometry.extend(self.geometry[axis].values())
+
+        cmds.delete(self.nondag)
+        cmds.delete(self.setup_node)
+
+        super(Connector, self).__init__(*self.child._decompile()[:-1])

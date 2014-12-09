@@ -23,6 +23,24 @@ class Node(object):
                                         self.descrption,
                                         self.index,
                                         self.SUFFIX)
+
+    def _decompile(self):
+        """_decompile(self)
+
+        Decompile name into components.
+
+        :returns:   List of name componenets
+        :rtype:     list
+
+        **Example**:
+
+        >>> guide = Guide("C", "spine", 0).create()
+        >>> guide._decompile()
+        # Result: ["C", "spine", 0, "gde"] #
+        """
+
+        return libName._decompile(self.name)
+
     def __str__(self):
         return self.name
 
@@ -31,7 +49,11 @@ class Node(object):
         #                                                      self.position,
         #                                                      self.descrption,
         #                                                      self.index)
-        return "%s(%s)" % (self.__class__.__name__, self.name)
+        # return "%s(%s)" % (self.__class__.__name__, self.name)
+        return "<Guide '%s'>" % self.name
+
+    def __getitem__(self, index):
+        return self.name[index]
 
     def __eq__(self, other):
         try:

@@ -3,8 +3,10 @@
 '''
 '''
 
-from maya import cmds
 import json
+from maya import cmds
+from copy import deepcopy
+
 from collections import OrderedDict
 from crefor.lib import libName, libAttr, libShader
 from crefor.model import Node
@@ -37,9 +39,6 @@ class Guide(Node):
         self.up = None
         self.aim = None
 
-        # Node all setup stuff is parented under
-        self.setup_node = None
-
         # Constraint default options
         self.world = None
         self.custom = None
@@ -50,24 +49,9 @@ class Guide(Node):
 
         self.__trash = []
 
-        self.__burn_nodes = dict(nondag=[])
-
-    def _decompile(self):
-        """_decompile(self)
-
-        Decompile name into components.
-
-        :returns:   List of name componenets
-        :rtype:     list
-
-        **Example**:
-
-        >>> guide = Guide("C", "spine", 0).create()
-        >>> guide._decompile()
-        # Result: ["C", "spine", 0, "gde"] #
-        """
-
-        return libName._decompile(self.name)
+        self.__burn_nodes = {}
+        self.__burn_nondag = []
+        self.__nondag_nodes = {}
 
     @property
     def nodes(self):
@@ -85,6 +69,27 @@ class Guide(Node):
         """
 
         return json.loads(cmds.getAttr("%s.snapshotNodes" % self.setup_node)) if self.exists() else {}
+
+    @property
+    def nondag(self):
+        """nodes(self)
+        Return important nodes from Guide class
+
+        :returns:   Dictionary of important nodes in {"attr": "value"} format
+        :rtype:     dict
+
+        **Example**:
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.nodes
+        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
+        """
+
+        return json.loads(cmds.getAttr("%s.snapshotNondag" % self.setup_node)) if self.exists() else {}
+
+    @property
+    def setup_node(self):
+        return libName.set_suffix(libName.append_description(self.name, "gde"), "setup")
 
     @property
     def short_name(self):
@@ -125,9 +130,17 @@ class Guide(Node):
             data[_child.name] = Connector(self, _child).reinit()
         return data
 
+    def set_order(self, axis_primary, axis_secondary):
+        """
+        """
+
+        axis = "%s%s" % (axis_primary, axis_secondary)
+        if self.exists() and axis in self.AIM_ORDER.keys():
+            cmds.setAttr("%s.aimOrder" % self.joint, self.AIM_ORDER.keys().index(axis))
+
     def exists(self):
         '''Does the guide exist in Maya?'''
-        return cmds.objExists(self.name)
+        return cmds.objExists(self.setup_node)
 
     def set_scale(self, value):
         '''Scale guide and related connectors'''
@@ -285,9 +298,10 @@ class Guide(Node):
             return None
 
         # Remove connector
-        if guide.name in self.connectors:
-            self.connectors[guide.name]._remove()
-            del self.connectors[guide.name]
+        connectors = deepcopy(self.connectors)
+        if guide.name in connectors:
+            connectors[guide.name].remove()
+            del connectors[guide.name]
 
         # Parent guide to world
         cmds.parent(guide.joint, world=True)
@@ -331,7 +345,7 @@ class Guide(Node):
         cmds.setAttr('%s.drawStyle' % self.joint, 2)
 
         # Setup node
-        self.setup_node = cmds.group(name=libName.set_suffix(self.name, 'setup'), empty=True)
+        cmds.group(name=self.setup_node, empty=True)
         cmds.pointConstraint(self.joint, self.setup_node, mo=False)
 
         # Create up transform
@@ -370,18 +384,20 @@ class Guide(Node):
         self.__burn_nodes["aim"] = self.aim
         self.__burn_nodes["joint"] = self.joint
         self.__burn_nodes["shapes"] = self.shapes
-        self.__burn_nodes["setup_node"] = self.setup_node
         self.__burn_nodes["up"] = self.up
 
     def __create_attribtues(self):
+        """
+        """
 
         cmds.addAttr(self.joint, ln='debug', at='bool', min=0, max=1, dv=0)
         cmds.setAttr('%s.debug' % self.joint, k=False)
         cmds.setAttr('%s.debug' % self.joint, cb=True)
         cmds.connectAttr('%s.debug' % self.joint, '%s.displayLocalAxis' % self.aim)
 
-        cmds.addAttr(self.setup_node, ln='snapshotNodes', dt='string')
-        cmds.setAttr('%s.snapshotNodes' % self.setup_node, k=False)
+        for key in ["snapshotNodes", "snapshotNondag"]:
+            cmds.addAttr(self.setup_node, ln=key, dt='string')
+            cmds.setAttr('%s.%s' % (self.setup_node, key), k=False)
 
     def __create_aim(self):
         '''
@@ -415,11 +431,17 @@ class Guide(Node):
         cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
 
         # Create custom aim constraint offsets
-        aim_order_pma = cmds.createNode("plusMinusAverage", name="pma")
+        aim_order_pma = cmds.createNode("plusMinusAverage",
+                                        name=libName.set_suffix(libName.append_description(self.name,
+                                                                                           "custom"),
+                                                                                           "pma"))
         cmds.connectAttr("%s.output3D" % aim_order_pma, "%s.offset" % self.constraint)
 
         for pair_index, pair in enumerate(self.AIM_ORDER.keys()):
-            pair_cond = cmds.createNode("condition")
+            pair_cond = cmds.createNode("condition",
+                                        name=libName.set_suffix(libName.append_description(self.name,
+                                                                                           "pair%s" % pair_index),
+                                                                                           "cond"))
             cmds.connectAttr("%s.aimOrder" % self.joint, "%s.firstTerm" % pair_cond)
             cmds.setAttr("%s.secondTerm" % pair_cond, pair_index)
 
@@ -428,13 +450,13 @@ class Guide(Node):
 
             cmds.connectAttr("%s.outColor" % pair_cond, "%s.input3D[%s]" % (aim_order_pma, pair_index))
 
-        self.__burn_nodes["nondag"].append(condition)
+        self.__burn_nondag.append(condition)
         self.__burn_nodes["constraint"] = self.constraint
 
 
     def __create_shader(self):
 
-        self.shader, self.sg = libShader.get_or_create_shader(libName.set_suffix(self.name, 'shd'), 'lambert')
+        self.shader, self.sg = libShader.get_or_create_shader("C_guide_0_shd", 'lambert')
         cmds.sets(self.shapes, edit=True, forceElement=self.sg)
 
         self.__burn_nodes["shader"] = self.shader
@@ -459,14 +481,16 @@ class Guide(Node):
 
         # Burn in nodes
         cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
+        cmds.setAttr("%s.snapshotNondag" % self.setup_node, json.dumps(self.__burn_nondag), type="string")
 
     def reinit(self):
         """
         """
 
-        if not cmds.objExists(self.name):
+        if not self.exists():
             raise Exception('Cannot reinit \'%s\' as guide does not exist.' % self.name)
 
+        # Get setup node
         for key, item in self.nodes.items():
             setattr(self, key, item)
 
@@ -476,7 +500,7 @@ class Guide(Node):
         """
         """
 
-        if cmds.objExists(self.name):
+        if self.exists():
             return self.reinit()
 
         self.__create_nodes()
@@ -493,7 +517,6 @@ class Guide(Node):
 
         parent = self.parent
 
-        print self.name, 'removing', self.parent
         if parent:
 
             for key, child in self.children.items():
@@ -501,7 +524,6 @@ class Guide(Node):
 
             self.parent.remove_child(self)
 
-        # cmds.delete(self.nodes)
-
-
-        return self
+        cmds.delete(self.nondag)
+        cmds.delete(self.setup_node)
+        cmds.delete(self.joint)
