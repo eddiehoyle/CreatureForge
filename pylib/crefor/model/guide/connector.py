@@ -37,6 +37,8 @@ class Connector(Node):
         self.__shaders = {}
 
         # Collection of nodes for re-init
+        self.__burn_aim = None
+        self.__burn_states = dict()
         self.__burn_nodes = dict()
         self.__burn_nondag = []
         self.__burn_geometry = {}
@@ -331,6 +333,32 @@ class Connector(Node):
                      self.start_grp,
                      self.end_grp], self.setup_node)
 
+    def __update_aim_index(self):
+        """
+        Refresh aim index of aim condition
+        """
+
+
+        if self.exists():
+
+            # Query aliases and target list from parent aim constraint
+            aliases = cmds.aimConstraint(self.__parent.constraint, q=True, wal=True)
+            targets = cmds.aimConstraint(self.__parent.constraint, q=True, tl=True)
+            index = targets.index(self.__child.aim)
+
+            # Query parent joint enum items
+            enums = cmds.attributeQuery('aimAt', node=self.__parent.joint, listEnum=True)[0].split(':')
+            enum_index = enums.index(self.__child.aim)
+
+            # Update index to reflect alias index of child
+            print "Updating, enums:", enums
+            print "Updating %s aim enum_index: %s" % (self.__aim_cond, enum_index)
+            cmds.setAttr("%s.secondTerm" % self.__aim_cond, enum_index)
+
+            state_conds = json.loads(cmds.getAttr("%s.snapshotStates" % self.setup_node))
+            for key, node in state_conds.items():
+                cmds.setAttr("%s.secondTerm" % node, enum_index)
+
     def __create_visibilty_network(self):
         """
         Create visibility nodes
@@ -347,19 +375,18 @@ class Connector(Node):
 
         # Create condition that turns on aim for child constraint if
         # enum index is set to match childs name
-        aim_cond = cmds.createNode('condition', name=libName.set_suffix(self.name, 'cond'))
-        cmds.setAttr('%s.secondTerm' % aim_cond, enum_index)
-        cmds.setAttr('%s.colorIfTrueR' % aim_cond, 1)
-        cmds.setAttr('%s.colorIfFalseR' % aim_cond, 0)
-        cmds.connectAttr('%s.aimAt' % self.__parent.joint, '%s.firstTerm' % aim_cond)
-        cmds.connectAttr('%s.outColorR' % aim_cond, '%s.%s' % (self.__parent.constraint, aliases[index]))
+        self.__aim_cond = cmds.createNode('condition', name=libName.set_suffix(self.name, 'cond'))
+        cmds.setAttr('%s.secondTerm' % self.__aim_cond, enum_index)
+        cmds.setAttr('%s.colorIfTrueR' % self.__aim_cond, 1)
+        cmds.setAttr('%s.colorIfFalseR' % self.__aim_cond, 0)
+        cmds.connectAttr('%s.aimAt' % self.__parent.joint, '%s.firstTerm' % self.__aim_cond)
+        cmds.connectAttr('%s.outColorR' % self.__aim_cond, '%s.%s' % (self.__parent.constraint, aliases[index]))
 
         # Set enum to match child aim
         cmds.setAttr('%s.aimAt' % self.__parent.joint, enum_index)
 
         # Store
-        # self.__burn_nodes["nondag"].append(aim_cond)
-        self.__burn_nondag.append(aim_cond)
+        self.__burn_nondag.append(self.__aim_cond)
 
         # Loop through X, Y and Z axis to create vis network for
         # solid and dashed geometry state
@@ -393,6 +420,9 @@ class Connector(Node):
             cmds.setAttr("%s.secondTerm" % state_cond, enum_index)
             cmds.setAttr("%s.colorIfTrueR" % state_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % state_cond, 0)
+
+            # Store for reinit
+            self.__burn_states[axis] = state_cond
 
             # Geometry
             solid = self.__get_transform(axis, "solid")
@@ -465,7 +495,7 @@ class Connector(Node):
         """
         """
 
-        for key in ["snapshotNodes", "snapshotGeometry", "snapshotNondag"]:
+        for key in ["snapshotNodes", "snapshotGeometry", "snapshotNondag", "snapshotAim", "snapshotStates"]:
             cmds.addAttr(self.setup_node, ln=key, dt='string')
             cmds.setAttr('%s.%s' % (self.setup_node, key), k=False)
 
@@ -473,9 +503,12 @@ class Connector(Node):
         """
         """
 
+        cmds.setAttr("%s.snapshotAim" % self.setup_node, json.dumps(self.__aim_cond), type="string")
         cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
+        cmds.setAttr("%s.snapshotStates" % self.setup_node, json.dumps(self.__burn_states), type="string")
         cmds.setAttr("%s.snapshotNondag" % self.setup_node, json.dumps(self.__burn_nondag), type="string")
         cmds.setAttr("%s.snapshotGeometry" % self.setup_node, json.dumps(self.__burn_geometry), type="string")
+
 
     def reinit(self):
         """
@@ -489,11 +522,18 @@ class Connector(Node):
         for key, item in self.nodes.items():
             setattr(self, key, item)
 
+        # Restore aim condition
+        self.__aim_cond = json.loads(cmds.getAttr("%s.snapshotAim" % self.setup_node))
+
+        # Refresh aim index
+        self.__update_aim_index()
+
         return self
 
     def create(self):
-        '''
-        '''
+        """
+        Create a guide
+        """
 
         if self.exists():
             return self.reinit()
@@ -508,6 +548,8 @@ class Connector(Node):
 
         self.set_start_scale(1)
         self.set_end_scale(0.1)
+
+        return self
 
     def remove(self):
         """

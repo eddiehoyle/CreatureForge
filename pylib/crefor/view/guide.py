@@ -6,6 +6,7 @@
 import os
 
 from crefor import api
+from crefor.exceptions import NodeException
 from maya import cmds
 
 from PySide.QtCore import *
@@ -106,7 +107,7 @@ class GuideWidget(QWidget):
             name = "C_temp_%s_gde" % index
 
         guide = api.create(*name.split("_")[:-1])
-        cmds.select(guide, r=True)
+        cmds.select(guide.joint, r=True)
 
     def __remove(self):
         """
@@ -114,7 +115,10 @@ class GuideWidget(QWidget):
 
         selected = cmds.ls(sl=True)
         for guide in selected:
-            api.remove(guide)
+            try:
+                api.remove(guide)
+            except NodeException:
+                pass
 
     def __set_parent(self):
         """

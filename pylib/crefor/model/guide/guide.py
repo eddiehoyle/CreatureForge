@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
-'''
-'''
+"""
+"""
 
 import json
 from maya import cmds
 from copy import deepcopy
 
 from collections import OrderedDict
-from crefor.lib import libName, libAttr, libShader
+from crefor.lib import libName, libShader
 from crefor.model import Node
 from crefor.model.guide.connector import Connector
 
@@ -278,11 +278,19 @@ class Guide(Node):
             # log.info('Removing %s parent: %s' % (self.name, self.parent.name))
             self.parent.remove_aim(self)
 
+        # Reinit children
+        for key, con in self.connectors.items():
+            con.reinit()
+
     def remove_child(self, guide):
         '''
         '''
 
         self.remove_aim(guide)
+
+        # Reinit children
+        for key, con in self.connectors.items():
+            con.reinit()
 
     def remove_aim(self, guide):
         '''
@@ -516,13 +524,13 @@ class Guide(Node):
         """
 
         parent = self.parent
+        children = self.children
 
         if parent:
+            parent.remove_child(self)
 
-            for key, child in self.children.items():
-                child.set_parent(parent)
-
-            self.parent.remove_child(self)
+        for key, child in self.children.items():
+            self.remove_child(child)
 
         cmds.delete(self.nondag)
         cmds.delete(self.setup_node)

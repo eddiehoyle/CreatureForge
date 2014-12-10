@@ -1,12 +1,12 @@
-
 # IMPORTANT
-* Burn in nodes at creation. Reinit reads from this attribute
-* Get guide.remove() working correctly. This means strict guide and connector reinit()
+* Reinit connectors during guide operations so aim/state condition indexes are updated correctly for hierarchical changes
 
 ## Stretch goal
 * Create a name class that is much more easier and shorthand to work with
 
 ## Guide model
+* ~~Get guide.remove() working correctly. This means strict guide and connector reinit()~~
+* ~~Burn in nodes at creation. Reinit reads from this attribute~~
 * ~~Get axis swap working with 4x geometry setup~~
 * ~~Write more docstrings~~
 * ~~Write reinit from string~~
