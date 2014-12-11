@@ -341,18 +341,16 @@ class Connector(Node):
 
         if self.exists():
 
-            # Query aliases and target list from parent aim constraint
-            aliases = cmds.aimConstraint(self.__parent.constraint, q=True, wal=True)
-            targets = cmds.aimConstraint(self.__parent.constraint, q=True, tl=True)
-            index = targets.index(self.__child.aim)
+            # # Query aliases and target list from parent aim constraint
+            # aliases = cmds.aimConstraint(self.__parent.constraint, q=True, wal=True)
+            # targets = cmds.aimConstraint(self.__parent.constraint, q=True, tl=True)
+            # index = targets.index(self.__child.aim)
 
             # Query parent joint enum items
             enums = cmds.attributeQuery('aimAt', node=self.__parent.joint, listEnum=True)[0].split(':')
             enum_index = enums.index(self.__child.aim)
 
             # Update index to reflect alias index of child
-            print "Updating, enums:", enums
-            print "Updating %s aim enum_index: %s" % (self.__aim_cond, enum_index)
             cmds.setAttr("%s.secondTerm" % self.__aim_cond, enum_index)
 
             state_conds = json.loads(cmds.getAttr("%s.snapshotStates" % self.setup_node))
@@ -503,12 +501,16 @@ class Connector(Node):
         """
         """
 
+        # Burn in nodes
         cmds.setAttr("%s.snapshotAim" % self.setup_node, json.dumps(self.__aim_cond), type="string")
         cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
         cmds.setAttr("%s.snapshotStates" % self.setup_node, json.dumps(self.__burn_states), type="string")
         cmds.setAttr("%s.snapshotNondag" % self.setup_node, json.dumps(self.__burn_nondag), type="string")
         cmds.setAttr("%s.snapshotGeometry" % self.setup_node, json.dumps(self.__burn_geometry), type="string")
 
+        # Remove selection access
+        cmds.setAttr("%s.overrideEnabled" % self.setup_node, 1)
+        cmds.setAttr("%s.overrideDisplayType" % self.setup_node, 2)
 
     def reinit(self):
         """

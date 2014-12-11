@@ -41,7 +41,7 @@ def get_description(name):
     return _decompile(name)[1]
 
 def get_index(name):
-    return _decompile(name)[2]
+    return int(_decompile(name)[2])
 
 def get_suffix(name):
     return _decompile(name)[3]

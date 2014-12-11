@@ -1,10 +1,11 @@
 # IMPORTANT
-* Reinit connectors during guide operations so aim/state condition indexes are updated correctly for hierarchical changes
+* Work on hierarchy crawling logic. Both read and write to create a duplicate chain
 
 ## Stretch goal
 * Create a name class that is much more easier and shorthand to work with
 
 ## Guide model
+* ~~Reinit connectors during guide operations so aim/state condition indexes are updated correctly for hierarchical changes~~
 * ~~Get guide.remove() working correctly. This means strict guide and connector reinit()~~
 * ~~Burn in nodes at creation. Reinit reads from this attribute~~
 * ~~Get axis swap working with 4x geometry setup~~

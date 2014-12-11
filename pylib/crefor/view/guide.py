@@ -6,6 +6,7 @@
 import os
 
 from crefor import api
+from crefor.lib import libName, libXform
 from crefor.exceptions import NodeException
 from maya import cmds
 
@@ -132,6 +133,8 @@ class GuideWidget(QWidget):
             for child in children:
                 api.set_parent(child, parent)
 
+            cmds.select(parent, r=True)
+
     def __add_child(self):
         """
         """
@@ -145,16 +148,67 @@ class GuideWidget(QWidget):
                 api.add_child(parent, child)
 
     def __remove_parent(self):
+        """
+        """
+
         selected = cmds.ls(sl=True)
         if selected:
             for node in selected:
                 api.remove_parent(node)
 
     def __duplicate(self):
-        print '__duplicate'
+        """
+        """
+
+        def gen(sel_guide):
+            index = libName.get_index(key)
+            name = libName.set_index(key, index)
+            while cmds.objExists(name):
+                index += 1
+                name = libName.set_index(key, index)
+
+            return api.create(*name.split("_")[:-1])
+
+        selected = cmds.ls(sl=True)
+        for sel in selected:
+
+            sel_hierarchy = get_hierarchy(sel)
+
+            level = sel_hierarchy.keys()
+            for sel_guide in level:
+
+                sel_guide
+
+
+
+
+
+            # index = libName.get_index(node)
+            # name = libName.set_index(node, index)
+            # while cmds.objExists(name):
+            #     index += 1
+            #     name = libName.set_index(node, index)
+
+            # guide = api.create(*name.split("_")[:-1])
+            # cmds.select(guide.joint, r=True)
+
+            # libXform.match_translates(guide.joint, node)
+            # cmds.move(1, guide.joint, y=True, relative=True)
 
     def __create_hierarchy(self):
         print '__create_hierarchy'
 
     def __cycle_aim(self):
         print '__cycle_aim'
+
+def get_hierarchy(guide):
+    """
+    Get entire guides child hierarchy
+    """
+
+    def recur(guide):
+        hierarchy = {}
+        for child in cmds.listRelatives(guide, children=True, type="joint") or []:
+            hierarchy[child] = recur(child) or None
+        return hierarchy
+    return {guide: recur(guide)}

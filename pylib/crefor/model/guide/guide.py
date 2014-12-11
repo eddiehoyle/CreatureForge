@@ -246,8 +246,10 @@ class Guide(Node):
         '''
 
         # Already has child connector?
-        if guide.name in self.connectors:
-            return self.connectors[guide.name]
+        connectors = deepcopy(self.connectors)
+        if guide.name in connectors:
+            print 'already has aim', guide.name
+            return connectors[guide.name]
 
         cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up,
                            worldUpType='object',
@@ -267,6 +269,10 @@ class Guide(Node):
         # Parent new guide under self
         cmds.parent(guide.joint, self.joint, a=True)
 
+        # Reinit children
+        for key, con in connectors.items():
+            con.reinit()
+
         return guide
 
     def remove_parent(self):
@@ -278,19 +284,11 @@ class Guide(Node):
             # log.info('Removing %s parent: %s' % (self.name, self.parent.name))
             self.parent.remove_aim(self)
 
-        # Reinit children
-        for key, con in self.connectors.items():
-            con.reinit()
-
     def remove_child(self, guide):
         '''
         '''
 
         self.remove_aim(guide)
-
-        # Reinit children
-        for key, con in self.connectors.items():
-            con.reinit()
 
     def remove_aim(self, guide):
         '''
@@ -329,6 +327,10 @@ class Guide(Node):
         # Default to world
         if len(enums) == 1:
             cmds.setAttr('%s.aimAt' % self.joint, 0)
+
+        # Reinit children
+        for key, con in connectors.items():
+            con.reinit()
 
         log.info('%s remove child: %s' % (self.name, guide.name))
 
