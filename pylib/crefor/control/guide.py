@@ -33,6 +33,44 @@ def create(position, description, index=0):
                  index=index).create()
 
 @decorators.guides
+def duplicate(guide):
+    """create(position, description, index=0)
+    Create a guide.
+
+    :param      position:       Guide node
+    :type       position:       Guide, str
+    :returns:   Guide
+
+    **Example**:
+
+    >>> duplicate("C_spine_0_gde")
+    # Result: Guide(C_spine_1_gde) # 
+    """
+
+    name = libName.generate_name(*guide._decompile())
+    print "Creating...", name
+    return Guide(position=libName.get_position(name),
+                 description=libName.get_description(name),
+                 index=libName.get_index(name)).create()
+
+@decorators.guides
+def reinit(guide):
+    """create(position, description, index=0)
+    Create a guide.
+
+    :param      position:       Guide node
+    :type       position:       Guide, str
+    :returns:   Guide
+
+    **Example**:
+
+    >>> duplicate("C_spine_0_gde")
+    # Result: Guide(C_spine_1_gde) # 
+    """
+
+    return guide.reinit()
+
+@decorators.guides
 def set_parent(child, parent):
     """set_parent(child, parent)
     Set child guides parent.

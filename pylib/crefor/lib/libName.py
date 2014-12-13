@@ -28,6 +28,7 @@ def create_name(position, description, index=0, suffix='grp'):
                                         str(suffix)])))
 
 def generate_name(position, description, index=0, suffix='grp'):
+    index = int(index)
     name = create_name(position, description, index, suffix)
     while cmds.objExists(name):
         index += 1

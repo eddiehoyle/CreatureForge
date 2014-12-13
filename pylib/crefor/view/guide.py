@@ -13,6 +13,8 @@ from maya import cmds
 from PySide.QtCore import *
 from PySide.QtGui import *
 
+WIDGET = None
+
 class GuideWidget(QWidget):
 
     BUTTON_SIZE = 30
@@ -160,40 +162,33 @@ class GuideWidget(QWidget):
         """
         """
 
-        def gen(sel_guide):
-            index = libName.get_index(key)
-            name = libName.set_index(key, index)
-            while cmds.objExists(name):
-                index += 1
-                name = libName.set_index(key, index)
-
-            return api.create(*name.split("_")[:-1])
+        top = []
 
         selected = cmds.ls(sl=True)
         for sel in selected:
 
-            sel_hierarchy = get_hierarchy(sel)
+            data = write_hierarchy2(sel)
+            dup_data = {}
 
-            level = sel_hierarchy.keys()
-            for sel_guide in level:
+            # Create duplicate guides
+            for parent in data:
+                dup_parent = api.duplicate(parent)
+                dup_data[parent] = dup_parent.joint
 
-                sel_guide
+            # Create duplicate hierarchy
+            for parent in data:
+                libXform.match_translates(dup_data[parent], parent)
+                for child in data[parent]:
+                    api.add_child(dup_data[parent], dup_data[child])
 
+            # Select top guide
+            top_guide = dup_data.values().pop()
+            while cmds.listRelatives(top_guide, parent=True):
+                top_guide = cmds.listRelatives(top_guide, parent=True)[0]
+            top.append(top_guide)
 
-
-
-
-            # index = libName.get_index(node)
-            # name = libName.set_index(node, index)
-            # while cmds.objExists(name):
-            #     index += 1
-            #     name = libName.set_index(node, index)
-
-            # guide = api.create(*name.split("_")[:-1])
-            # cmds.select(guide.joint, r=True)
-
-            # libXform.match_translates(guide.joint, node)
-            # cmds.move(1, guide.joint, y=True, relative=True)
+        # Select top guides
+        cmds.select(top, r=True)
 
     def __create_hierarchy(self):
         print '__create_hierarchy'
@@ -201,14 +196,40 @@ class GuideWidget(QWidget):
     def __cycle_aim(self):
         print '__cycle_aim'
 
-def get_hierarchy(guide):
-    """
-    Get entire guides child hierarchy
-    """
+def write_hierarchy2(guide):
+    data = {}
+    all_guides = cmds.listRelatives(guide, allDescendents=True, type="joint")
+    all_guides.insert(0, guide)
+    for guide in all_guides:
+        parent = cmds.listRelatives(guide, parent=True, type="joint")
+        if parent:
+            parent = api.reinit(parent[0])
+        children = cmds.listRelatives(guide, children=True, type="joint") or []
 
+        data[guide] = children
+    return data
+
+
+
+def write_hierarchy(guide):
+    guide = api.reinit(guide)
     def recur(guide):
+        guide = api.reinit(guide)
         hierarchy = {}
-        for child in cmds.listRelatives(guide, children=True, type="joint") or []:
-            hierarchy[child] = recur(child) or None
+        for child in cmds.listRelatives(guide.joint, children=True, type="joint") or []:
+            child = api.reinit(child)
+            hierarchy[child] = recur(child)
         return hierarchy
     return {guide: recur(guide)}
+
+def read_hierarchy(data):
+    def recur(data):
+        for guide in data.keys():
+            recur(data[guide])
+        return data
+    return recur(data)
+
+def show():
+    global WIDGET
+    WIDGET = GuideWidget()
+    WIDGET.show()

@@ -31,9 +31,7 @@ def guides(func):
     def inner(*args, **kwargs):
         try:
             args = [Guide(*libName._decompile(str(guide))[:-1]).reinit() for guide in args]
-
         except Exception as e:
             raise NodeException("Error: %s" % e)
-
         return func(*args, **kwargs)
     return inner
