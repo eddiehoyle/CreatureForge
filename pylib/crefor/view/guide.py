@@ -29,7 +29,6 @@ class GuideWidget(QWidget):
 
     def setup_ui(self):
 
-        # self.layout = FlowLayout()
         self.layout = QHBoxLayout()
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -82,6 +81,7 @@ class GuideWidget(QWidget):
 
     def __add_button(self, object_name, icon_path, func, tooltip):
         """
+        Add simple button to UI
         """
 
         button = QPushButton()
@@ -101,6 +101,7 @@ class GuideWidget(QWidget):
 
     def __create(self):
         """
+        Create a new guide
         """
 
         index = 0
@@ -114,6 +115,7 @@ class GuideWidget(QWidget):
 
     def __remove(self):
         """
+        Remove guide from scene
         """
 
         selected = cmds.ls(sl=True)
@@ -125,6 +127,7 @@ class GuideWidget(QWidget):
 
     def __set_parent(self):
         """
+        Set all selected guides to have the same parent
         """
 
         selected = cmds.ls(sl=True)
@@ -139,6 +142,7 @@ class GuideWidget(QWidget):
 
     def __add_child(self):
         """
+        Add all selected guides as child to first selected
         """
 
         selected = cmds.ls(sl=True)
@@ -151,6 +155,7 @@ class GuideWidget(QWidget):
 
     def __remove_parent(self):
         """
+        Remove parent from guide
         """
 
         selected = cmds.ls(sl=True)
@@ -160,6 +165,7 @@ class GuideWidget(QWidget):
 
     def __duplicate(self):
         """
+        Duplicate selected guides hierarchy
         """
 
         top = []
@@ -167,67 +173,48 @@ class GuideWidget(QWidget):
         selected = cmds.ls(sl=True)
         for sel in selected:
 
-            data = write_hierarchy2(sel)
-            dup_data = {}
-
-            # Create duplicate guides
-            for parent in data:
-                dup_parent = api.duplicate(parent)
-                dup_data[parent] = dup_parent.joint
-
-            # Create duplicate hierarchy
-            for parent in data:
-                libXform.match_translates(dup_data[parent], parent)
-                for child in data[parent]:
-                    api.add_child(dup_data[parent], dup_data[child])
-
-            # Select top guide
-            top_guide = dup_data.values().pop()
-            while cmds.listRelatives(top_guide, parent=True):
-                top_guide = cmds.listRelatives(top_guide, parent=True)[0]
-            top.append(top_guide)
+            nodes = api.duplicate(sel, hierarchy=True)
+            top.append(nodes[0])
 
         # Select top guides
         cmds.select(top, r=True)
 
     def __create_hierarchy(self):
-        print '__create_hierarchy'
+        """
+        Create hierarchy from sequentially selected guides 
+        """
+
+        selected = cmds.ls(sl=1)
+        last = None
+        while len(selected):
+            parent = last or selected.pop(0)
+            child = selected.pop(0)
+
+            last = child
+
+            api.set_parent(child, parent)
 
     def __cycle_aim(self):
-        print '__cycle_aim'
+        """
+        Cycle selected guides aim index to next
+        in enum. Skips world/local aims.
+        """
 
-def write_hierarchy2(guide):
-    data = {}
-    all_guides = cmds.listRelatives(guide, allDescendents=True, type="joint")
-    all_guides.insert(0, guide)
-    for guide in all_guides:
-        parent = cmds.listRelatives(guide, parent=True, type="joint")
-        if parent:
-            parent = api.reinit(parent[0])
-        children = cmds.listRelatives(guide, children=True, type="joint") or []
+        selected = cmds.ls(sl=1)
+        for node in selected:
+            aims = cmds.attributeQuery('aimAt', node=node, listEnum=True)[0].split(':')
+            current_index = cmds.getAttr("%s.aimAt" % node)
+            index = 1
 
-        data[guide] = children
-    return data
+            if not current_index == (len(aims) - 1):
+                index = (current_index + 1)
+
+            cmds.setAttr("%s.aimAt" % node, index)
 
 
 
-def write_hierarchy(guide):
-    guide = api.reinit(guide)
-    def recur(guide):
-        guide = api.reinit(guide)
-        hierarchy = {}
-        for child in cmds.listRelatives(guide.joint, children=True, type="joint") or []:
-            child = api.reinit(child)
-            hierarchy[child] = recur(child)
-        return hierarchy
-    return {guide: recur(guide)}
 
-def read_hierarchy(data):
-    def recur(data):
-        for guide in data.keys():
-            recur(data[guide])
-        return data
-    return recur(data)
+
 
 def show():
     global WIDGET

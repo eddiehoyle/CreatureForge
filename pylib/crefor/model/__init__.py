@@ -52,6 +52,9 @@ class Node(object):
         # return "%s(%s)" % (self.__class__.__name__, self.name)
         return "<Guide '%s'>" % self.name
 
+    def __hash__(self):
+        return hash(self.name)
+
     def __getitem__(self, index):
         return self.name[index]
 

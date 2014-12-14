@@ -4,9 +4,9 @@
 ass
 """
 
-from functools import wraps
+from maya import cmds
 from crefor import decorators
-from crefor.lib import libName
+from crefor.lib import libName, libUtil, libXform
 from crefor.model.guide.guide import Guide
 
 @decorators.name
@@ -33,7 +33,7 @@ def create(position, description, index=0):
                  index=index).create()
 
 @decorators.guides
-def duplicate(guide):
+def duplicate(guide, hierarchy=True):
     """create(position, description, index=0)
     Create a guide.
 
@@ -47,11 +47,30 @@ def duplicate(guide):
     # Result: Guide(C_spine_1_gde) # 
     """
 
-    name = libName.generate_name(*guide._decompile())
-    print "Creating...", name
-    return Guide(position=libName.get_position(name),
-                 description=libName.get_description(name),
-                 index=libName.get_index(name)).create()
+    data = libUtil.write_hierarchy(guide)
+    dup_data = {}
+
+    # Create duplicate guides
+    for parent in data:
+        dup_parent = parent.duplicate()
+        dup_data[parent] = dup_parent
+
+    # Create duplicate hierarchy
+    for parent in data:
+        libXform.match_translates(dup_data[parent].joint, parent.joint)
+        for child in data[parent]:
+            dup_data[parent].add_child(dup_data[child])
+
+    # Select top guide
+    top_guide = dup_data.values().pop(0).joint
+    while cmds.listRelatives(top_guide, parent=True):
+        top_guide = cmds.listRelatives(top_guide, parent=True)[0]
+
+    # Return duplicate nodes in list format
+    # First index in list is top of hierarchy
+    dup_guides = dup_data.values()
+    dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(*libName._decompile(top_guide)[:-1]))))
+    return dup_guides
 
 @decorators.guides
 def reinit(guide):

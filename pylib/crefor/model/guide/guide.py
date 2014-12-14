@@ -521,6 +521,13 @@ class Guide(Node):
 
         return self
 
+    def duplicate(self):
+        """
+        """
+
+        name = libName.generate_name(*self._decompile())
+        return Guide(*libName._decompile(name)[:-1]).create()
+
     def remove(self):
         """
         """
