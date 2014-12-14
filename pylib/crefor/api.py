@@ -4,4 +4,5 @@
 """
 
 from crefor.control.guide import set_parent, add_child, has_parent, has_child, \
-    is_parent, remove, create, remove_parent, duplicate, reinit
+    is_parent, remove, create, remove_parent, duplicate, reinit, compile, \
+    get_guides, write, read, set_axis

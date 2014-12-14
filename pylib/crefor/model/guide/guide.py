@@ -8,7 +8,7 @@ from maya import cmds
 from copy import deepcopy
 
 from collections import OrderedDict
-from crefor.lib import libName, libShader
+from crefor.lib import libName, libShader, libXform
 from crefor.model import Node
 from crefor.model.guide.connector import Connector
 
@@ -23,12 +23,12 @@ class Guide(Node):
     DEFAULT_AIMS = ['world', 'local']
     UP_SCALE_VALUE = RADIUS/3.3
 
-    AIM_ORDER = OrderedDict([("XY", (0, 0, 0)),
-                             ("XZ", (-90, 0, 0)),
-                             ("YX", (0, -180, -90)),
-                             ("YZ", (0, -90, -90)),
-                             ("ZX", (-90, 180, -90)),
-                             ("ZY", (-90, 90, -90))])
+    AIM_ORDER = OrderedDict([("xyz", (0, 0, 0)),
+                             ("xzy", (-90, 0, 0)),
+                             ("yxz", (0, -180, -90)),
+                             ("yzx", (0, -90, -90)),
+                             ("zxy", (-90, 180, -90)),
+                             ("zyx", (-90, 90, -90))])
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
@@ -130,11 +130,11 @@ class Guide(Node):
             data[_child.name] = Connector(self, _child).reinit()
         return data
 
-    def set_order(self, axis_primary, axis_secondary):
+    def set_axis(self, axis):
         """
         """
 
-        axis = "%s%s" % (axis_primary, axis_secondary)
+        # axis = "%s%s" % (axis_primary, axis_secondary)
         if self.exists() and axis in self.AIM_ORDER.keys():
             cmds.setAttr("%s.aimOrder" % self.joint, self.AIM_ORDER.keys().index(axis))
 
@@ -156,6 +156,58 @@ class Guide(Node):
 
         if selected:
             cmds.select(selected, r=True)
+
+    def get_translates(self):
+        """
+        """
+
+        if self.exists():
+            return cmds.xform(self.joint, q=True, ws=True, t=True)
+        return tuple()
+
+    def get_rotate_order(self):
+        """
+        """
+        if self.exists():
+            order = ("xyz", "yzx", "zxy", "xzy", "yxz", "zyx")
+            return order[cmds.getAttr("%s.rotateOrder" % self.joint)]
+
+    def get_aim_orient(self):
+        """
+        """
+
+        if self.exists():
+            return self.AIM_ORDER.keys()[cmds.getAttr("%s.aimOrder" % self.joint)]
+
+    def get_aim_target(self):
+        """
+        """
+
+        if self.exists():
+            enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
+            return enums[cmds.getAttr("%s.aimAt" % self.joint)]
+
+    def aim_at(self, guide, add=False):
+        """
+        Aim at input guide if it is a child. If not, then use the
+        add boolean argument to create as a child and aim at it.
+        """
+
+        if self.exists():
+            try:
+                if not isinstance(guide, Guide):
+                    guide = Guide(*libName._decompile(guide)[:-1]).reinit()
+
+                if not self.has_child(guide):
+                    if add:
+                        self.add_child(guide)
+                    else:
+                        raise RuntimeError("Guide '%s' is not a child of '%s'" % (guide.joint, self.joint))
+
+                enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
+                cmds.setAttr("%s.aimAt" % self.joint, enums.index(guide.aim))
+            except Exception:
+                raise
 
     def set_translates(self, vector3f):
         '''Set position of guide'''
@@ -538,9 +590,29 @@ class Guide(Node):
         if parent:
             parent.remove_child(self)
 
-        for key, child in self.children.items():
+        # for key, child in self.children.items():
+        for key, child in children.items():
             self.remove_child(child)
 
         cmds.delete(self.nondag)
         cmds.delete(self.setup_node)
         cmds.delete(self.joint)
+
+    def compile(self):
+        """
+        Create a joint
+        """
+
+        orientation = cmds.getAttr("%s.rotate" % self.aim)[0]
+
+        joint = cmds.joint(name=libName.set_suffix(self.joint, "jnt"),
+                           orientation=orientation,
+                           position=self.get_translates(),
+                           rotationOrder=self.get_rotate_order())
+
+        # if self.children:
+        #     cmds.joint(joint, e=True, orientJoint=self.get_orient())
+
+        cmds.select(cl=True)
+
+        return joint

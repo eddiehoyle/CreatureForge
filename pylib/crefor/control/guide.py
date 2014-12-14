@@ -4,6 +4,8 @@
 ass
 """
 
+import os
+import json
 from maya import cmds
 from crefor import decorators
 from crefor.lib import libName, libUtil, libXform
@@ -204,8 +206,6 @@ def remove_parent(guide):
     """remove_parent(guide)
     Remove guides parent if available
 
-    Remove guide from scene
-
     :param      guide:      Guide to be removed
     :type       guide:      str, Guide
 
@@ -217,3 +217,159 @@ def remove_parent(guide):
     """
 
     guide.remove_parent()
+
+def compile():
+    """
+    Compile all guides into joints.
+
+    :type       child:      str
+    :rtype:                 tuple
+    :returns:               Tuple of compiled joints
+    """
+
+    guides = get_guides()
+
+    # Create hierarchy
+    hierarchy = {}
+    for guide in guides:
+        hierarchy[guide] = guide.children.values()
+
+    # Create joints
+    joints = {}
+    for guide in hierarchy:
+        joint = guide.compile()
+        joints[guide] = joint
+
+    # Create joint hierarchy
+    for guide in joints:
+        for child in hierarchy[guide]:
+            cmds.parent(joints[child], joints[guide])
+
+    # Remove guides
+    for guide in guides:
+        guide.remove()
+
+    return joints
+
+def get_guides():
+    """
+    Get list of guides in scene
+
+    :rtype:                 tuple
+    :returns:               Tuple of guides
+    """
+
+    _guides = cmds.ls("*%s" % Guide.SUFFIX, type="joint")
+    guides = []
+    for node in _guides:
+        try:
+            guides.append(Guide(*libName._decompile(node)[:-1]).reinit())
+        except Exception:
+            pass
+    return guides
+
+@decorators.guides(1)
+def set_axis(guide, axis="xyz"):
+    """
+    """
+
+    guide.set_axis(axis)
+
+
+def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", guides=[]):
+    """
+    Write out a json data snapshot of all guides
+
+    :param      path:       Path where the data snapshot file is written to disk
+    :param      guides:     List of guides whose data will be written to disk
+    :type       path:       str
+    :type       guides:     list
+    :rtype:                 bool
+    :returns:               If path exists on disk
+
+    **Example**:
+
+    >>> # Save all guides to disk
+    >>> save("C:/documents/guides.json")
+    >>> # Result: True #
+
+    >>> # Write out only input guides
+    >>> save("C:/documents/template.json", guides=["L_arm_0_gde"])
+    >>> # Result: True #
+    """
+
+    # Get guides input or list from scene
+    if guides:
+        _guides = []
+        for g in guides:
+            try:
+                _guides.append(Guide(*libName._decompile(g)[:-1]).reinit())
+            except Exception as e:
+                raise
+        guides = _guides
+    else:
+        guides = get_guides()
+
+    # Don't write file to disk of no guides are found
+    if not guides:
+        return False
+
+    # Create a data snapshot dict of guide
+    data = {}
+    for guide in guides:
+        data[guide.joint] = dict(children=guide.children.keys(),
+                                parent=guide.parent.name if guide.parent else None,
+                                xform=guide.get_translates(),
+                                aim_target=guide.get_aim_target(),
+                                axis=guide.get_aim_orient(),
+                                rotate_order=guide.get_rotate_order())
+
+    # Write file to disk
+    try:
+        with open(path, 'w') as f:
+            f.write(json.dumps(data, indent=4))
+    except Exception:
+        raise
+
+    return os.path.exists(path)
+
+def read(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", compile=False):
+    """
+    Load a data snapshot of guides and recreate
+
+    :param      path:       Path where the data snapshot file is written to disk
+    :param      compile:    Compile loaded snapshot into joints after
+                            guides are recreated.
+    :type       path:       str
+    :type       compile:    bool
+    :rtype:                 list
+    :returns:               List of guides or joints created from snapshot
+
+    **Example**:
+
+    >>> read("C:/documents/guides.json")
+    >>> # Result: ["L_arm_0_gde"] #
+
+    >>> read("C:/documents/guides.json", compile=True)
+    >>> # Result: ["L_arm_0_jnt"] #
+    """
+
+    data = {}
+
+    try:
+        with open(path, "rU") as f:
+            data = json.loads(f.read())
+    except Exception:
+        raise
+
+    # Check if all guides exist first
+    for guide in data.keys():
+        if not cmds.objExists(guide):
+            raise NameError("Guide '%s' does not exist." % guide)
+
+    # Reinit all guides
+    for guide in data.keys():
+
+        for child in data[guide]["children"]:
+            add_child(guide, child)
+            guide.set_axis(data[guide]["axis"])
