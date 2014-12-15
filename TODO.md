@@ -1,4 +1,5 @@
 # IMPORTANT
+* Fix all that duplicat reinit logic occuring in I/O read and rebuild
 * Write position save/load logic
 
 ## Stretch goal

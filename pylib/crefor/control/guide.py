@@ -302,11 +302,11 @@ def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json",
     **Example**:
 
     >>> # Save all guides to disk
-    >>> save("C:/documents/guides.json")
+    >>> write("C:/documents/guides.json")
     >>> # Result: True #
 
     >>> # Write out only input guides
-    >>> save("C:/documents/template.json", guides=["L_arm_0_gde"])
+    >>> write("C:/documents/template.json", guides=["L_arm_0_gde"])
     >>> # Result: True #
     """
 
@@ -326,9 +326,8 @@ def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json",
         data[guide.joint] = dict(children=guide.children.keys(),
                                 parent=guide.parent.name if guide.parent else None,
                                 xform=guide.get_translates(),
-                                aim_target=guide.get_aim_target(),
-                                axis=guide.get_aim_orient(),
-                                rotate_order=guide.get_rotate_order())
+                                aim_at=guide.get_aim_at(),
+                                axis=guide.get_axis())
 
     # Write file to disk
     try:
@@ -339,7 +338,7 @@ def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json",
 
     return os.path.exists(path)
 
-def read(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", compile=False):
+def read(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", compile_guides=False):
     """
     Load a data snapshot of guides and recreate
 
@@ -368,17 +367,70 @@ def read(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", 
     except Exception:
         raise
 
+    # # Reini
+    # _guides = {}
+    # for key in data:
+    #     _guides[__validate(guide)] = [__validate(g) for g in data[key]]
+
     # Check if all guides exist first
     for guide in data.keys():
         if not cmds.objExists(guide):
             raise NameError("Guide '%s' does not exist." % guide)
 
-    # Reinit all guides
+    # Set guides translates
     for guide in data.keys():
+        guide = __validate(guide)
+        guide.set_translates(data[guide.name]["xform"])
 
-        for child in data[guide]["children"]:
+    # Create hierarchy, set aim targets
+    for guide in data.keys():
+        guide = __validate(guide)
+        for child in data[guide.name]["children"]:
+            child = __validate(child)
             add_child(guide, child)
-            guide.set_axis(data[guide]["axis"])
+            guide.set_axis(data[guide.name]["axis"])
+        guide.aim_at(data[guide.name]["aim_at"])
+
+    # Compile into joints
+    if compile_guides:
+        compile()
+
+    return 
+
+def rebuild(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", compile_guides=False):
+    """
+    Rebuild all guides from a snapshot
+
+    :param      path:       Path where the data snapshot file is written to disk
+    :param      compile:    Compile loaded snapshot into joints after
+                            guides are recreated.
+    :type       path:       str
+    :type       compile:    bool
+    :rtype:                 list
+    :returns:               List of guides or joints created from snapshot
+
+    **Example**:
+
+    >>> rebuild("C:/documents/guides.json")
+    >>> # Result: ["L_arm_0_gde"] #
+
+    >>> rebuild("C:/documents/guides.json", compile=True)
+    >>> # Result: ["L_arm_0_jnt"] #
+    """
+
+    data = {}
+
+    try:
+        with open(path, "rU") as f:
+            data = json.loads(f.read())
+    except Exception:
+        raise
+
+    for guide in data.keys():
+        create(*libName._decompile(guide)[:-1])
+
+    read(path, compile_guides=compile_guides)
+
 
 def __validate(guide):
     """

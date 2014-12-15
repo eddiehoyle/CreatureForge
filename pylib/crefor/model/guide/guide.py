@@ -176,14 +176,7 @@ class Guide(Node):
             order = self.AIM_ORDER.keys()
             return order[cmds.getAttr("%s.aimOrder" % self.joint)]
 
-    def get_aim_orient(self):
-        """
-        """
-
-        if self.exists():
-            return self.AIM_ORDER.keys()[cmds.getAttr("%s.aimOrder" % self.joint)]
-
-    def get_aim_target(self):
+    def get_aim_at(self):
         """
         """
 
@@ -199,6 +192,13 @@ class Guide(Node):
 
         if self.exists():
             try:
+
+                enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
+
+                if guide in ["world", "local"]:
+                    cmds.setAttr("%s.aimAt" % self.joint, enums.index(guide))
+                    return
+
                 if not isinstance(guide, Guide):
                     guide = Guide(*libName._decompile(guide)[:-1]).reinit()
 
@@ -208,15 +208,17 @@ class Guide(Node):
                     else:
                         raise RuntimeError("Guide '%s' is not a child of '%s'" % (guide.joint, self.joint))
 
-                enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
                 cmds.setAttr("%s.aimAt" % self.joint, enums.index(guide.aim))
             except Exception:
                 raise
 
     def set_translates(self, vector3f):
-        '''Set position of guide'''
+        """
+        Set position of guide
+        """
+
         if self.joint:
-            cmds.setAttr('%s.translate' % self.joint, *vector3f, type='float3')
+            cmds.xform(self.joint, ws=True, t=vector3f)
 
     def set_debug(self, debug):
         '''Set debug visibility'''
@@ -304,7 +306,6 @@ class Guide(Node):
         # Already has child connector?
         connectors = deepcopy(self.connectors)
         if guide.name in connectors:
-            print 'already has aim', guide.name
             return connectors[guide.name]
 
         cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up,
