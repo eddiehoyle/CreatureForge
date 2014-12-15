@@ -34,7 +34,6 @@ def create(position, description, index=0):
                  description=description,
                  index=index).create()
 
-@decorators.guides
 def duplicate(guide, hierarchy=True):
     """create(position, description, index=0)
     Create a guide.
@@ -48,6 +47,8 @@ def duplicate(guide, hierarchy=True):
     >>> duplicate("C_spine_0_gde")
     # Result: Guide(C_spine_1_gde) # 
     """
+
+    guide = __validate(guide)
 
     data = libUtil.write_hierarchy(guide)
     dup_data = {}
@@ -74,7 +75,6 @@ def duplicate(guide, hierarchy=True):
     dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(*libName._decompile(top_guide)[:-1]))))
     return dup_guides
 
-@decorators.guides
 def reinit(guide):
     """create(position, description, index=0)
     Create a guide.
@@ -89,9 +89,9 @@ def reinit(guide):
     # Result: Guide(C_spine_1_gde) # 
     """
 
+    guide = __validate(guide)
     return guide.reinit()
 
-@decorators.guides
 def set_parent(child, parent):
     """set_parent(child, parent)
     Set child guides parent.
@@ -108,9 +108,10 @@ def set_parent(child, parent):
     # Result: Guide(C_spine_0_gde) # 
     """
 
+    child = __validate(child)
+    parent = __validate(parent)
     return child.set_parent(parent)
 
-@decorators.guides
 def add_child(parent, child):
     """add_child(parent, child)
     Add a child guide to parent guide
@@ -127,15 +128,16 @@ def add_child(parent, child):
     # Result: Guide(C_spine_0_gde) # 
     """
 
+    child = __validate(child)
+    parent = __validate(parent)
     return parent.add_child(child)
 
-@decorators.guides
-def has_parent(guide):
+def has_parent(child, parent):
     """has_parent(child, parent)
     Does the child have parent anywhere in it's hierarchy?
 
-    :param      guide:      Guide that will checked
-    :type       guide:      str, Guide
+    :param      child:      Guide that will checked
+    :type       child:      str, Guide
     :rtype:                 bool
 
     **Example**:
@@ -144,9 +146,10 @@ def has_parent(guide):
     # Result: False # 
     """
 
-    return bool(child.parent)
+    child = __validate(child)
+    parent = __validate(parent)
+    return child.has_parent(parent)
 
-@decorators.guides
 def has_child(parent, child):
     """has_child(parent, child)
     Is guide an immediate child of parent?
@@ -163,9 +166,10 @@ def has_child(parent, child):
     # Result: True # 
     """
 
+    child = __validate(child)
+    parent = __validate(parent)
     return child.has_parent(parent)
 
-@decorators.guides
 def is_parent(parent, child):
     """is_parent(child, parent)
     Is guide the immediate parent of child?
@@ -182,9 +186,10 @@ def is_parent(parent, child):
     # Result: True # 
     """
 
-    return parent.is_parent(child)
+    child = __validate(child)
+    parent = __validate(parent)
+    return child.is_parent(parent)
 
-@decorators.guides
 def remove(guide):
     """remove(guide)
     Remove guide from scene
@@ -199,9 +204,9 @@ def remove(guide):
     # Result: [] #
     """
 
+    guide = __validate(guide)
     guide.remove()
 
-@decorators.guides
 def remove_parent(guide):
     """remove_parent(guide)
     Remove guides parent if available
@@ -216,6 +221,7 @@ def remove_parent(guide):
     # Result: [] #
     """
 
+    guide = __validate(guide)
     guide.remove_parent()
 
 def compile():
@@ -260,15 +266,21 @@ def get_guides():
     """
 
     _guides = cmds.ls("*%s" % Guide.SUFFIX, type="joint")
-    guides = []
-    for node in _guides:
-        try:
-            guides.append(Guide(*libName._decompile(node)[:-1]).reinit())
-        except Exception:
-            pass
-    return guides
+    return [__validate(node) for node in _guides]
 
-@decorators.guides(1)
+def exists(guide):
+    """
+    """
+
+    try:
+
+        # Exception is raised if guide does not exist
+        guide = __validate(guide)
+        return guide.exists()
+
+    except Exception:
+        return False
+
 def set_axis(guide, axis="xyz"):
     """
     """
@@ -300,13 +312,7 @@ def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json",
 
     # Get guides input or list from scene
     if guides:
-        _guides = []
-        for g in guides:
-            try:
-                _guides.append(Guide(*libName._decompile(g)[:-1]).reinit())
-            except Exception as e:
-                raise
-        guides = _guides
+        guides = [__validate(node) for node in guides]
     else:
         guides = get_guides()
 
@@ -373,3 +379,23 @@ def read(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", 
         for child in data[guide]["children"]:
             add_child(guide, child)
             guide.set_axis(data[guide]["axis"])
+
+def __validate(guide):
+    """
+    Reinit a guide
+
+    :param      guide:      Node to be reinitialised as guide
+    :type       guide:      str
+    :rytpe:                 Guide
+    :returns:               Reinitialised guide model
+
+    **Example**:
+
+    >>> __validate("L_arm_0_gde")
+    >>> # Result: <Guide "L_arm_0_gde"> #
+    """
+
+    try:
+        return Guide(*libName._decompile(str(guide))[:-1]).reinit()
+    except Exception:
+        raise

@@ -134,9 +134,13 @@ class Guide(Node):
         """
         """
 
-        # axis = "%s%s" % (axis_primary, axis_secondary)
-        if self.exists() and axis in self.AIM_ORDER.keys():
-            cmds.setAttr("%s.aimOrder" % self.joint, self.AIM_ORDER.keys().index(axis))
+        if self.exists():
+            try:
+                cmds.setAttr("%s.aimOrder" % self.joint, self.AIM_ORDER.keys().index(axis))
+            except Exception as e:
+                e.args = ["Axis '%s' is not a valid aim axis: %s" % (axis, self.AIM_ORDER.keys())]
+                raise
+
 
     def exists(self):
         '''Does the guide exist in Maya?'''
@@ -165,12 +169,12 @@ class Guide(Node):
             return cmds.xform(self.joint, q=True, ws=True, t=True)
         return tuple()
 
-    def get_rotate_order(self):
+    def get_axis(self):
         """
         """
         if self.exists():
-            order = ("xyz", "yzx", "zxy", "xzy", "yxz", "zyx")
-            return order[cmds.getAttr("%s.rotateOrder" % self.joint)]
+            order = self.AIM_ORDER.keys()
+            return order[cmds.getAttr("%s.aimOrder" % self.joint)]
 
     def get_aim_orient(self):
         """
@@ -608,7 +612,7 @@ class Guide(Node):
         joint = cmds.joint(name=libName.set_suffix(self.joint, "jnt"),
                            orientation=orientation,
                            position=self.get_translates(),
-                           rotationOrder=self.get_rotate_order())
+                           rotationOrder=self.get_axis())
 
         # if self.children:
         #     cmds.joint(joint, e=True, orientJoint=self.get_orient())

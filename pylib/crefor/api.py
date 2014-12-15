@@ -3,6 +3,6 @@
 """
 """
 
-from crefor.control.guide import set_parent, add_child, has_parent, has_child, \
-    is_parent, remove, create, remove_parent, duplicate, reinit, compile, \
-    get_guides, write, read, set_axis
+from crefor.control.guide import remove, create, duplicate, remove, \
+    set_parent, add_child, has_parent, has_child, is_parent, remove_parent, \
+    get_guides, reinit, compile, write, read
