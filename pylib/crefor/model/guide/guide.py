@@ -24,6 +24,17 @@ class Guide(object):
     """
 
     SEP = "_"
+    SUFFIX = 'gde'
+    RADIUS = 1.0
+    DEFAULT_AIMS = ['world', 'local']
+    UP_SCALE_VALUE = RADIUS/3.3
+
+    AIM_ORDER = OrderedDict([("xyz", (0, 0, 0)),
+                             ("xzy", (-90, 0, 0)),
+                             ("yxz", (0, -180, -90)),
+                             ("yzx", (0, -90, -90)),
+                             ("zxy", (-90, 180, -90)),
+                             ("zyx", (-90, 90, -90))])
 
     def __new__(self, *args, **kwargs):
 
@@ -36,17 +47,12 @@ class Guide(object):
 
 class _Guide(Node):
 
-    SUFFIX = 'gde'
-    RADIUS = 1.0
-    DEFAULT_AIMS = ['world', 'local']
-    UP_SCALE_VALUE = RADIUS/3.3
+    SUFFIX = Guide.SUFFIX
+    RADIUS = Guide.RADIUS
+    DEFAULT_AIMS = Guide.DEFAULT_AIMS
+    UP_SCALE_VALUE = Guide.UP_SCALE_VALUE
 
-    AIM_ORDER = OrderedDict([("xyz", (0, 0, 0)),
-                             ("xzy", (-90, 0, 0)),
-                             ("yxz", (0, -180, -90)),
-                             ("yzx", (0, -90, -90)),
-                             ("zxy", (-90, 180, -90)),
-                             ("zyx", (-90, 90, -90))])
+    AIM_ORDER = Guide.AIM_ORDER
 
     def __init__(self, position, description, index=0):
         super(_Guide, self).__init__(position, description, index)
@@ -139,13 +145,14 @@ class _Guide(Node):
         data = {}
         for _child in _children:
             # data[_child] = Guide(*libName._decompile(_child)[0:3]).reinit()
-            data[_child] = Guide(*self.name.decompile(3)).reinit()
+            data[_child] = Guide(_child).reinit()
         return data
 
     @property
     def connectors(self):
         '''Connectors are stored in sync with children'''
         data = {}
+        print 'values', self.children.values()
         for _child in self.children.values():
             data[_child.name] = Connector(self, _child).reinit()
         return data
@@ -287,6 +294,7 @@ class _Guide(Node):
         if self.parent:
             self.remove_parent()
 
+        print 'set_parent', guide.name, self.name
         guide.add_aim(self)
         log.info('\'%s\' successfully set parent: \'%s\'' % (self.joint, guide.joint))
 
@@ -323,11 +331,12 @@ class _Guide(Node):
         Guide is considered to be the child of self. Any constraint
         and attribute updates are added to self, as well as the connector.
         '''
-
+        print 'aim'
         # Already has child connector?
         connectors = deepcopy(self.connectors)
         if guide.name in connectors:
             return connectors[guide.name]
+        print 'in', guide.name in connectors
 
         cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up,
                            worldUpType='object',
@@ -341,6 +350,7 @@ class _Guide(Node):
         cmds.addAttr('%s.aimAt' % self.joint, e=True, en=':'.join(enums))
 
         # Create connector
+        print 'add_aim', self.name, guide.name
         con = Connector(self, guide)
         con.create()
 
@@ -617,8 +627,8 @@ class _Guide(Node):
         """
         """
 
-        name = libName.generate_name(*self._decompile())
-        return Guide(*libName._decompile(name)[:-1]).create()
+        # name = libName.generate_name(*self._decompile())
+        return Guide(self.name.generate()).create()
 
     def remove(self):
         """

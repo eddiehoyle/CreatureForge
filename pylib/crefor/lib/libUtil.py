@@ -20,9 +20,13 @@ def write_hierarchy(guide):
 
     >>> write_hierarchy("C_spine_0_gde")
     """
-
-    if isinstance(guide, Guide):
+    try:
         guide = guide.joint
+    except Exception:
+        guide = str(guide)
+
+        if not cmds.objExists(guide):
+            raise NameError("'%s' is not a guide." % guide)
 
     data = {}
     all_guides = cmds.listRelatives(guide, allDescendents=True, type="joint") or []

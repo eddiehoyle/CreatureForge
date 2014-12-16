@@ -73,6 +73,7 @@ def duplicate(guide, hierarchy=True):
     # Return duplicate nodes in list format
     # First index in list is top of hierarchy
     dup_guides = dup_data.values()
+    print dup_guides
     dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(Name(top_guide)))))
     return dup_guides
 

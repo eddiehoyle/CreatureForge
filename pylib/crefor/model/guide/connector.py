@@ -18,6 +18,7 @@ class Connector(object):
     """
 
     SEP = "_"
+    SUFFIX = "cnc"
 
     def __new__(self, *args, **kwargs):
 
@@ -39,8 +40,10 @@ class _Connector(Node):
     CLUSTER_OFFSET = 1.0
 
     def __init__(self, parent, child):
+        print 'creating parent', parent.name, 'child', child.name
         super(_Connector, self).__init__(*child.name.decompile(3))
 
+        print 'init name', self.name
         # Guides
         self.__parent = parent
         self.__child = child

@@ -52,20 +52,20 @@ class Node(object):
         return "<Guide '%s'>" % self.name
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.name.compile())
 
     def __getitem__(self, index):
         return self.name[index]
 
     def __eq__(self, other):
         try:
-            return self.name == other.name
+            return self.name.compile() == other.name.compile()
         except Exception:
             return False
 
     def __ne__(self, other):
         try:
-            return self.name != other.name
+            return self.name.compile() != other.name.compile()
         except Exception:
             return False
 
