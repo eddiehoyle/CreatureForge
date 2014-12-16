@@ -4,7 +4,7 @@
 '''
 
 # from maya import cmds
-from crefor.lib import libName
+from crefor.lib.libName import Name
 
 class Node(object):
     '''
@@ -19,37 +19,36 @@ class Node(object):
         self.descrption = descrption
         self.index = index
 
-        self.name = libName.create_name(self.position,
-                                        self.descrption,
-                                        self.index,
-                                        self.SUFFIX)
+        # self.name = libName.create_name(self.position,
+        #                                 self.descrption,
+        #                                 self.index,
+        #                                 self.SUFFIX)
+        self.name = Name(self.position,
+                         self.descrption,
+                         self.index,
+                         self.SUFFIX)
 
-    def _decompile(self):
-        """_decompile(self)
+    # def _decompile(self):
+    #     """_decompile(self)
 
-        Decompile name into components.
+    #     Decompile name into components.
 
-        :returns:   List of name componenets
-        :rtype:     list
+    #     :returns:   List of name componenets
+    #     :rtype:     list
 
-        **Example**:
+    #     **Example**:
 
-        >>> guide = Guide("C", "spine", 0).create()
-        >>> guide._decompile()
-        # Result: ["C", "spine", 0, "gde"] #
-        """
+    #     >>> guide = Guide("C", "spine", 0).create()
+    #     >>> guide._decompile()
+    #     # Result: ["C", "spine", 0, "gde"] #
+    #     """
 
-        return libName._decompile(self.name)
+    #     return libName._decompile(self.name)
 
     def __str__(self):
-        return self.name
+        return str(self.name)
 
     def __repr__(self):
-        # return "%s(position=%s, descrption=%s, index=%s)" % (self.__class__.__name__,
-        #                                                      self.position,
-        #                                                      self.descrption,
-        #                                                      self.index)
-        # return "%s(%s)" % (self.__class__.__name__, self.name)
         return "<Guide '%s'>" % self.name
 
     def __hash__(self):

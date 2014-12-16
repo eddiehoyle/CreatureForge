@@ -16,7 +16,25 @@ import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
 
-class Guide(Node):
+__all__ = ["Guide"]
+
+class Guide(object):
+    """
+    Singleton
+    """
+
+    SEP = "_"
+
+    def __new__(self, *args, **kwargs):
+
+        if len(args) == 3 or len(kwargs.keys()) == 3:
+            return _Guide(*args, **kwargs)
+        elif len(args) == 1:
+            return _Guide(*str(args[0]).split(self.SEP)[:3])
+        else:
+            raise ValueError(args)
+
+class _Guide(Node):
 
     SUFFIX = 'gde'
     RADIUS = 1.0
@@ -31,7 +49,7 @@ class Guide(Node):
                              ("zyx", (-90, 90, -90))])
 
     def __init__(self, position, description, index=0):
-        super(Guide, self).__init__(position, description, index)
+        super(_Guide, self).__init__(position, description, index)
 
         self.joint = None
 
@@ -89,7 +107,8 @@ class Guide(Node):
 
     @property
     def setup_node(self):
-        return libName.set_suffix(libName.append_description(self.name, "gde"), "setup")
+        # return libName.set_suffix(libName.append_description(self.name, "gde"), "setup")
+        return self.name.recompile(suffix="setup", append=self.SUFFIX)
 
     @property
     def short_name(self):
@@ -119,7 +138,8 @@ class Guide(Node):
         _children = cmds.listRelatives(self.joint, children=True, type='joint') or []
         data = {}
         for _child in _children:
-            data[_child] = Guide(*libName._decompile(_child)[0:3]).reinit()
+            # data[_child] = Guide(*libName._decompile(_child)[0:3]).reinit()
+            data[_child] = Guide(*self.name.decompile(3)).reinit()
         return data
 
     @property
@@ -200,7 +220,8 @@ class Guide(Node):
                     return
 
                 if not isinstance(guide, Guide):
-                    guide = Guide(*libName._decompile(guide)[:-1]).reinit()
+                    # guide = Guide(*libName._decompile(guide)[:-1]).reinit()
+                    guide = Guide(*self.name.decompile(3)).reinit()
 
                 if not self.has_child(guide):
                     if add:
@@ -401,7 +422,7 @@ class Guide(Node):
         
         # Create joint and parent sphere under
         cmds.select(cl=True)
-        self.joint = cmds.createNode('joint', name=self.name)
+        self.joint = cmds.createNode('joint', name=self.name.compile())
         cmds.setAttr("%s.radius" % self.joint, cb=False)
         cmds.setAttr("%s.radius" % self.joint, l=True)
         cmds.select(cl=True)
@@ -416,7 +437,8 @@ class Guide(Node):
         cmds.pointConstraint(self.joint, self.setup_node, mo=False)
 
         # Create up transform
-        self.up = cmds.group(name=libName.set_suffix(self.name, 'up'), empty=True)
+        # self.up = cmds.group(name=libName.set_suffix(self.name, 'up'), empty=True)
+        self.up = cmds.group(name=self.name.recompile(suffix="up"), empty=True)
         _cube = cmds.nurbsCube(p=(0, 0, 0), ax=(0, 1, 0), lr=1, hr=1, d=1, u=1, v=1, ch=0)[0]
         _cube_shapes = cmds.listRelatives(_cube, type='nurbsSurface', ad=True)
         cmds.parent(_cube_shapes, self.up, r=True, s=True)
@@ -432,7 +454,10 @@ class Guide(Node):
         cmds.delete(self.up, ch=True)
 
         # Create main aim transform
-        self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
+        # self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
+        self.aim = cmds.group(name=self.name.recompile(suffix="aim"), empty=True)
+
+        self.name.recompile(suffix="up")
         cmds.setAttr('%s.translateX' % self.aim, -0.00000001)
         
 
@@ -475,10 +500,13 @@ class Guide(Node):
         aliases = cmds.orientConstraint(self.orient, q=True, wal=True)
         targets = cmds.orientConstraint(self.orient, q=True, tl=True)
         index = targets.index(self.joint)
-        condition = cmds.createNode('condition',
-                                    name=libName.set_suffix(libName.append_description(self.name,
-                                                                                       'local'),
-                                                                                       'cond'))
+        # condition = cmds.createNode('condition',
+        #                             name=libName.set_suffix(libName.append_description(self.name,
+        #                                                                                'local'),
+        #                                                                                'cond'))
+        condition = cmds.createNode("condition",
+                                    name=self.name.recompile(suffix="cond",
+                                                             append="local"))
 
 
         cmds.setAttr('%s.secondTerm' % condition, index)
@@ -498,17 +526,24 @@ class Guide(Node):
         cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
 
         # Create custom aim constraint offsets
+        # aim_order_pma = cmds.createNode("plusMinusAverage",
+        #                                 name=libName.set_suffix(libName.append_description(self.name,
+        #                                                                                    "custom"),
+        #                                                                                    "pma"))
         aim_order_pma = cmds.createNode("plusMinusAverage",
-                                        name=libName.set_suffix(libName.append_description(self.name,
-                                                                                           "custom"),
-                                                                                           "pma"))
+                                        name=self.name.recompile(suffix="pma",
+                                                                 append="custom"))
+
         cmds.connectAttr("%s.output3D" % aim_order_pma, "%s.offset" % self.constraint)
 
         for pair_index, pair in enumerate(self.AIM_ORDER.keys()):
+            # pair_cond = cmds.createNode("condition",
+            #                             name=libName.set_suffix(libName.append_description(self.name,
+            #                                                                                "pair%s" % pair_index),
+            #                                                                                "cond"))
             pair_cond = cmds.createNode("condition",
-                                        name=libName.set_suffix(libName.append_description(self.name,
-                                                                                           "pair%s" % pair_index),
-                                                                                           "cond"))
+                                        name=self.name.recompile(suffix="pair%s" % pair_index,
+                                                                 append="cond"))
             cmds.connectAttr("%s.aimOrder" % self.joint, "%s.firstTerm" % pair_cond)
             cmds.setAttr("%s.secondTerm" % pair_cond, pair_index)
 
@@ -610,7 +645,11 @@ class Guide(Node):
 
         orientation = cmds.getAttr("%s.rotate" % self.aim)[0]
 
-        joint = cmds.joint(name=libName.set_suffix(self.joint, "jnt"),
+        # joint = cmds.joint(name=libName.set_suffix(self.joint, "jnt"),
+        #                    orientation=orientation,
+        #                    position=self.get_translates(),
+        #                    rotationOrder=self.get_axis())
+        joint = cmds.joint(name=self.name.recompile(suffix="jnt"),
                            orientation=orientation,
                            position=self.get_translates(),
                            rotationOrder=self.get_axis())
