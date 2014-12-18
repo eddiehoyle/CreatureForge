@@ -10,7 +10,7 @@ from maya import cmds
 from crefor import decorators
 from crefor.lib import libUtil, libXform
 from crefor.lib.libName import Name
-from crefor.model.guide.guide import Guide
+from crefor.model.guide.guide import _Guide, Guide
 
 @decorators.name
 def create(position, description, index=0):
@@ -73,7 +73,6 @@ def duplicate(guide, hierarchy=True):
     # Return duplicate nodes in list format
     # First index in list is top of hierarchy
     dup_guides = dup_data.values()
-    print dup_guides
     dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(Name(top_guide)))))
     return dup_guides
 
@@ -448,8 +447,6 @@ def __validate(guide):
     >>> __validate("L_arm_0_gde")
     >>> # Result: <Guide "L_arm_0_gde"> #
     """
-
-    try:
-        return Guide(Name(guide)).reinit()
-    except Exception:
-        raise
+    x = Guide(Name(guide)).reinit()
+    print '1'
+    return x

@@ -22,15 +22,7 @@ class Connector(object):
 
     def __new__(self, *args, **kwargs):
 
-        print 'args', args
-        print 'kwargs', kwargs
         return _Connector(*args, **kwargs)
-        # if len(args) == 3 or len(kwargs.keys()) == 3:
-        #     return _Guide(*args, **kwargs)
-        # elif len(args) == 1:
-        #     return _Guide(*str(args[0]).split(self.SEP)[:3])
-        # else:
-        #     raise ValueError(args)
 
 class _Connector(Node):
 
@@ -384,6 +376,8 @@ class _Connector(Node):
 
         if self.exists():
 
+
+
             # # Query aliases and target list from parent aim constraint
             # aliases = cmds.aimConstraint(self.__parent.constraint, q=True, wal=True)
             # targets = cmds.aimConstraint(self.__parent.constraint, q=True, tl=True)
@@ -391,6 +385,11 @@ class _Connector(Node):
 
             # Query parent joint enum items
             enums = cmds.attributeQuery('aimAt', node=self.__parent.joint, listEnum=True)[0].split(':')
+            
+
+            print 'aim', self.__child.aim
+            print "enums", enums
+
             enum_index = enums.index(self.__child.aim)
 
             # Update index to reflect alias index of child
@@ -570,6 +569,8 @@ class _Connector(Node):
         Reinitialise all transforms, shaders, deformers
         """
 
+        print 'reinit con'
+
         if not self.exists():
             raise Exception('Cannot reinit \'%s\' as connector does not exist.' % self.setup_node)
 
@@ -617,4 +618,5 @@ class _Connector(Node):
         cmds.delete(self.nondag)
         cmds.delete(self.setup_node)
 
-        return Conncector(self.name)
+
+        return super(_Connector, self).__init__(*self.child.name.decompile()[:-1])

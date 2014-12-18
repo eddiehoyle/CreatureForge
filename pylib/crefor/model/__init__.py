@@ -46,10 +46,12 @@ class Node(object):
     #     return libName._decompile(self.name)
 
     def __str__(self):
-        return str(self.name)
+        print 'str'
+        return self.name.compile()
 
     def __repr__(self):
-        return "<Guide '%s'>" % self.name
+        print 'repr'
+        return "<Guide '%s'>" % self.name.compile()
 
     def __hash__(self):
         return hash(self.name.compile())
@@ -58,16 +60,17 @@ class Node(object):
         return self.name[index]
 
     def __eq__(self, other):
+        print 'eq'
         try:
             return self.name.compile() == other.name.compile()
         except Exception:
-            return False
+            return self.name.compile() == str(other)
 
     def __ne__(self, other):
         try:
             return self.name.compile() != other.name.compile()
         except Exception:
-            return False
+            return self.name.compile() == str(other)
 
     def __lt__(self, other):
         try:

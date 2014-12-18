@@ -120,7 +120,9 @@ class GuideWidget(QWidget):
 
         selected = cmds.ls(sl=True)
         for guide in selected:
+
             try:
+                print 'view'
                 api.remove(guide)
             except NodeException:
                 pass

@@ -93,10 +93,13 @@ class _Name(object):
         return self.decompile()[key]
 
     def __str__(self):
-        return str(self.__compile())
+        return self.__compile()
 
     def __repr__(self):
-        return str(self.__compile())
+        return self.__compile()
+
+    def __eq__(self, other):
+        return self.__compile() == str(other)
 
     def __get_position(self):
         return self.__position
@@ -194,6 +197,7 @@ class _Name(object):
             new.index += 1
         return new
 
+
 class Name(object):
     """
     Singleton
@@ -204,10 +208,24 @@ class Name(object):
     def __new__(self, *args, **kwargs):
 
         if len(args) == 4:
-            return _Name(*args)
+            self.__name = _Name(*args)
         elif len(args) == 1:
-            return _Name(*str(args[0]).split(self.SEP))
+            self.__name = _Name(*str(args[0]).split(self.SEP))
         else:
+            self.__name = None
+
+        if not self.__name:
             raise ValueError("Invalid name arguments: %s" % args)
+
+        return self.__name
+
+    def __str__(self):
+        return self.__name.compile()
+
+    def __repr__(self):
+        return self.__name.compile()
+
+    def __eq__(self):
+        return self.__name.compile()
 
 
