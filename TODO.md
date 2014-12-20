@@ -1,11 +1,16 @@
 # IMPORTANT
-- [ ] Fix all that duplicate reinit logic occuring in I/O read and rebuild
-- [ ] Write position save/load logic
+- [ ] Create Joint model for decompiling a joint into guide
+- [ ] Figure out what's left to build for a release
 
 ## Stretch goal
-- [ ] Create a name class that is much more easier and shorthand to work with
+- [ ] Build main window
 
 ## Done
+- [x] Create a name class that is much more easier and shorthand to work with
+- [x] Write position save/load logic
+- [x] Write rebuild logic
+- [x] Add compile
+- [x] Fix all that duplicate reinit logic occuring in I/O read and rebuild
 - [x] Work on hierarchy crawling logic. Both read and write to create a duplicate chain
 - [x] Reinit connectors during guide operations so aim/state condition indexes are updated correctly for hierarchical changes
 - [x] Get guide.remove() working correctly. This means strict guide and connector reinit()
@@ -32,11 +37,11 @@
 - [x] Rebuild connector model after messing it up so much
 
 ## Core
-- [ ] Write logging tool
+- [x] Write logging tool
 - [ ] Figure out how to build an API for users
 
 ## IO
-- [ ] Write template save/load logic
+- [x] Write template save/load logic
 
 ## Template
 - [ ] Create a template from guides

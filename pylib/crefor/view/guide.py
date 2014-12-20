@@ -5,13 +5,18 @@
 
 import os
 
-from crefor import api
-from crefor.lib import libName, libXform
-from crefor.exceptions import NodeException
 from maya import cmds
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from crefor import api
+from crefor.model.guide.guide import Guide
+from crefor.lib import libName, libXform
+from crefor import log
+
+
+from PySide.QtCore import QSize, Qt
+from PySide.QtGui import QWidget, QHBoxLayout, QPushButton, QIcon, QPixmap
+
+logger = log.get_logger(__name__)
 
 WIDGET = None
 
@@ -25,7 +30,6 @@ class GuideWidget(QWidget):
         self.buttons = {}
 
         self.setup_ui()
-        # self.setFixedSize(self.sizeHint())
 
     def setup_ui(self):
 
@@ -35,44 +39,69 @@ class GuideWidget(QWidget):
 
         self.__add_button("create_guide",
                           os.path.join(os.path.dirname(__file__),
-                                       'icons/create.png'),
+                                       "icons/create.png"),
                           self.__create,
                           "Create guide")
         self.__add_button("remove_guide",
                           os.path.join(os.path.dirname(__file__),
-                                       'icons/remove.png'),
+                                       "icons/remove.png"),
                           self.__remove,
                           "Remove selected guides")
-        self.__add_button('set_parent',
+        self.__add_button("set_parent",
                           os.path.join(os.path.dirname(__file__),
-                                       'icons/setParent.png'),
+                                       "icons/setParent.png"),
                           self.__set_parent,
                           "Set selected guides parent to be last selected")
-        self.__add_button('add_child',
+        self.__add_button("add_child",
                           os.path.join(os.path.dirname(__file__),
-                                       'icons/addChild.png'),
+                                       "icons/addChild.png"),
                           self.__add_child,
                           "Add all selected guides as child to last selected")
-        self.__add_button('remove_parent',
+        self.__add_button("remove_parent",
                           os.path.join(os.path.dirname(__file__),
-                                       'icons/removeParent.png'),
+                                       "icons/removeParent.png"),
                           self.__remove_parent,
                           "Remove parent from selected guides")
-        self.__add_button('duplicate',
+        self.__add_button("duplicate",
                           os.path.join(os.path.dirname(__file__),
-                                       'icons/duplicate.png'),
+                                       "icons/duplicate.png"),
                           self.__duplicate,
                           "Duplicate selected guide")
-        self.__add_button('create_hierarchy',
+        self.__add_button("create_hierarchy",
                           os.path.join(os.path.dirname(__file__),
-                                       'icons/createHierarchy.png'),
+                                       "icons/createHierarchy.png"),
                           self.__create_hierarchy,
                           "Create hierarchy out of selected guides")
-        self.__add_button('cycle_aim',
+        self.__add_button("cycle_aim",
                           os.path.join(os.path.dirname(__file__),
-                                       'icons/cycleAim.png'),
+                                       "icons/cycleAim.png"),
                           self.__cycle_aim,
                           "Cycle aim of selected guides")
+        self.__add_button("compile",
+                          os.path.join(os.path.dirname(__file__),
+                                       "icons/compile.png"),
+                          self.__compile,
+                          "Compile guides into joints")
+        self.__add_button("decompile",
+                          os.path.join(os.path.dirname(__file__),
+                                       "icons/decompile.png"),
+                          self.__decompile,
+                          "Decompile joints into guides")
+        self.__add_button("write",
+                          os.path.join(os.path.dirname(__file__),
+                                       "icons/write.png"),
+                          self.__write,
+                          "Write guide snapshot to disk")
+        self.__add_button("read",
+                          os.path.join(os.path.dirname(__file__),
+                                       "icons/read.png"),
+                          self.__read,
+                          "Read guide snapshot from disk")
+        self.__add_button("rebuild",
+                          os.path.join(os.path.dirname(__file__),
+                                       "icons/rebuild.png"),
+                          self.__rebuild,
+                          "Rebuild guide snapshot from disk")
 
         self.setLayout(self.layout)
         self.setWindowTitle("Guide tools")
@@ -118,14 +147,11 @@ class GuideWidget(QWidget):
         Remove guide from scene
         """
 
-        selected = cmds.ls(sl=True)
+        cmds.undoInfo(openChunk=True)
+        selected = [g for g in cmds.ls(sl=True) if g.endswith(Guide.SUFFIX)]
         for guide in selected:
-
-            try:
-                print 'view'
-                api.remove(guide)
-            except NodeException:
-                pass
+            api.remove(guide)
+        cmds.undoInfo(closeChunk=True)
 
     def __set_parent(self):
         """
@@ -204,7 +230,7 @@ class GuideWidget(QWidget):
 
         selected = cmds.ls(sl=1)
         for node in selected:
-            aims = cmds.attributeQuery('aimAt', node=node, listEnum=True)[0].split(':')
+            aims = cmds.attributeQuery("aimAt", node=node, listEnum=True)[0].split(":")
             current_index = cmds.getAttr("%s.aimAt" % node)
             index = 1
 
@@ -213,9 +239,53 @@ class GuideWidget(QWidget):
 
             cmds.setAttr("%s.aimAt" % node, index)
 
+    def __decompile(self):
+        """
+        """
 
+        api.decompile()
 
+    def __compile(self):
+        """
+        """
 
+        api.compile()
+
+    def __write(self):
+        """
+        Write a guide snapshot to disk
+        """
+
+        singleFilter = "Json (*.json)"
+        path = cmds.fileDialog2(fileFilter=singleFilter, dialogStyle=2, fileMode=0)
+
+        if path:
+            logger.info("Writing guide snapshot: '%s'" % path[0])
+            api.write(path[0])
+
+    def __read(self):
+        """
+        Read a guide snapshot from disk
+        """
+
+        singleFilter = "Json (*.json)"
+        path = cmds.fileDialog2(fileFilter=singleFilter, dialogStyle=2, fileMode=1)
+
+        if path:
+            logger.info("Reading guide snapshot: '%s'" % path[0])
+            api.read(path[0])
+
+    def __rebuild(self):
+        """
+        Rebuild a guide snapshot from disk
+        """
+
+        singleFilter = "Json (*.json)"
+        path = cmds.fileDialog2(fileFilter=singleFilter, dialogStyle=2, fileMode=1)
+
+        if path:
+            logger.info("Reading guide snapshot: '%s'" % path[0])
+            api.rebuild(path[0])
 
 
 def show():

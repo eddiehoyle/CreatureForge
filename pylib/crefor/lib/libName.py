@@ -197,38 +197,6 @@ class __Name(object):
         return new.compile()
 
 
-# class Name(object):
-#     """
-#     Singleton
-#     """
-
-#     SEP = "_"
-
-#     def __new__(self, *args, **kwargs):
-
-#         if len(args) == 4:
-#             self.__name = _Name(*args)
-#         elif len(args) == 1:
-#             self.__name = _Name(*str(args[0]).split(self.SEP))
-#         else:
-#             self.__name = None
-
-#         if not self.__name:
-#             raise ValueError("Invalid name arguments: %s" % args)
-
-#         return self.__name
-
-#     def __str__(self):
-#         return self.__name.compile()
-
-#     def __repr__(self):
-#         return self.__name.compile()
-
-#     def __eq__(self):
-#         return self.__name.compile()
-
-
-
 def compile(position, description, index, suffix):
     return __Name(position, description, index, suffix).compile()
 
@@ -240,3 +208,6 @@ def decompile(name, depth=None):
 
 def generate(name):
     return __Name(*decompile(name)).generate()
+
+def is_valid(name):
+    return len(name.split(__Name.SEP)) == 4

@@ -11,13 +11,11 @@ from collections import OrderedDict
 from crefor.lib import libName, libShader
 from crefor.model import Node
 from crefor.model.guide.connector import Connector
+from crefor import log
 
-import logging
-log = logging.getLogger(__name__)
-log.setLevel(logging.ERROR)
+logger = log.get_logger(__name__)
 
 __all__ = ["Guide"]
-
 
 class Guide(Node):
 
@@ -151,16 +149,28 @@ class Guide(Node):
             data[_child.name] = Connector(self, _child).reinit()
         return data
 
-    def set_axis(self, axis):
+    def set_axis(self, primary, secondary):
         """
         """
 
         if self.exists():
+
+            if str(primary).lower() == str(secondary).lower():
+                msg = ("Cannot set both primary and secondary orient " \
+                       "as the same axis: %s, %s" % (primary, secondary))
+                raise ValueError(msg)
+
+            base = list(self.AIM_ORDER.keys()[0])
+
             try:
+                base.pop(base.index(str(primary).lower()))
+                base.pop(base.index(str(secondary).lower()))
+                axis = "".join([primary, secondary, "".join(base)]).lower()
                 cmds.setAttr("%s.aimOrder" % self.joint, self.AIM_ORDER.keys().index(axis))
-            except Exception as e:
-                e.args = ["Axis '%s' is not a valid aim axis: %s" % (axis, self.AIM_ORDER.keys())]
-                raise
+
+            except Exception:
+                msg = "Primary and/or secondary axis not valid: %s, %s" % (primary, secondary)
+                raise ValueError(msg)
 
     def exists(self):
         """
@@ -216,35 +226,30 @@ class Guide(Node):
         """
 
         if self.exists():
-            try:
+            enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
 
-                enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
+            if guide in ["world", "local"]:
+                cmds.setAttr("%s.aimAt" % self.joint, enums.index(guide))
+                return
 
-                if guide in ["world", "local"]:
-                    cmds.setAttr("%s.aimAt" % self.joint, enums.index(guide))
-                    return
+            if not isinstance(guide, Guide):
+                guide = Guide(*libName.decompile(guide, 3)).reinit()
 
-                if not isinstance(guide, Guide):
-                    # guide = Guide(*libName._decompile(guide)[:-1]).reinit()
-                    # guide = Guide(*self.name.decompile(3)).reinit()
-                    guide = Guide(*libName.decompile(3)).reinit()
+            if not self.has_child(guide):
+                if add:
+                    self.add_child(guide)
+                else:
+                    raise RuntimeError("Guide '%s' is not a child of '%s'" % (guide.joint, self.joint))
 
-                if not self.has_child(guide):
-                    if add:
-                        self.add_child(guide)
-                    else:
-                        raise RuntimeError("Guide '%s' is not a child of '%s'" % (guide.joint, self.joint))
-
-                cmds.setAttr("%s.aimAt" % self.joint, enums.index(guide.aim))
-            except Exception:
-                raise
+            cmds.setAttr("%s.aimAt" % self.joint, enums.index(guide.aim))
 
     def set_translates(self, vector3f):
         """
         Set position of guide
         """
 
-        if self.joint:
+        if self.exists():
+            logger.debug("Setting '%s' translates: %s" % (self.joint, vector3f))
             cmds.xform(self.joint, ws=True, t=vector3f)
 
     def set_debug(self, debug):
@@ -288,12 +293,12 @@ class Guide(Node):
 
         # Try to parent to itself
         if self.name == guide.name:
-            log.warning("Cannot parent '%s' to itself" % self.joint)
+            logger.warning("Cannot parent '%s' to itself" % self.joint)
             return None
 
         # Is guide already parent
         if self.parent and self.parent.name == guide.name:
-            log.debug("'%s' is already a parent of '%s'" % (guide.joint, self.joint))
+            logger.debug("'%s' is already a parent of '%s'" % (guide.joint, self.joint))
             return self.parent
 
         # Is guide below self in hierarchy
@@ -305,7 +310,7 @@ class Guide(Node):
             self.remove_parent()
 
         guide.add_aim(self)
-        log.info('\'%s\' successfully set parent: \'%s\'' % (self.joint, guide.joint))
+        logger.info('\'%s\' successfully set parent: \'%s\'' % (self.joint, guide.joint))
 
         return guide
 
@@ -316,12 +321,12 @@ class Guide(Node):
 
         # Try to parent to itself
         if self.name == guide.name:
-            log.warning("Cannot add '%s' to itself as child" % self.joint)
+            logger.warning("Cannot add '%s' to itself as child" % self.joint)
             return None
 
         # Guide is already a child of self
         if self.has_child(guide):
-            log.info("'%s' is already a child of '%s'" % (guide.joint, self.joint))
+            logger.info("'%s' is already a child of '%s'" % (guide.joint, self.joint))
             return self.children[guide.name]
 
         # If guide has any parent already
@@ -333,7 +338,7 @@ class Guide(Node):
             self.remove_parent()
 
         self.add_aim(guide)
-        log.info("'%s' successfully added child: '%s'" % (self.joint, guide.joint))
+        logger.info("'%s' successfully added child: '%s'" % (self.joint, guide.joint))
         return guide
 
     def add_aim(self, guide):
@@ -379,7 +384,7 @@ class Guide(Node):
         """
 
         if self.parent:
-            # log.info('Removing %s parent: %s' % (self.name, self.parent.name))
+            # logger.info('Removing %s parent: %s' % (self.name, self.parent.name))
             self.parent.remove_aim(self)
 
     def remove_child(self, guide):
@@ -431,7 +436,7 @@ class Guide(Node):
         for key, con in connectors.items():
             con.reinit()
 
-        log.info('%s remove child: %s' % (self.name, guide.name))
+        logger.debug('%s remove child: %s' % (self.name, guide.name))
 
     def get_child(self, name):
         return self.children.get(name, None)
@@ -611,6 +616,8 @@ class Guide(Node):
         self.__create_shader()
         self.__post()
 
+        logger.info("Guide created: '%s'" % self.joint)
+
         return self
 
     def duplicate(self):
@@ -643,6 +650,8 @@ class Guide(Node):
         Create a joint
         """
 
+        cmds.select(cl=True)
+
         orientation = cmds.getAttr("%s.rotate" % self.aim)[0]
 
         joint = cmds.joint(name=libName.update(self.name, suffix="jnt"),
@@ -651,5 +660,7 @@ class Guide(Node):
                            rotationOrder=self.get_axis())
 
         cmds.select(cl=True)
+
+        logger.debug("Compiled guide '%s' into joint: '%s'" % (self.joint, joint))
 
         return joint

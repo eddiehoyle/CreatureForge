@@ -1,8 +1,7 @@
-
 #!/usr/bin/env python
 
-'''
-'''
+"""
+"""
 
 import json
 from copy import deepcopy

@@ -7,11 +7,13 @@ ass
 import os
 import json
 from maya import cmds
-from crefor import decorators
+from crefor import log
 from crefor.lib import libUtil, libXform, libName
 from crefor.model.guide.guide import Guide
+import logging
 
-@decorators.name
+logger = log.get_logger(__name__)
+
 def create(position, description, index=0):
     """create(position, description, index=0)
     Create a guide.
@@ -30,9 +32,11 @@ def create(position, description, index=0):
     # Result: Guide(C_spine_0_gde) # 
     """
 
-    return Guide(position=position,
-                 description=description,
-                 index=index).create()
+    guide = Guide(position=position,
+                  description=description,
+                  index=index).create()
+    # logger.info("Guide created: '%s'" % guide.name)
+    return guide
 
 def duplicate(guide, hierarchy=True):
     """create(position, description, index=0)
@@ -75,6 +79,8 @@ def duplicate(guide, hierarchy=True):
     dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(*libName.decompile(top_guide, 3)))))
 
     cmds.select(dup_guides[0].joint, r=True)
+
+    logger.info("Duplicate guides created: %s" % [g.name for g in dup_guides])
     return dup_guides
 
 def reinit(guide):
@@ -207,7 +213,10 @@ def remove(guide):
     """
 
     guide = __validate(guide)
+
+    cmds.undoInfo(openChunk=True)
     guide.remove()
+    cmds.undoInfo(closeChunk=True)
 
 def remove_parent(guide):
     """remove_parent(guide)
@@ -240,7 +249,6 @@ def compile():
     # Create hierarchy
     hierarchy = {}
     for guide in guides:
-        print guide, guide.children
         hierarchy[guide] = guide.children.values()
 
     # Create joints
@@ -260,6 +268,44 @@ def compile():
 
     return joints
 
+def decompile():
+    """
+    Convert all joints back to guides
+
+    Problems that need solving:
+        1. Use the same I/O logic for write/read to store snapshot
+        2. Some math might be needed to determine aimAt target,
+           burn in data to joint?
+
+    """
+
+    logger.warn("Decompile not implemented yet.")
+    # joints = []
+    # for joint in cmds.ls(type="joint"):
+    #     if libName.is_valid(joint):
+    #         joints.append(joint)
+
+    # if joints:
+
+    #     hierarchy = {}
+    #     for joint in joints:
+    #         hierarchy[joint] = cmds.listRelatives(joint, children=True) or []
+
+    #     cmds.delete(joints)
+
+    #     guide_hierarchy = {}
+    #     for joint in hierarchy:
+    #         guide = create(*libName.decompile(joint, 3))
+    #         guide_hierarchy[guide] = []
+
+    #         for child in hierarchy[joint]:
+    #             child = create(*libName.decompile(child, 3))
+    #             guide_hierarchy[guide].append(child)
+
+    #     for guide in guide_hierarchy:
+    #         for child in guide_hierarchy[guide]:
+    #             child.set_parent(child)
+
 def get_guides():
     """
     Get list of guides in scene
@@ -272,7 +318,14 @@ def get_guides():
     return [__validate(node) for node in _guides]
 
 def exists(guide):
-    """
+    """exists(guide)
+
+    Does the guide exist?
+
+    :param      child:      Guide that will checked
+    :type       child:      str, Guide
+    :rtype:                 bool
+    :returns:               If the guide exists
     """
 
     try:
@@ -284,11 +337,22 @@ def exists(guide):
     except Exception:
         return False
 
-def set_axis(guide, axis="xyz"):
-    """
+def set_axis(guide, primary="X", secondary="Y"):
+    """set_axis(guide, primary="X", secondary="Y")
+
+    Set the primary and secondary for joint orientation
+
+    :param      child:          Guide that will checked
+    :type       child:          str, Guide
+    :param      primary:        Aim axis
+    :type       primary:        str
+    :param      seconday:       Up axis
+    :type       seconday:       str
+
+    
     """
 
-    guide.set_axis(axis)
+    guide.set_axis(primary, secondary)
 
 
 def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", guides=[]):
@@ -370,11 +434,6 @@ def read(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", 
     except Exception:
         raise
 
-    # # Reini
-    # _guides = {}
-    # for key in data:
-    #     _guides[__validate(guide)] = [__validate(g) for g in data[key]]
-
     # Check if all guides exist first
     for guide in data.keys():
         if not cmds.objExists(guide):
@@ -421,6 +480,8 @@ def rebuild(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json
     >>> # Result: ["L_arm_0_jnt"] #
     """
 
+    cmds.undoInfo(openChunk=True)
+
     data = {}
 
     try:
@@ -430,10 +491,11 @@ def rebuild(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json
         raise
 
     for guide in data.keys():
-        create(libName.decompile(guide, 3))
+        create(*libName.decompile(guide, 3))
 
     read(path, compile_guides=compile_guides)
 
+    cmds.undoInfo(closeChunk=True)
 
 def __validate(guide):
     """
