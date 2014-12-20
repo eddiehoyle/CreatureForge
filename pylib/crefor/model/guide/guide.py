@@ -8,7 +8,7 @@ from maya import cmds
 from copy import deepcopy
 
 from collections import OrderedDict
-from crefor.lib import libName, libShader, libXform
+from crefor.lib import libName, libShader
 from crefor.model import Node
 from crefor.model.guide.connector import Connector
 
@@ -19,7 +19,7 @@ log.setLevel(logging.ERROR)
 __all__ = ["Guide"]
 
 
-class _Guide(Node):
+class Guide(Node):
 
     SEP = "_"
     SUFFIX = 'gde'
@@ -35,7 +35,7 @@ class _Guide(Node):
                              ("zyx", (-90, 90, -90))])
 
     def __init__(self, position, description, index=0):
-        super(_Guide, self).__init__(position, description, index)
+        super(Guide, self).__init__(position, description, index)
 
         self.joint = None
 
@@ -93,46 +93,62 @@ class _Guide(Node):
 
     @property
     def setup_node(self):
-        # return libName.set_suffix(libName.append_description(self.name, "gde"), "setup")
-        return self.name.recompile(suffix="setup", append=self.SUFFIX)
+        """
+        """
+
+        return libName.update(self.name, suffix="setup", append=self.SUFFIX)
 
     @property
     def short_name(self):
-        '''Short name of guide'''
+        """
+        Short name of guide
+        """
+
         if self.exists():
             return cmds.ls(self.joint, long=True)[0].split('|')[-1]
         return None
 
     @property
     def long_name(self):
-        '''Long name of guide'''
+        """
+        Long name of guide
+        """
+
         if self.exists():
             return cmds.ls(self.joint, long=True)[0]
         return None
 
     @property
     def parent(self):
-        '''Get parent joint and return guide object'''
+        """
+        Get parent joint and return guide object
+        """
+
         _parent = cmds.listRelatives(self.joint, parent=True, type='joint') if self.exists() else None
         if _parent:
-            return Guide(*libName._decompile(_parent[0])[0:3]).reinit()
+            return Guide(*libName.decompile(_parent[0], 3)).reinit()
         return None
 
     @property
     def children(self):
-        '''Get children joints and return dict with guide objects'''
+        """
+        Get children joints and return dict with guide objects
+        """
+
         _children = cmds.listRelatives(self.joint, children=True, type='joint') or []
         data = {}
         for _child in _children:
-            data[_child] = Guide(_child).reinit()
+            data[_child] = Guide(*libName.decompile(_child, 3)).reinit()
         return data
 
     @property
     def connectors(self):
-        '''Connectors are stored in sync with children'''
+        """
+        Connectors are stored in sync with children
+        """
         data = {}
         for _child in self.children.values():
-            data[_child.name.compile()] = Connector(self, _child).reinit()
+            data[_child.name] = Connector(self, _child).reinit()
         return data
 
     def set_axis(self, axis):
@@ -147,12 +163,16 @@ class _Guide(Node):
                 raise
 
     def exists(self):
-        '''Does the guide exist in Maya?'''
-        print self.name.compile(), 'exists', cmds.objExists(self.setup_node)
+        """
+        Does the guide exist in Maya?
+        """
+
         return cmds.objExists(self.setup_node)
 
     def set_scale(self, value):
-        '''Scale guide and related connectors'''
+        """
+        Scale guide and related connectors
+        """
 
         selected = cmds.ls(sl=1)
         if self.joint:
@@ -206,7 +226,8 @@ class _Guide(Node):
 
                 if not isinstance(guide, Guide):
                     # guide = Guide(*libName._decompile(guide)[:-1]).reinit()
-                    guide = Guide(*self.name.decompile(3)).reinit()
+                    # guide = Guide(*self.name.decompile(3)).reinit()
+                    guide = Guide(*libName.decompile(3)).reinit()
 
                 if not self.has_child(guide):
                     if add:
@@ -227,40 +248,51 @@ class _Guide(Node):
             cmds.xform(self.joint, ws=True, t=vector3f)
 
     def set_debug(self, debug):
-        '''Set debug visibility'''
+        """
+        Set debug visibility
+        """
         if self.joint:
             cmds.setAttr('%s.debug' % self.joint, bool(debug))
 
     def has_child(self, guide):
-        '''Is guide an immediate child of self'''
-        return guide.name.compile() in self.children.keys()
+        """
+        Is guide an immediate child of self
+        """
+        return guide.name in self.children.keys()
 
     def is_parent(self, guide):
-        '''Is guide the immediate parent of self'''
+        """
+        Is guide the immediate parent of self
+        """
+
         if self.parent:
             return guide.joint == self.parent.joint
         return False
 
     def has_parent(self, guide):
-        '''Iterate over all parents to see if guide is one'''
+        """
+        Iterate over all parents to see if guide is one
+        """
 
         parent = self.parent
         while parent:
-            if guide.name.compile() == parent.name.compile():
+            if guide.name == parent.name:
                 return True
             parent = parent.parent
         return False
 
     def set_parent(self, guide):
-        '''Set guide to be parent of self'''
+        """
+        Set guide to be parent of self
+        """
 
         # Try to parent to itself
-        if self.name.compile() == guide.name.compile():
+        if self.name == guide.name:
             log.warning("Cannot parent '%s' to itself" % self.joint)
             return None
 
         # Is guide already parent
-        if self.parent and self.parent.name.compile() == guide.name.compile():
+        if self.parent and self.parent.name == guide.name:
             log.debug("'%s' is already a parent of '%s'" % (guide.joint, self.joint))
             return self.parent
 
@@ -278,17 +310,19 @@ class _Guide(Node):
         return guide
 
     def add_child(self, guide):
-        '''Add guide to children'''
+        """
+        Add guide to children
+        """
 
         # Try to parent to itself
-        if self.name.compile() == guide.name.compile():
+        if self.name == guide.name:
             log.warning("Cannot add '%s' to itself as child" % self.joint)
             return None
 
         # Guide is already a child of self
         if self.has_child(guide):
             log.info("'%s' is already a child of '%s'" % (guide.joint, self.joint))
-            return self.children[guide.name.compile()]
+            return self.children[guide.name]
 
         # If guide has any parent already
         if guide.parent:
@@ -303,15 +337,15 @@ class _Guide(Node):
         return guide
 
     def add_aim(self, guide):
-        '''
+        """
         Create a new child aim relationship between self and guide.
         Guide is considered to be the child of self. Any constraint
         and attribute updates are added to self, as well as the connector.
-        '''
+        """
 
         # Already has child connector?
         connectors = deepcopy(self.connectors)
-        name = guide.name.compile()
+        name = guide.name
         if name in connectors:
             return connectors[name]
 
@@ -340,36 +374,36 @@ class _Guide(Node):
         return guide
 
     def remove_parent(self):
-        '''
+        """
         If have a parent, tell parent to remove aim to self
-        '''
+        """
 
         if self.parent:
             # log.info('Removing %s parent: %s' % (self.name, self.parent.name))
             self.parent.remove_aim(self)
 
     def remove_child(self, guide):
-        '''
-        '''
+        """
+        """
 
         self.remove_aim(guide)
 
     def remove_aim(self, guide):
-        '''
+        """
         self has guide as a child
         self has constraint
         self --> guide
 
         self is always parent
         guide is always child
-        '''
+        """
 
         if not self.has_child(guide):
             return None
 
         # Remove connector
         connectors = deepcopy(self.connectors)
-        name = guide.name.compile()
+        name = guide.name
         if name in connectors:
             connectors[name].remove()
             del connectors[name]
@@ -399,9 +433,6 @@ class _Guide(Node):
 
         log.info('%s remove child: %s' % (self.name, guide.name))
 
-    def get_parent(self):
-        return self.parent
-
     def get_child(self, name):
         return self.children.get(name, None)
 
@@ -409,7 +440,7 @@ class _Guide(Node):
         
         # Create joint and parent sphere under
         cmds.select(cl=True)
-        self.joint = cmds.createNode('joint', name=self.name.compile())
+        self.joint = cmds.createNode('joint', name=self.name)
         cmds.setAttr("%s.radius" % self.joint, cb=False)
         cmds.setAttr("%s.radius" % self.joint, l=True)
         cmds.select(cl=True)
@@ -424,8 +455,7 @@ class _Guide(Node):
         cmds.pointConstraint(self.joint, self.setup_node, mo=False)
 
         # Create up transform
-        # self.up = cmds.group(name=libName.set_suffix(self.name, 'up'), empty=True)
-        self.up = cmds.group(name=self.name.recompile(suffix="up"), empty=True)
+        self.up = cmds.group(name=libName.update(self.name, suffix="up"), empty=True)
         _cube = cmds.nurbsCube(p=(0, 0, 0), ax=(0, 1, 0), lr=1, hr=1, d=1, u=1, v=1, ch=0)[0]
         _cube_shapes = cmds.listRelatives(_cube, type='nurbsSurface', ad=True)
         cmds.parent(_cube_shapes, self.up, r=True, s=True)
@@ -441,12 +471,9 @@ class _Guide(Node):
         cmds.delete(self.up, ch=True)
 
         # Create main aim transform
-        # self.aim = cmds.group(name=libName.set_suffix(self.name, 'aim'), empty=True)
-        self.aim = cmds.group(name=self.name.recompile(suffix="aim"), empty=True)
+        self.aim = cmds.group(name=libName.update(self.name, suffix="aim"), empty=True)
 
-        self.name.recompile(suffix="up")
         cmds.setAttr('%s.translateX' % self.aim, -0.00000001)
-        
 
         cmds.addAttr(self.joint, ln='aimAt', at='enum', en='local')
         cmds.setAttr('%s.aimAt' % self.joint, k=False)
@@ -479,22 +506,16 @@ class _Guide(Node):
             cmds.setAttr('%s.%s' % (self.setup_node, key), k=False)
 
     def __create_aim(self):
-        '''
-        '''
+        """
+        """
 
         # Create local orient
         self.orient = cmds.orientConstraint(self.joint, self.setup_node, mo=True)[0]
         aliases = cmds.orientConstraint(self.orient, q=True, wal=True)
         targets = cmds.orientConstraint(self.orient, q=True, tl=True)
         index = targets.index(self.joint)
-        # condition = cmds.createNode('condition',
-        #                             name=libName.set_suffix(libName.append_description(self.name,
-        #                                                                                'local'),
-        #                                                                                'cond'))
         condition = cmds.createNode("condition",
-                                    name=self.name.recompile(suffix="cond",
-                                                             append="local"))
-
+                                    name=libName.update(self.name, suffix="cond", append="local"))
 
         cmds.setAttr('%s.secondTerm' % condition, index)
         cmds.setAttr('%s.colorIfTrueR' % condition, 1)
@@ -513,24 +534,17 @@ class _Guide(Node):
         cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
 
         # Create custom aim constraint offsets
-        # aim_order_pma = cmds.createNode("plusMinusAverage",
-        #                                 name=libName.set_suffix(libName.append_description(self.name,
-        #                                                                                    "custom"),
-        #                                                                                    "pma"))
         aim_order_pma = cmds.createNode("plusMinusAverage",
-                                        name=self.name.recompile(suffix="pma",
-                                                                 append="custom"))
+                                        name=libName.update(self.name, suffix="pma", append="custom"))
+                                        # self.name.recompile(suffix="pma",
+                                        #                          append="custom"))
 
         cmds.connectAttr("%s.output3D" % aim_order_pma, "%s.offset" % self.constraint)
 
         for pair_index, pair in enumerate(self.AIM_ORDER.keys()):
-            # pair_cond = cmds.createNode("condition",
-            #                             name=libName.set_suffix(libName.append_description(self.name,
-            #                                                                                "pair%s" % pair_index),
-            #                                                                                "cond"))
             pair_cond = cmds.createNode("condition",
-                                        name=self.name.recompile(suffix="pair%s" % pair_index,
-                                                                 append="cond"))
+                                        name=libName.update(self.name, suffix="pair%s" % pair_index, append="cond"))
+
             cmds.connectAttr("%s.aimOrder" % self.joint, "%s.firstTerm" % pair_cond)
             cmds.setAttr("%s.secondTerm" % pair_cond, pair_index)
 
@@ -551,7 +565,6 @@ class _Guide(Node):
         self.__burn_nodes["shader"] = self.shader
         self.__burn_nodes["sg"] = self.sg
 
-        # rgb = libShader.get_rgb_from_position(self.position)
         rgb = (1, 1, 0)
         cmds.setAttr('%s.color' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
@@ -603,8 +616,8 @@ class _Guide(Node):
     def duplicate(self):
         """
         """
-
-        return Guide(self.name.generate()).create()
+        name = libName.generate(self.name)
+        return Guide(*libName.decompile(name, 3)).create()
 
     def remove(self):
         """
@@ -632,40 +645,11 @@ class _Guide(Node):
 
         orientation = cmds.getAttr("%s.rotate" % self.aim)[0]
 
-        # joint = cmds.joint(name=libName.set_suffix(self.joint, "jnt"),
-        #                    orientation=orientation,
-        #                    position=self.get_translates(),
-        #                    rotationOrder=self.get_axis())
-        joint = cmds.joint(name=self.name.recompile(suffix="jnt"),
+        joint = cmds.joint(name=libName.update(self.name, suffix="jnt"),
                            orientation=orientation,
                            position=self.get_translates(),
                            rotationOrder=self.get_axis())
 
-        # if self.children:
-        #     cmds.joint(joint, e=True, orientJoint=self.get_orient())
-
         cmds.select(cl=True)
 
         return joint
-
-class Guide(_Guide):
-    """
-    Singleton
-    """
-
-    def __init__(self, *args, **kwargs):
-
-        # self.__guide = None
-        # if len(args) == 3 or len(kwargs.keys()) == 3:
-        #     self.__guide = _Guide(*args, **kwargs)
-        # elif len(args) == 1:
-        #     self.__guide = _Guide(*str(args[0]).split(self.SEP)[:3])
-        
-        # if not self.__guide:
-        #     raise ValueError(args)
-        print "args", args
-        print "kwargs", kwargs
-        if len(args) == 1 and args[0].count("_") >= 2:
-            return super(Guide, self).__init__(*args[0].split("_")[:3])
-        return super(Guide, self).__init__(*args, **kwargs)
-

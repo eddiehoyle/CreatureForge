@@ -7,7 +7,7 @@ import re
 from maya import cmds
 from copy import deepcopy
 
-__all__ = ["Name"]
+__all__ = ["compile", "update", "decompile"]
 
 CONVENTION = '^((?!_)[a-zA-Z])_((?!_)[a-zA-Z0-9]+)_(\d+)_((?!_)[a-zA-Z]+)$'
 
@@ -75,7 +75,7 @@ def append_description(name, description):
     data[1] = '%s%s' % (data[1], "%s%s" % (description[0].upper(), description[1:]))
     return create_name(*data)
 
-class _Name(object):
+class __Name(object):
     """
     """
 
@@ -162,7 +162,7 @@ class _Name(object):
         """
 
         if position:
-            self.position = position
+            self.position = position if position else self.position
 
         if description:
             self.description = description
@@ -184,48 +184,59 @@ class _Name(object):
     def compile(self):
         return self.__compile()
 
-    def decompile(self, num=None):
-        return self.__compile().split(self.SEP)[:num]
+    def decompile(self, depth=None):
+        return (self.position, self.description, self.index, self.suffix)[:depth]
 
     def recompile(self, *args, **kwargs):
         return str(self.copy().update(*args, **kwargs))
 
     def generate(self):
         new = self.copy()
-        i = 0
-        while cmds.objExists(str(new)):
+        while cmds.objExists(new.compile()):
             new.index += 1
-        return new
+        return new.compile()
 
 
-class Name(object):
-    """
-    Singleton
-    """
+# class Name(object):
+#     """
+#     Singleton
+#     """
 
-    SEP = "_"
+#     SEP = "_"
 
-    def __new__(self, *args, **kwargs):
+#     def __new__(self, *args, **kwargs):
 
-        if len(args) == 4:
-            self.__name = _Name(*args)
-        elif len(args) == 1:
-            self.__name = _Name(*str(args[0]).split(self.SEP))
-        else:
-            self.__name = None
+#         if len(args) == 4:
+#             self.__name = _Name(*args)
+#         elif len(args) == 1:
+#             self.__name = _Name(*str(args[0]).split(self.SEP))
+#         else:
+#             self.__name = None
 
-        if not self.__name:
-            raise ValueError("Invalid name arguments: %s" % args)
+#         if not self.__name:
+#             raise ValueError("Invalid name arguments: %s" % args)
 
-        return self.__name
+#         return self.__name
 
-    def __str__(self):
-        return self.__name.compile()
+#     def __str__(self):
+#         return self.__name.compile()
 
-    def __repr__(self):
-        return self.__name.compile()
+#     def __repr__(self):
+#         return self.__name.compile()
 
-    def __eq__(self):
-        return self.__name.compile()
+#     def __eq__(self):
+#         return self.__name.compile()
 
 
+
+def compile(position, description, index, suffix):
+    return __Name(position, description, index, suffix).compile()
+
+def update(name, **kwargs):
+    return __Name(*name.split(__Name.SEP)).recompile(**kwargs)
+
+def decompile(name, depth=None):
+    return __Name(*name.split(__Name.SEP)).decompile(depth)
+
+def generate(name):
+    return __Name(*decompile(name)).generate()

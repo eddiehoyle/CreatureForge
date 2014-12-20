@@ -8,9 +8,8 @@ import os
 import json
 from maya import cmds
 from crefor import decorators
-from crefor.lib import libUtil, libXform
-from crefor.lib.libName import Name
-from crefor.model.guide.guide import _Guide, Guide
+from crefor.lib import libUtil, libXform, libName
+from crefor.model.guide.guide import Guide
 
 @decorators.name
 def create(position, description, index=0):
@@ -73,7 +72,9 @@ def duplicate(guide, hierarchy=True):
     # Return duplicate nodes in list format
     # First index in list is top of hierarchy
     dup_guides = dup_data.values()
-    dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(Name(top_guide)))))
+    dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(*libName.decompile(top_guide, 3)))))
+
+    cmds.select(dup_guides[0].joint, r=True)
     return dup_guides
 
 def reinit(guide):
@@ -239,6 +240,7 @@ def compile():
     # Create hierarchy
     hierarchy = {}
     for guide in guides:
+        print guide, guide.children
         hierarchy[guide] = guide.children.values()
 
     # Create joints
@@ -428,7 +430,7 @@ def rebuild(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json
         raise
 
     for guide in data.keys():
-        create(Name(guide))
+        create(libName.decompile(guide, 3))
 
     read(path, compile_guides=compile_guides)
 
@@ -447,6 +449,7 @@ def __validate(guide):
     >>> __validate("L_arm_0_gde")
     >>> # Result: <Guide "L_arm_0_gde"> #
     """
-    x = Guide(Name(guide)).reinit()
-    print '1'
-    return x
+    if isinstance(guide, Guide):
+        return guide
+    else:
+        return Guide(*libName.decompile(str(guide), 3)).reinit()

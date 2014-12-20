@@ -4,7 +4,7 @@
 '''
 
 # from maya import cmds
-from crefor.lib.libName import Name
+from crefor.lib import libName
 
 class Node(object):
     '''
@@ -19,58 +19,34 @@ class Node(object):
         self.descrption = descrption
         self.index = index
 
-        # self.name = libName.create_name(self.position,
-        #                                 self.descrption,
-        #                                 self.index,
-        #                                 self.SUFFIX)
-        self.name = Name(self.position,
-                         self.descrption,
-                         self.index,
-                         self.SUFFIX)
-
-    # def _decompile(self):
-    #     """_decompile(self)
-
-    #     Decompile name into components.
-
-    #     :returns:   List of name componenets
-    #     :rtype:     list
-
-    #     **Example**:
-
-    #     >>> guide = Guide("C", "spine", 0).create()
-    #     >>> guide._decompile()
-    #     # Result: ["C", "spine", 0, "gde"] #
-    #     """
-
-    #     return libName._decompile(self.name)
+        self.name = libName.compile(self.position,
+                                    self.descrption,
+                                    self.index,
+                                    self.SUFFIX)
 
     def __str__(self):
-        print 'str'
-        return self.name.compile()
+        return self.name
 
     def __repr__(self):
-        print 'repr'
-        return "<Guide '%s'>" % self.name.compile()
+        return "<Guide '%s'>" % self.name
 
     def __hash__(self):
-        return hash(self.name.compile())
+        return hash(self.name)
 
     def __getitem__(self, index):
         return self.name[index]
 
     def __eq__(self, other):
-        print 'eq'
         try:
-            return self.name.compile() == other.name.compile()
+            return self.name == other.name
         except Exception:
-            return self.name.compile() == str(other)
+            return self.name == str(other)
 
     def __ne__(self, other):
         try:
-            return self.name.compile() != other.name.compile()
+            return self.name != other.name
         except Exception:
-            return self.name.compile() == str(other)
+            return self.name == str(other)
 
     def __lt__(self, other):
         try:

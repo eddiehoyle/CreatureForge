@@ -9,22 +9,11 @@ from copy import deepcopy
 from maya import cmds
 from crefor.model import Node
 from crefor.lib import libName, libShader, libAttr
-from crefor.lib.libName import Name
 
 __all__ = ["Connector"]
-class Connector(object):
-    """
-    Singleton
-    """
 
-    SEP = "_"
-    SUFFIX = "cnc"
 
-    def __new__(self, *args, **kwargs):
-
-        return _Connector(*args, **kwargs)
-
-class _Connector(Node):
+class Connector(Node):
 
     SUFFIX = 'cnc'
     RADIUS = 0.4
@@ -32,10 +21,8 @@ class _Connector(Node):
     CLUSTER_OFFSET = 1.0
 
     def __init__(self, parent, child):
-        print 'creating parent', parent.name, 'child', child.name
-        super(_Connector, self).__init__(*child.name.decompile(3))
+        super(Connector, self).__init__(*libName.decompile(child.name, 3))
 
-        print 'init name', self.name
         # Guides
         self.__parent = parent
         self.__child = child
@@ -112,34 +99,52 @@ class _Connector(Node):
 
     @property
     def setup_node(self):
-        # return libName.set_suffix(libName.append_description(self.name, "cnc"), "setup")
-        return self.name.recompile(suffix="setup", append=self.SUFFIX)
+        """
+        """
+
+        return libName.update(self.name, suffix="setup", append=self.SUFFIX)
 
     @property
     def parent(self):
+        """
+        """
+
         return self.__parent
 
     @property
     def child(self):
+        """
+        """
+
         return self.__child
 
     def exists(self):
         """exists(self)
         Does connector exist
         """
+
         return cmds.objExists(self.setup_node)
 
     def set_scale(self, value):
-        '''Scale start and end clusters'''
+        """
+        Scale start and end clusters
+        """
+
         if self.exists():
             cmds.setAttr('%s.scale' % self.start, *(value, value, value), type='float3')
             cmds.setAttr('%s.scale' % self.end, *(value, value, value), type='float3')
 
     def set_start_scale(self, value):
+        """
+        """
+
         if self.start:
             cmds.setAttr('%s.scale' % self.start, value, value, value, type='float3')
 
     def set_end_scale(self, value):
+        """
+        """
+
         if self.end:
             cmds.setAttr('%s.scale' % self.end, value, value, value, type='float3')
 
@@ -154,6 +159,7 @@ class _Connector(Node):
         """
         Get all dashed and solid geometry
         """
+
         transforms = []
         for axis in self.__geometry:
                 transforms.extend([self.__get_transform(axis, "solid"),
@@ -201,7 +207,6 @@ class _Connector(Node):
         Top node is a group node that is parent of all connector nodes
         """
 
-        # cmds.group(name=libName.set_suffix(self.setup_node, 'setup'), empty=True)
         cmds.group(name=self.setup_node, empty=True)
         cmds.setAttr('%s.inheritsTransform' % self.setup_node, False)
         cmds.parent(self.setup_node, self.__parent.setup_node)
@@ -213,11 +218,7 @@ class _Connector(Node):
 
         for axis in ["X", "Y", "Z", "N"]:
 
-            # Create solid geometry
-            # solid = cmds.polyCylinder(name=libName.set_suffix(libName.append_description(self.name,
-            #                                                                              'solid%s' % axis.upper()),
-            #                                                                              'cncGeo'),
-            solid = cmds.polyCylinder(name=self.name.recompile(suffix="cncGeo", append="solid%s" % axis.upper()),
+            solid = cmds.polyCylinder(name=libName.update(self.name, suffix="cncGeo", append="solid%s" % axis.upper()),
                                       r=self.RADIUS,
                                       h=1,
                                       sx=16,
@@ -242,24 +243,16 @@ class _Connector(Node):
                 pieces.append(piece)
                 cmds.move(((1.0/((self.DASHED_COUNT*2)+1))*index)+offset, piece, y=True)
 
-            # dashed = cmds.polyUnite(pieces,
-            #                         ch=False,
-            #                         name=libName.set_suffix(libName.append_description(self.name,
-            #                                                                            'dashed%s' % axis.upper()),
-            #                                                                            'cncGeo'))[0]
             dashed = cmds.polyUnite(pieces,
                                     ch=False,
-                                    name=self.name.recompile(suffix="cncGeo", append="dashed%s" % axis.upper()))[0]
+                                    name=libName.update(self.name, suffix="cncGeo", append="dashed%s" % axis.upper()))[0]
 
             cmds.xform(dashed, cp=True)
             cmds.move(-0.5, dashed, y=True)
 
             # Create group
-            # grp = cmds.group([solid, dashed], name=libName.set_suffix(libName.append_description(self.name,
-            #                                                                                      'connector%s' % axis.upper()),
-            #                                                                                      'grp'))
             grp = cmds.group([solid, dashed],
-                             name=self.name.recompile(suffix="grp", append="connector%s" % axis.upper()))
+                             name=libName.update(self.name, suffix="grp", append="connector%s" % axis.upper()))
 
             # Store solid, dashed and grp
             self.__geometry[axis] = dict(solid=solid, dashed=dashed, grp=grp)
@@ -282,12 +275,9 @@ class _Connector(Node):
                                                              outsideLattice=True)
 
         # Rename lattice
-        # self.lattice = cmds.rename(lattice, libName.set_suffix(self.name, 'ltc'))
-        # self.lattice_handle = cmds.rename(lattice_handle, libName.set_suffix(self.name, 'lth'))
-        # self.lattice_base = cmds.rename(lattice_base, libName.set_suffix(self.name, 'ltb'))
-        self.lattice = cmds.rename(lattice, self.name.recompile(suffix='ltc'))
-        self.lattice_handle = cmds.rename(lattice_handle, self.name.recompile(suffix='lth'))
-        self.lattice_base = cmds.rename(lattice_base, self.name.recompile(suffix='ltb'))
+        self.lattice = cmds.rename(lattice, libName.update(self.name, suffix='ltc'))
+        self.lattice_handle = cmds.rename(lattice_handle, libName.update(self.name, suffix='lth'))
+        self.lattice_base = cmds.rename(lattice_base, libName.update(self.name, suffix='ltb'))
 
         # Move lattice points to 0 on Y (worldspace)
         cmds.move(0, '%s.pt[*][*][*]' % self.lattice_handle, y=True)
@@ -298,34 +288,14 @@ class _Connector(Node):
         _, _end = cmds.cluster(['%s.pt[0:1][0][0]' % self.lattice_handle,
                                 '%s.pt[0:1][0][1]' % self.lattice_handle])
 
-        # self.start = cmds.rename(_start,
-        #                          libName.set_suffix(libName.append_description(self.name, 'start'),
-        #                          'clh'))
-        # self.end = cmds.rename(_end,
-        #                        libName.set_suffix(libName.append_description(self.name, 'end'),
-        #                        'clh'))
+        self.start = cmds.rename(_start, libName.update(self.name, suffix="clh", append="start"))
+        self.end = cmds.rename(_end, libName.update(self.name, suffix="clh", append="end"))
 
-        # self.start_cl = cmds.rename('%sCluster' % self.start,
-        #                             libName.set_suffix(libName.append_description(self.name, 'start'),
-        #                             'cls'))
-        # self.end_cl = cmds.rename('%sCluster' % self.end,
-        #                           libName.set_suffix(libName.append_description(self.name, 'end'),
-        #                           'cls'))
+        self.start_cl = cmds.rename('%sCluster' % self.start, libName.update(self.name, suffix="cls", append="start"))
+        self.end_cl = cmds.rename('%sCluster' % self.end, libName.update(self.name, suffix="cls", append="end"))
 
-        # self.start_grp = cmds.group(self.start,
-        #                             name=libName.set_suffix(self.start,
-        #                                                     '%sGrp' % libName.get_suffix(self.start)))
-        # self.end_grp = cmds.group(self.end,
-        #                           name=libName.set_suffix(self.end,
-        #                                                   '%sGrp' % libName.get_suffix(self.end)))
-        self.start = cmds.rename(_start, self.name.recompile(suffix="clh", append="start"))
-        self.end = cmds.rename(_end, self.name.recompile(suffix="clh", append="end"))
-
-        self.start_cl = cmds.rename('%sCluster' % self.start, self.name.recompile(suffix="cls", append="start"))
-        self.end_cl = cmds.rename('%sCluster' % self.end, self.name.recompile(suffix="cls", append="end"))
-
-        self.start_grp = cmds.group(self.start, name=self.name.recompile(suffix="clhGrp", append="start"))
-        self.end_grp = cmds.group(self.end, name=self.name.recompile(suffix="clhGrp", append="end"))
+        self.start_grp = cmds.group(self.start, name=libName.update(self.name, suffix="clhGrp", append="start"))
+        self.end_grp = cmds.group(self.end, name=libName.update(self.name, suffix="clhGrp", append="end"))
 
         # Hide visibility of deformers
         for clh in [self.start, self.end, self.start_grp, self.end_grp]:
@@ -373,23 +343,10 @@ class _Connector(Node):
         Refresh aim index of aim condition
         """
 
-
         if self.exists():
-
-
-
-            # # Query aliases and target list from parent aim constraint
-            # aliases = cmds.aimConstraint(self.__parent.constraint, q=True, wal=True)
-            # targets = cmds.aimConstraint(self.__parent.constraint, q=True, tl=True)
-            # index = targets.index(self.__child.aim)
 
             # Query parent joint enum items
             enums = cmds.attributeQuery('aimAt', node=self.__parent.joint, listEnum=True)[0].split(':')
-            
-
-            print 'aim', self.__child.aim
-            print "enums", enums
-
             enum_index = enums.index(self.__child.aim)
 
             # Update index to reflect alias index of child
@@ -415,8 +372,7 @@ class _Connector(Node):
 
         # Create condition that turns on aim for child constraint if
         # enum index is set to match childs name
-        # self.__aim_cond = cmds.createNode('condition', name=libName.set_suffix(self.name, 'cond'))
-        self.__aim_cond = cmds.createNode('condition', name=self.name.recompile(suffix="cond"))
+        self.__aim_cond = cmds.createNode('condition', name=libName.update(self.name, suffix="cond"))
         cmds.setAttr('%s.secondTerm' % self.__aim_cond, enum_index)
         cmds.setAttr('%s.colorIfTrueR' % self.__aim_cond, 1)
         cmds.setAttr('%s.colorIfFalseR' % self.__aim_cond, 0)
@@ -438,8 +394,7 @@ class _Connector(Node):
             grp = self.__get_grp(axis)
 
             # Condition that allows odd indexes to be visible
-            # even_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisEven%s' % axis), 'con'))
-            even_cond = cmds.createNode("condition", name=self.name.recompile(suffix="cond", append="axisEven%s" % axis))
+            even_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axisEven%s" % axis))
             cmds.connectAttr("%s.aimOrder" % self.__parent.joint, "%s.firstTerm" % even_cond)
             cmds.setAttr("%s.secondTerm" % even_cond, axis_index  + 1)
             cmds.setAttr("%s.colorIfTrueR" % even_cond, 1)
@@ -448,8 +403,7 @@ class _Connector(Node):
             cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.colorIfTrueR" % even_cond)
 
             # A secondary condition that allows odds to be visible
-            # odd_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axisOdd%s' % axis), 'con'))
-            odd_cond = cmds.createNode("condition", name=self.name.recompile(suffix="cond", append="axisOdd%s" % axis))
+            odd_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axisOdd%s" % axis))
             cmds.connectAttr("%s.aimOrder" % self.__parent.joint, "%s.firstTerm" % odd_cond)
             cmds.setAttr("%s.secondTerm" % odd_cond, axis_index)
             cmds.setAttr("%s.colorIfTrueR" % odd_cond, 1)
@@ -458,8 +412,7 @@ class _Connector(Node):
             cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.colorIfTrueR" % odd_cond)
 
             # A state condition that determines which geometry is display, solid or dashed
-            # state_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'con'))
-            state_cond = cmds.createNode("condition", name=self.name.recompile(suffix="cond", append="state%s" % axis))
+            state_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="state%s" % axis))
             cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.firstTerm" % state_cond)
             cmds.setAttr("%s.secondTerm" % state_cond, enum_index)
             cmds.setAttr("%s.colorIfTrueR" % state_cond, 1)
@@ -473,13 +426,11 @@ class _Connector(Node):
             dashed = self.__get_transform(axis, "dashed")
 
             # A reverse node is needed to allow for alternate geometry visibility
-            # state_rev = cmds.createNode("reverse", name=libName.set_suffix(libName.append_description(self.name, 'state%s' % axis), 'rev'))
-            state_rev = cmds.createNode("reverse", name=self.name.recompile(suffix="rev", append="state%s" % axis))
+            state_rev = cmds.createNode("reverse", name=libName.update(self.name, suffix="rev", append="state%s" % axis))
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.inputX" % state_rev)
             cmds.connectAttr("%s.outputX" % state_rev, "%s.visibility" % dashed)
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.visibility" % solid)
 
-            # self.__burn_nodes["nondag"].extend([odd_cond, even_cond, state_rev, state_cond])
             self.__burn_nondag.extend([odd_cond, even_cond, state_rev, state_cond])
 
         # The N axis is when world/local aim is set on parent joint aim
@@ -488,8 +439,7 @@ class _Connector(Node):
         grp = self.__get_grp(axis)
 
         # N condition is True if aim is index 0
-        # n_cond = cmds.createNode("condition", name=libName.set_suffix(libName.append_description(self.name, 'axis%s' % axis), 'con'))
-        n_cond = cmds.createNode("condition", name=self.name.recompile(suffix="cond", append="axis%s" % axis))
+        n_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axis%s" % axis))
         cmds.setAttr("%s.secondTerm" % n_cond, 0)
         cmds.setAttr("%s.colorIfTrueR" % n_cond, 1)
         cmds.setAttr("%s.colorIfFalseR" % n_cond, 0)
@@ -504,7 +454,6 @@ class _Connector(Node):
         cmds.setAttr("%s.visibility" % solid, 0)
         cmds.setAttr("%s.visibility" % dashed, 1)
 
-        # self.__burn_nodes["nondag"].append(n_cond)
         self.__burn_nondag.append(n_cond)
 
         # Loop through all aliases on and set non-connected attributes to be 0
@@ -526,11 +475,11 @@ class _Connector(Node):
                        "N": (0.7, 0.7, 0.7)}
 
         for axis, rgb in shader_data.items():
-            # shader, sg = libShader.get_or_create_shader(libName.create_name('N', "color%s" % axis, 0, 'shd'), "lambert")
-            shader, sg = libShader.get_or_create_shader(self.name.recompile(position="N",
-                                                                            description="color%s" % axis,
-                                                                            index=0,
-                                                                            suffix="shd"), "lambert")
+            shader, sg = libShader.get_or_create_shader(libName.update(self.name,
+                                                        position="N",
+                                                        description="color%s" % axis,
+                                                        index=0,
+                                                        suffix="shd"), "lambert")
 
             cmds.setAttr('%s.color' % shader, *rgb, type='float3')
             cmds.setAttr('%s.incandescence' % shader, *rgb, type='float3')
@@ -568,8 +517,6 @@ class _Connector(Node):
         """
         Reinitialise all transforms, shaders, deformers
         """
-
-        print 'reinit con'
 
         if not self.exists():
             raise Exception('Cannot reinit \'%s\' as connector does not exist.' % self.setup_node)
@@ -617,6 +564,3 @@ class _Connector(Node):
 
         cmds.delete(self.nondag)
         cmds.delete(self.setup_node)
-
-
-        return super(_Connector, self).__init__(*self.child.name.decompile()[:-1])
