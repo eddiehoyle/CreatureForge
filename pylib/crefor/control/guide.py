@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 
 """
-ass
+A module to create and manipulate guides. Functions
+can accept both string or Guide objects as arguments
+where required.
 """
 
 import os
 import json
 from maya import cmds
+
 from crefor import log
 from crefor.lib import libUtil, libXform, libName
 from crefor.model.guide.guide import Guide
-import logging
 
 logger = log.get_logger(__name__)
 
@@ -19,37 +21,41 @@ def create(position, description, index=0):
     Create a guide.
 
     :param      position:       L, R, C, etc
-    :param      description:    Description of guide
-    :param      index:          Index of guide
     :type       position:       str
+    :param      description:    Description of guide
     :type       description:    str
+    :param      index:          Index of guide
     :type       index:          int
-    :returns:   Guide
+    :returns:                   Newly created guide
+    :rtype:                     Guide
 
     **Example**:
 
     >>> create("C", "spine", index=0)
-    # Result: Guide(C_spine_0_gde) # 
+    # Result: <Guide 'C_spine_0_gde'> #
     """
 
     guide = Guide(position=position,
                   description=description,
                   index=index).create()
-    # logger.info("Guide created: '%s'" % guide.name)
     return guide
 
 def duplicate(guide, hierarchy=True):
-    """create(position, description, index=0)
-    Create a guide.
+    """duplicate(guide, hierarchy=True)
+    Duplicate a guide. The duplicate guides names are all generated in scene
+    to find the latest available index from input guide argument.
 
-    :param      position:       Guide node
+    :param      position:       Guide to duplicate from
     :type       position:       Guide, str
-    :returns:   Guide
+    :param      hierarchy:      Duplicate all decendents
+    :type       hierarchy:      bool
+    :returns:                   The new duplicate guides
+    :rtype:                     list
 
     **Example**:
 
     >>> duplicate("C_spine_0_gde")
-    # Result: Guide(C_spine_1_gde) # 
+    # Result: <Guide 'C_spine_1_gde'> #
     """
 
     guide = __validate(guide)
@@ -84,17 +90,19 @@ def duplicate(guide, hierarchy=True):
     return dup_guides
 
 def reinit(guide):
-    """create(position, description, index=0)
-    Create a guide.
+    """reinit(guide)
+    Reinitialise a guide. This simply converts args to a Guide model object
+    if the guide exists in the scene.
 
     :param      position:       Guide node
     :type       position:       Guide, str
-    :returns:   Guide
+    :returns:                   A Guide model object
+    :rtype:                     Guide
 
     **Example**:
 
-    >>> duplicate("C_spine_0_gde")
-    # Result: Guide(C_spine_1_gde) # 
+    >>> reinit("C_spine_0_gde")
+    # Result: <Guide 'C_spine_0_gde'> #
     """
 
     guide = __validate(guide)
@@ -104,16 +112,17 @@ def set_parent(child, parent):
     """set_parent(child, parent)
     Set child guides parent.
 
-    :param      parent:     Parent guide child will be added to.
     :param      child:      Child guide that will be added to parent.
-    :type       parent:     str
-    :type       child:      str
-    :returns:   Parent guide
+    :type       child:      Guide, str
+    :param      parent:     Parent guide child will be added to.
+    :type       parent:     Guide, str
+    :returns:               Parent guide
+    :rtype:                 Guide
 
     **Example**:
 
     >>> set_parent("C_arm_0_gde", "C_spine_0_gde")
-    # Result: Guide(C_spine_0_gde) # 
+    # Result: <Guide 'C_spine_0_gde'> #
     """
 
     child = __validate(child)
@@ -125,10 +134,11 @@ def add_child(parent, child):
     Add a child guide to parent guide
 
     :param      parent:     Parent guide child will be added to.
+    :type       parent:     Guide, str
     :param      child:      Child guide that will be added to parent.
-    :type       parent:     str
-    :type       child:      str
-    :rtype:                 crefor.model.guide.Guide
+    :type       child:      Guide, str
+    :returns:               Child guide
+    :rtype:                 Guide
 
     **Example**:
 
@@ -146,12 +156,15 @@ def has_parent(child, parent):
 
     :param      child:      Guide that will checked
     :type       child:      str, Guide
+    :returns:               If the parent guide is a parent anywhere above the
+                            child guide.
     :rtype:                 bool
 
     **Example**:
 
-    >>> has_parent("C_root_0_gde")
-    # Result: False # 
+    >>> # Is C_root_0_gde above C_spine_3_gde in hierarchy?
+    >>> has_parent("C_spine_3_gde", "C_root_0_gde")
+    # Result: True # 
     """
 
     child = __validate(child)
@@ -166,11 +179,13 @@ def has_child(parent, child):
     :param      child:      Child guide that will be added to parent.
     :type       parent:     str
     :type       child:      str
+    :returns:               Is child guide an immediate child of the parent guide?
     :rtype:                 bool
 
     **Example**:
 
-    >>> has_child("C_spine_0_gde", "C_arm_0_gde")
+    >>> # Is L_arm_1_gde an immediate child of L_arm_0_gde?
+    >>> has_child("L_arm_0_gde", "L_arm_1_gde")
     # Result: True # 
     """
 
@@ -179,13 +194,14 @@ def has_child(parent, child):
     return child.has_parent(parent)
 
 def is_parent(parent, child):
-    """is_parent(child, parent)
-    Is guide the immediate parent of child?
+    """is_parent(parent, child)
+    Is parent guide an immediate parent of the child guide?
 
     :param      parent:     Child guide that will check for parent
     :param      child:      Parent guide that will check for child
     :type       parent:     str
     :type       child:      str
+    :returns:               If child guide's parent is the parent guide
     :rtype:                 bool
 
     **Example**:
@@ -200,7 +216,7 @@ def is_parent(parent, child):
 
 def remove(guide):
     """remove(guide)
-    Remove guide from scene
+    Delete the guide from the scene
 
     :param      guide:      Guide to be removed
     :type       guide:      str, Guide
@@ -239,9 +255,15 @@ def compile():
     """
     Compile all guides into joints.
 
-    :type       child:      str
-    :rtype:                 tuple
     :returns:               Tuple of compiled joints
+    :rtype:                 tuple
+
+    **Example**:
+
+    >>> spine = create("C", "spine", index=0)
+    # Result: <Guide 'C_spine_0_gde'> #
+    >>> compile()
+    # Result ("C_spine_0_jnt", ) #
     """
 
     guides = get_guides()
@@ -269,7 +291,7 @@ def compile():
     return joints
 
 def decompile():
-    """
+    """decompile()
     Convert all joints back to guides
 
     Problems that need solving:
@@ -307,25 +329,32 @@ def decompile():
     #             child.set_parent(child)
 
 def get_guides():
-    """
-    Get list of guides in scene
+    """get_guides()
+    Get all guides in scene
 
     :rtype:                 tuple
     :returns:               Tuple of guides
     """
 
     _guides = cmds.ls("*%s" % Guide.SUFFIX, type="joint")
-    return [__validate(node) for node in _guides]
+
+    guides = []
+    for node in _guides:
+        try:
+            guides.append(__validate(node))
+        except Exception:
+            logger.error("Failed to validate guide node: '%s'" % node)
+
+    return guides
 
 def exists(guide):
     """exists(guide)
-
     Does the guide exist?
 
     :param      child:      Guide that will checked
-    :type       child:      str, Guide
-    :rtype:                 bool
+    :type       child:      Guide, str
     :returns:               If the guide exists
+    :rtype:                 bool
     """
 
     try:
@@ -339,7 +368,6 @@ def exists(guide):
 
 def set_axis(guide, primary="X", secondary="Y"):
     """set_axis(guide, primary="X", secondary="Y")
-
     Set the primary and secondary for joint orientation
 
     :param      child:          Guide that will checked
@@ -348,15 +376,12 @@ def set_axis(guide, primary="X", secondary="Y"):
     :type       primary:        str
     :param      seconday:       Up axis
     :type       seconday:       str
-
-    
     """
 
     guide.set_axis(primary, secondary)
 
-
-def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", guides=[]):
-    """
+def write(path, guides=[]):
+    """write(path, guides=[])
     Write out a json data snapshot of all guides
 
     :param      path:       Path where the data snapshot file is written to disk
@@ -370,16 +395,23 @@ def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json",
 
     >>> # Save all guides to disk
     >>> write("C:/documents/guides.json")
-    >>> # Result: True #
+    # Result: True #
 
     >>> # Write out only input guides
     >>> write("C:/documents/template.json", guides=["L_arm_0_gde"])
-    >>> # Result: True #
+    # Result: True #
     """
 
     # Get guides input or list from scene
     if guides:
-        guides = [__validate(node) for node in guides]
+
+        guides = []
+        for node in guides:
+            try:
+                guides.append(__validate(node))
+            except Exception:
+                logger.error("Failed to validate guide node: '%s'" % node)
+
     else:
         guides = get_guides()
 
@@ -405,8 +437,8 @@ def write(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json",
 
     return os.path.exists(path)
 
-def read(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", compile_guides=False):
-    """
+def read(path, compile_guides=False):
+    """read(path, compile_guides=False)
     Load a data snapshot of guides and recreate
 
     :param      path:       Path where the data snapshot file is written to disk
@@ -420,10 +452,10 @@ def read(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", 
     **Example**:
 
     >>> read("C:/documents/guides.json")
-    >>> # Result: ["L_arm_0_gde"] #
+    # Result: ["L_arm_0_gde"] #
 
     >>> read("C:/documents/guides.json", compile=True)
-    >>> # Result: ["L_arm_0_jnt"] #
+    # Result: ["L_arm_0_jnt"] #
     """
 
     data = {}
@@ -474,10 +506,10 @@ def rebuild(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json
     **Example**:
 
     >>> rebuild("C:/documents/guides.json")
-    >>> # Result: ["L_arm_0_gde"] #
+    # Result: ["L_arm_0_gde"] #
 
     >>> rebuild("C:/documents/guides.json", compile=True)
-    >>> # Result: ["L_arm_0_jnt"] #
+    # Result: ["L_arm_0_jnt"] #
     """
 
     cmds.undoInfo(openChunk=True)
@@ -509,7 +541,7 @@ def __validate(guide):
     **Example**:
 
     >>> __validate("L_arm_0_gde")
-    >>> # Result: <Guide "L_arm_0_gde"> #
+    # Result: <Guide "L_arm_0_gde"> #
     """
     if isinstance(guide, Guide):
         return guide

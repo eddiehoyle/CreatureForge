@@ -1,4 +1,5 @@
 # IMPORTANT
+- [ ] Update connector model with colored 'up' nodes
 - [ ] Create Joint model for decompiling a joint into guide
 - [ ] Figure out what's left to build for a release
 
