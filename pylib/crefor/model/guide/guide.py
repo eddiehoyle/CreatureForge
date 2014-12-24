@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 """
+Guide model.
 """
 
 import json
@@ -51,9 +52,24 @@ class Guide(Node):
 
         self.__trash = []
 
-        self.__burn_nodes = {}
-        self.__burn_nondag = []
+        self.__snapshot_nodes = {}
+        self.__snapshot_nondag = []
         self.__nondag_nodes = {}
+
+    @staticmethod
+    def validate(guide):
+        """validate(guide)
+        """
+
+        if isinstance(guide, Guide):
+            return guide
+        else:
+            try:
+                return Guide(*libName.decompile(str(guide), 3)).reinit()
+            except Exception as e:
+                print e
+                logger.warning("Failed to initialise node as guide: '%s'" % guide)
+                raise
 
     @property
     def nodes(self):
@@ -104,7 +120,9 @@ class Guide(Node):
 
         if self.exists():
             return cmds.ls(self.joint, long=True)[0].split('|')[-1]
-        return None
+        else:
+            logger.warning("Guide '%s' does not exist." % self.name)
+            return None
 
     @property
     def long_name(self):
@@ -114,7 +132,9 @@ class Guide(Node):
 
         if self.exists():
             return cmds.ls(self.joint, long=True)[0]
-        return None
+        else:
+            logger.warning("Guide '%s' does not exist." % self.name)
+            return None
 
     @property
     def parent(self):
@@ -124,7 +144,7 @@ class Guide(Node):
 
         _parent = cmds.listRelatives(self.joint, parent=True, type='joint') if self.exists() else None
         if _parent:
-            return Guide(*libName.decompile(_parent[0], 3)).reinit()
+            return Guide.validate(_parent[0])
         return None
 
     @property
@@ -133,11 +153,12 @@ class Guide(Node):
         Get children joints and return dict with guide objects
         """
 
+
         _children = cmds.listRelatives(self.joint, children=True, type='joint') or []
-        data = {}
-        for _child in _children:
-            data[_child] = Guide(*libName.decompile(_child, 3)).reinit()
-        return data
+        children = []
+        for child in _children:
+            children.append(Guide.validate(child))
+        return children
 
     @property
     def connectors(self):
@@ -145,7 +166,7 @@ class Guide(Node):
         Connectors are stored in sync with children
         """
         data = {}
-        for _child in self.children.values():
+        for _child in self.children:
             data[_child.name] = Connector(self, _child).reinit()
         return data
 
@@ -178,6 +199,40 @@ class Guide(Node):
         """
 
         return cmds.objExists(self.setup_node)
+
+    def strip(self):
+        """strip()
+        Strip joint of all hierarchy
+        """
+
+        if self.exists():
+            parent = self.parent
+            if self.parent:
+                parent.remove_child(self)
+
+            children = self.children
+            if children:
+                for child in children:
+                    self.remove_child(child)
+
+    def set_orient(self, vector3f):
+        """
+        """
+
+        if self.exists():
+
+            snapshot = self.get_snapshot()
+
+            cmds.setAttr("%s.jointOrient" % self.joint, *vector3f, type="float3")
+
+            parent = snapshot["parent"]
+            if parent:
+                self.set_parent(parent)
+
+            children = snapshot["children"]
+            if children:
+                for child in children:
+                    self.add_child(child)
 
     def set_scale(self, value):
         """
@@ -219,6 +274,12 @@ class Guide(Node):
             enums = cmds.attributeQuery('aimAt', node=self.joint, listEnum=True)[0].split(':')
             return enums[cmds.getAttr("%s.aimAt" % self.joint)]
 
+    def get_child(self, name):
+        """
+        """
+
+        return self.children.get(name, None)
+
     def aim_at(self, guide, add=False):
         """
         Aim at input guide if it is a child. If not, then use the
@@ -232,8 +293,7 @@ class Guide(Node):
                 cmds.setAttr("%s.aimAt" % self.joint, enums.index(guide))
                 return
 
-            if not isinstance(guide, Guide):
-                guide = Guide(*libName.decompile(guide, 3)).reinit()
+            guide = Guide.validate(guide)
 
             if not self.has_child(guide):
                 if add:
@@ -256,14 +316,16 @@ class Guide(Node):
         """
         Set debug visibility
         """
-        if self.joint:
+
+        if self.exists():
             cmds.setAttr('%s.debug' % self.joint, bool(debug))
 
     def has_child(self, guide):
         """
         Is guide an immediate child of self
         """
-        return guide.name in self.children.keys()
+
+        return Guide.validate(guide).joint in [g.joint for g in self.children]
 
     def is_parent(self, guide):
         """
@@ -271,7 +333,7 @@ class Guide(Node):
         """
 
         if self.parent:
-            return guide.joint == self.parent.joint
+            return Guide.validate(guide).joint == self.parent.joint
         return False
 
     def has_parent(self, guide):
@@ -279,6 +341,7 @@ class Guide(Node):
         Iterate over all parents to see if guide is one
         """
 
+        guide = Guide.validate(guide)
         parent = self.parent
         while parent:
             if guide.name == parent.name:
@@ -290,6 +353,8 @@ class Guide(Node):
         """
         Set guide to be parent of self
         """
+
+        guide = Guide.validate(guide)
 
         # Try to parent to itself
         if self.name == guide.name:
@@ -309,7 +374,7 @@ class Guide(Node):
         if self.parent:
             self.remove_parent()
 
-        guide.add_aim(self)
+        guide.__add_aim(self)
         logger.info('\'%s\' successfully set parent: \'%s\'' % (self.joint, guide.joint))
 
         return guide
@@ -318,6 +383,8 @@ class Guide(Node):
         """
         Add guide to children
         """
+
+        guide = Guide.validate(guide)
 
         # Try to parent to itself
         if self.name == guide.name:
@@ -337,22 +404,32 @@ class Guide(Node):
         if self.has_parent(guide):
             self.remove_parent()
 
-        self.add_aim(guide)
+        self.__add_aim(guide)
         logger.info("'%s' successfully added child: '%s'" % (self.joint, guide.joint))
         return guide
 
-    def add_aim(self, guide):
+    def remove_parent(self):
+        """
+        If have a parent, tell parent to remove aim to self
+        """
+
+        if self.parent:
+            self.parent.__remove_aim(self)
+
+    def remove_child(self, guide):
+        """
+        """
+
+        self.__remove_aim(guide)
+
+    def __add_aim(self, guide):
         """
         Create a new child aim relationship between self and guide.
         Guide is considered to be the child of self. Any constraint
         and attribute updates are added to self, as well as the connector.
         """
 
-        # Already has child connector?
-        connectors = deepcopy(self.connectors)
-        name = guide.name
-        if name in connectors:
-            return connectors[name]
+        guide = Guide.validate(guide)
 
         cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up,
                            worldUpType='object',
@@ -373,27 +450,13 @@ class Guide(Node):
         cmds.parent(guide.joint, self.joint, a=True)
 
         # Reinit children
-        for key, con in connectors.items():
-            con.reinit()
+        # connectors = deepcopy(self.connectors)
+        # for key, con in connectors.items():
+        #     con.reinit()
 
         return guide
 
-    def remove_parent(self):
-        """
-        If have a parent, tell parent to remove aim to self
-        """
-
-        if self.parent:
-            # logger.info('Removing %s parent: %s' % (self.name, self.parent.name))
-            self.parent.remove_aim(self)
-
-    def remove_child(self, guide):
-        """
-        """
-
-        self.remove_aim(guide)
-
-    def remove_aim(self, guide):
+    def __remove_aim(self, guide):
         """
         self has guide as a child
         self has constraint
@@ -402,6 +465,8 @@ class Guide(Node):
         self is always parent
         guide is always child
         """
+
+        guide = Guide.validate(guide)
 
         if not self.has_child(guide):
             return None
@@ -437,9 +502,6 @@ class Guide(Node):
             con.reinit()
 
         logger.debug('%s remove child: %s' % (self.name, guide.name))
-
-    def get_child(self, name):
-        return self.children.get(name, None)
 
     def __create_nodes(self):
         
@@ -492,10 +554,10 @@ class Guide(Node):
         cmds.parent([self.up, self.aim], self.setup_node)
         self.__trash.extend([_cube, _sphere])
 
-        self.__burn_nodes["aim"] = self.aim
-        self.__burn_nodes["joint"] = self.joint
-        self.__burn_nodes["shapes"] = self.shapes
-        self.__burn_nodes["up"] = self.up
+        self.__snapshot_nodes["aim"] = self.aim
+        self.__snapshot_nodes["joint"] = self.joint
+        self.__snapshot_nodes["shapes"] = self.shapes
+        self.__snapshot_nodes["up"] = self.up
 
     def __create_attribtues(self):
         """
@@ -558,8 +620,8 @@ class Guide(Node):
 
             cmds.connectAttr("%s.outColor" % pair_cond, "%s.input3D[%s]" % (aim_order_pma, pair_index))
 
-        self.__burn_nondag.append(condition)
-        self.__burn_nodes["constraint"] = self.constraint
+        self.__snapshot_nondag.append(condition)
+        self.__snapshot_nodes["constraint"] = self.constraint
 
 
     def __create_shader(self):
@@ -567,8 +629,8 @@ class Guide(Node):
         self.shader, self.sg = libShader.get_or_create_shader("C_guide_0_shd", 'lambert')
         cmds.sets(self.shapes, edit=True, forceElement=self.sg)
 
-        self.__burn_nodes["shader"] = self.shader
-        self.__burn_nodes["sg"] = self.sg
+        self.__snapshot_nodes["shader"] = self.shader
+        self.__snapshot_nodes["sg"] = self.sg
 
         rgb = (1, 1, 0)
         cmds.setAttr('%s.color' % self.shader, *rgb, type='float3')
@@ -581,17 +643,36 @@ class Guide(Node):
         """
 
         # Clean up trash
-        try:
-            cmds.delete(self.__trash)
-        except Exception:
-            pass
+        cmds.delete(self.__trash)
 
         # Burn in nodes
-        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
-        cmds.setAttr("%s.snapshotNondag" % self.setup_node, json.dumps(self.__burn_nondag), type="string")
+        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__snapshot_nodes), type="string")
+        cmds.setAttr("%s.snapshotNondag" % self.setup_node, json.dumps(self.__snapshot_nondag), type="string")
+
+    def get_snapshot(self):
+        """get_snapshot()
+        Get a dictionary snapshot of guide data.
+
+        :returns:           Dictionary of relevant guide information
+        :rtype:             dict
+
+        **Example**:
+
+        >>> root = Guide("C", "root", 0)
+        >>> root.get_snapshot()
+        # Result: {'aim_at': u'local', 'children': [], 'parent': 'None', 'translates': [0.0, 0.0, 0.0]} # 
+        """
+
+        if self.exists():
+            return dict(parent=str(self.parent),
+                        children=[c for c in self.children],
+                        aim_at=self.get_aim_at(),
+                        translates=self.get_translates())
+        else:
+            return {}
 
     def reinit(self):
-        """
+        """reinit()
         """
 
         if not self.exists():
@@ -623,6 +704,7 @@ class Guide(Node):
     def duplicate(self):
         """
         """
+
         name = libName.generate(self.name)
         return Guide(*libName.decompile(name, 3)).create()
 
@@ -631,15 +713,17 @@ class Guide(Node):
         """
 
         if self.exists():
-            parent = self.parent
-            children = self.children
 
-            if parent:
-                parent.remove_child(self)
+            self.strip()
+            # parent = self.parent
+            # children = self.children
 
-            # for key, child in self.children.items():
-            for key, child in children.items():
-                self.remove_child(child)
+            # if parent:
+            #     parent.remove_child(self)
+
+            # # for key, child in self.children.items():
+            # for child in self.children:
+            #     self.remove_child(child)
 
             cmds.delete(self.nondag)
             cmds.delete(self.setup_node)
@@ -647,7 +731,7 @@ class Guide(Node):
 
     def compile(self):
         """
-        Create a joint
+        Compile guide into a joint
         """
 
         cmds.select(cl=True)

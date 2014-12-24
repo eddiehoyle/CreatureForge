@@ -58,7 +58,7 @@ def duplicate(guide, hierarchy=True):
     # Result: <Guide 'C_spine_1_gde'> #
     """
 
-    guide = __validate(guide)
+    guide = validate(guide)
 
     data = libUtil.write_hierarchy(guide)
     dup_data = {}
@@ -105,7 +105,7 @@ def reinit(guide):
     # Result: <Guide 'C_spine_0_gde'> #
     """
 
-    guide = __validate(guide)
+    guide = validate(guide)
     return guide.reinit()
 
 def set_parent(child, parent):
@@ -125,8 +125,8 @@ def set_parent(child, parent):
     # Result: <Guide 'C_spine_0_gde'> #
     """
 
-    child = __validate(child)
-    parent = __validate(parent)
+    child = validate(child)
+    parent = validate(parent)
     return child.set_parent(parent)
 
 def add_child(parent, child):
@@ -146,8 +146,8 @@ def add_child(parent, child):
     # Result: Guide(C_spine_0_gde) # 
     """
 
-    child = __validate(child)
-    parent = __validate(parent)
+    child = validate(child)
+    parent = validate(parent)
     return parent.add_child(child)
 
 def has_parent(child, parent):
@@ -167,8 +167,8 @@ def has_parent(child, parent):
     # Result: True # 
     """
 
-    child = __validate(child)
-    parent = __validate(parent)
+    child = validate(child)
+    parent = validate(parent)
     return child.has_parent(parent)
 
 def has_child(parent, child):
@@ -189,8 +189,8 @@ def has_child(parent, child):
     # Result: True # 
     """
 
-    child = __validate(child)
-    parent = __validate(parent)
+    child = validate(child)
+    parent = validate(parent)
     return child.has_parent(parent)
 
 def is_parent(parent, child):
@@ -210,8 +210,8 @@ def is_parent(parent, child):
     # Result: True # 
     """
 
-    child = __validate(child)
-    parent = __validate(parent)
+    child = validate(child)
+    parent = validate(parent)
     return child.is_parent(parent)
 
 def remove(guide):
@@ -228,7 +228,7 @@ def remove(guide):
     # Result: [] #
     """
 
-    guide = __validate(guide)
+    guide = validate(guide)
 
     cmds.undoInfo(openChunk=True)
     guide.remove()
@@ -248,7 +248,7 @@ def remove_parent(guide):
     # Result: [] #
     """
 
-    guide = __validate(guide)
+    guide = validate(guide)
     guide.remove_parent()
 
 def compile():
@@ -271,7 +271,7 @@ def compile():
     # Create hierarchy
     hierarchy = {}
     for guide in guides:
-        hierarchy[guide] = guide.children.values()
+        hierarchy[guide] = guide.children
 
     # Create joints
     joints = {}
@@ -341,7 +341,7 @@ def get_guides():
     guides = []
     for node in _guides:
         try:
-            guides.append(__validate(node))
+            guides.append(validate(node))
         except Exception:
             logger.error("Failed to validate guide node: '%s'" % node)
 
@@ -360,7 +360,7 @@ def exists(guide):
     try:
 
         # Exception is raised if guide does not exist
-        guide = __validate(guide)
+        guide = validate(guide)
         return guide.exists()
 
     except Exception:
@@ -408,7 +408,7 @@ def write(path, guides=[]):
         guides = []
         for node in guides:
             try:
-                guides.append(__validate(node))
+                guides.append(validate(node))
             except Exception:
                 logger.error("Failed to validate guide node: '%s'" % node)
 
@@ -473,14 +473,14 @@ def read(path, compile_guides=False):
 
     # Set guides translates
     for guide in data.keys():
-        guide = __validate(guide)
+        guide = validate(guide)
         guide.set_translates(data[guide.name]["xform"])
 
     # Create hierarchy, set aim targets
     for guide in data.keys():
-        guide = __validate(guide)
+        guide = validate(guide)
         for child in data[guide.name]["children"]:
-            child = __validate(child)
+            child = validate(child)
             add_child(guide, child)
             guide.set_axis(data[guide.name]["axis"])
         guide.aim_at(data[guide.name]["aim_at"])
@@ -529,7 +529,7 @@ def rebuild(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json
 
     cmds.undoInfo(closeChunk=True)
 
-def __validate(guide):
+def validate(guide):
     """
     Reinit a guide
 
@@ -540,10 +540,8 @@ def __validate(guide):
 
     **Example**:
 
-    >>> __validate("L_arm_0_gde")
+    >>> validate("L_arm_0_gde")
     # Result: <Guide "L_arm_0_gde"> #
     """
-    if isinstance(guide, Guide):
-        return guide
-    else:
-        return Guide(*libName.decompile(str(guide), 3)).reinit()
+
+    return Guide.validate(guide)

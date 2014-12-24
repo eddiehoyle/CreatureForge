@@ -7,10 +7,9 @@ import json
 from copy import deepcopy
 from maya import cmds
 from crefor.model import Node
-from crefor.lib import libName, libShader, libAttr
+from crefor.lib import libName, libShader
 
 __all__ = ["Connector"]
-
 
 class Connector(Node):
 

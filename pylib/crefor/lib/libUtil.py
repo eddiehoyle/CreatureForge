@@ -5,8 +5,10 @@ Utility methods
 """
 
 from maya import cmds
-from crefor.lib import libName
-from crefor.model.guide.guide import Guide
+# from crefor.lib import libName
+from crefor import log
+
+logger = log.get_logger(__name__)
 
 def write_hierarchy(guide):
     """
@@ -32,8 +34,8 @@ def write_hierarchy(guide):
     all_guides = cmds.listRelatives(guide, allDescendents=True, type="joint") or []
     all_guides.insert(0, guide)
     for guide in all_guides:
-        children = [Guide(*libName._decompile(c)[:-1]).reinit() for c in cmds.listRelatives(guide, children=True, type="joint") or []]
-        guide = Guide(*libName._decompile(guide)[:-1]).reinit()
+        children = [api.reinit(c) for c in cmds.listRelatives(guide, children=True, type="joint") or []]
+        guide = api.reinit(guide)
 
         data[guide] = children
     return data
