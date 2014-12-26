@@ -28,7 +28,7 @@ class Node(object):
         return self.name
 
     def __repr__(self):
-        return "<Guide '%s'>" % self.name
+        return "<%s '%s'>" % (self.__class__.__name__, self.name)
 
     def __hash__(self):
         return hash(self.name)
