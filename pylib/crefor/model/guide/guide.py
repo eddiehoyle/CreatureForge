@@ -677,13 +677,27 @@ class Guide(Node):
 
         # Create up transform
         self.up = cmds.group(name=libName.update(self.name, suffix="up"), empty=True)
-        _cube = cmds.nurbsCube(p=(0, 0, 0), ax=(0, 1, 0), lr=1, hr=1, d=1, u=1, v=1, ch=0)[0]
-        _cube_shapes = cmds.listRelatives(_cube, type='nurbsSurface', ad=True)
-        cmds.parent(_cube_shapes, self.up, r=True, s=True)
+        # _aim_sphere = cmds.sphere()[0]
+        # _aim_sphere_shapes = cmds.listRelatives(_aim_sphere, type="nurbsSurface")
+
+        _up_x = cmds.sphere(name=libName.update(self.name, append="X", suffix="up"))[0]
+        _up_y = cmds.sphere(name=libName.update(self.name, append="Y", suffix="up"))[0]
+        _up_z = cmds.sphere(name=libName.update(self.name, append="Z", suffix="up"))[0]
+
+        self.up_x_shape = cmds.listRelatives(_up_x, type="nurbsSurface")[0]
+        self.up_y_shape = cmds.listRelatives(_up_y, type="nurbsSurface")[0]
+        self.up_z_shape = cmds.listRelatives(_up_z, type="nurbsSurface")[0]
+
+        _aim_sphere_shapes = []
+        _aim_sphere_shapes.append(self.up_x_shape)
+        _aim_sphere_shapes.append(self.up_y_shape)
+        _aim_sphere_shapes.append(self.up_z_shape)
+
+        cmds.parent(_aim_sphere_shapes, self.up, r=True, s=True)
         cmds.setAttr('%s.translateY' % self.up, 2)
 
         # Scale up
-        _clh = cmds.cluster(_cube_shapes)[1]
+        _clh = cmds.cluster(_aim_sphere_shapes)[1]
         cmds.setAttr('%s.scale' % _clh, 
                      self.UP_SCALE_VALUE,
                      self.UP_SCALE_VALUE,
@@ -696,7 +710,7 @@ class Guide(Node):
 
         cmds.setAttr('%s.translateX' % self.aim, -0.00000001)
 
-        cmds.addAttr(self.joint, ln='aimAt', at='enum', en='local')
+        cmds.addAttr(self.joint, ln='aimAt', at='enum', en=":".join(self.DEFAULT_AIMS))
         cmds.setAttr('%s.aimAt' % self.joint, k=False)
         cmds.setAttr('%s.aimAt' % self.joint, cb=True)
 
@@ -704,14 +718,42 @@ class Guide(Node):
         cmds.setAttr('%s.aimOrder' % self.joint, k=False)
         cmds.setAttr('%s.aimOrder' % self.joint, cb=True)
 
+        _up_conds = []
+        for axis_index, axis in enumerate(self.AIM_ORDER):
+
+            # Up axis 
+            up = axis[1]
+
+            up_pma = libName.update(self.name, suffix="pma", append="upAxis%s" % up.upper())
+            if not cmds.objExists(up_pma):
+                up_pma = cmds.createNode("plusMinusAverage", name=up_pma)
+                cmds.connectAttr("%s.output1D" % up_pma, "%s.visibility" % getattr(self, "up_%s_shape" % up))
+
+            up_name = libName.update(self.name, suffix="cond", append="%sUp%s" % (0, up.upper()))
+            up_cond = cmds.createNode("condition", name=up_name)
+            _up_conds.append(up_cond)
+
+            cmds.connectAttr("%s.aimOrder" % self.joint, "%s.firstTerm" % up_cond)
+            cmds.setAttr("%s.secondTerm" % up_cond, axis_index)
+            cmds.setAttr("%s.colorIfTrueR" % up_cond, 1)
+            cmds.setAttr("%s.colorIfFalseR" % up_cond, 0)
+
+            cmds.connectAttr("%s.outColorR" % up_cond, "%s.input1D[%s]" % (up_pma, axis_index))
+
+        for cond in _up_conds:
+            cmds.connectAttr("%s.aimAt" % self.joint, "%s.colorIfTrueR" % cond)
+
         # Tidy up
         cmds.parent([self.up, self.aim], self.setup_node)
-        self.__trash.extend([_cube, _sphere])
+        self.__trash.extend([_up_x, _up_y, _up_z, _sphere])
 
         self.__snapshot_nodes["aim"] = self.aim
         self.__snapshot_nodes["joint"] = self.joint
         self.__snapshot_nodes["shapes"] = self.shapes
         self.__snapshot_nodes["up"] = self.up
+        self.__snapshot_nodes["up_x_shape"] = self.up_x_shape
+        self.__snapshot_nodes["up_y_shape"] = self.up_y_shape
+        self.__snapshot_nodes["up_z_shape"] = self.up_z_shape
 
     def __create_attribtues(self):
         """
@@ -777,7 +819,6 @@ class Guide(Node):
         self.__snapshot_nondag.append(condition)
         self.__snapshot_nodes["constraint"] = self.constraint
 
-
     def __create_shader(self):
 
         self.shader, self.sg = libShader.get_or_create_shader("C_guide_0_shd", 'lambert')
@@ -790,6 +831,30 @@ class Guide(Node):
         cmds.setAttr('%s.color' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.diffuse' % self.shader, 0)
+
+        # Create transparent shader for up
+        # _up_shader, _up_sg = libShader.get_or_create_shader("N_up_0_shd", 'lambert')
+        # cmds.sets(cmds.listRelatives(self.up, children=True, type="nurbsSurface"), edit=True, forceElement=_up_sg)
+        # cmds.setAttr("%s.transparency" % _up_shader, *[1, 1, 1], type="float3")
+
+        shader_data = {"X": (1, 0, 0),
+                       "Y": (0, 1, 0),
+                       "Z": (0, 0, 1)}
+
+        for axis, rgb in shader_data.items():
+            shader, sg = libShader.get_or_create_shader(libName.update(self.name,
+                                                        position="N",
+                                                        description="color%s" % axis,
+                                                        index=0,
+                                                        suffix="shd"), "lambert")
+
+            cmds.setAttr('%s.color' % shader, *rgb, type='float3')
+            cmds.setAttr('%s.incandescence' % shader, *rgb, type='float3')
+            cmds.setAttr('%s.diffuse' % shader, 0)
+
+            cmds.sets(getattr(self, "up_%s_shape" % axis.lower()),
+                      edit=True,
+                      forceElement=sg)
 
     def __post(self):
         """

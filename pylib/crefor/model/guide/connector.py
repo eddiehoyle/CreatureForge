@@ -398,7 +398,6 @@ class Connector(Node):
             cmds.setAttr("%s.colorIfTrueR" % even_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % even_cond, 0)
             cmds.connectAttr("%s.outColorR" % even_cond, "%s.visibility" % grp)
-            cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.colorIfTrueR" % even_cond)
 
             # A secondary condition that allows odds to be visible
             odd_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axisOdd%s" % axis))
@@ -407,7 +406,18 @@ class Connector(Node):
             cmds.setAttr("%s.colorIfTrueR" % odd_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % odd_cond, 0)
             cmds.connectAttr("%s.outColorR" % odd_cond, "%s.colorIfFalseR" % even_cond)
-            cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.colorIfTrueR" % odd_cond)
+
+            # Allow room for defaults
+            def_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axisDef%s" % axis))
+            cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.firstTerm" % def_cond)
+
+            cmds.setAttr("%s.secondTerm" % def_cond, (len(self.__parent.DEFAULT_AIMS) - 1))
+            cmds.setAttr("%s.colorIfTrueR" % def_cond, 1)
+            cmds.setAttr("%s.colorIfFalseR" % def_cond, 0)
+            cmds.setAttr("%s.operation" % def_cond, 2)
+
+            cmds.connectAttr("%s.outColorR" % def_cond, "%s.colorIfTrueR" % even_cond)
+            cmds.connectAttr("%s.outColorR" % def_cond, "%s.colorIfTrueR" % odd_cond)
 
             # A state condition that determines which geometry is display, solid or dashed
             state_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="state%s" % axis))
@@ -438,11 +448,13 @@ class Connector(Node):
 
         # N condition is True if aim is index 0
         n_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axis%s" % axis))
-        cmds.setAttr("%s.secondTerm" % n_cond, 0)
+        cmds.setAttr("%s.secondTerm" % n_cond, 1)
         cmds.setAttr("%s.colorIfTrueR" % n_cond, 1)
         cmds.setAttr("%s.colorIfFalseR" % n_cond, 0)
         cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.firstTerm" % n_cond)
         cmds.connectAttr("%s.outColorR" % n_cond, "%s.visibility" % grp)
+
+        cmds.setAttr("%s.operation" % n_cond, 5)
 
         # Get geometry of N axis
         solid = self.__get_transform(axis, "solid")
