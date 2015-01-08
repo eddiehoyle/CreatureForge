@@ -19,7 +19,7 @@ class Connector(Node):
     CLUSTER_OFFSET = 1.0
 
     def __init__(self, parent, child):
-        super(Connector, self).__init__(*libName.decompile(child.name, 3))
+        super(Connector, self).__init__(*libName.decompile(str(child), 3))
 
         # Guides
         self.__parent = parent
@@ -59,7 +59,7 @@ class Connector(Node):
         # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotNodes" % self.setup_node)) if self.exists() else {}
+        return json.loads(cmds.getAttr("%s.snapshotNodes" % self.node)) if self.exists() else {}
 
     @property
     def nondag(self):
@@ -76,7 +76,7 @@ class Connector(Node):
         # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotNondag" % self.setup_node)) if self.exists() else {}
+        return json.loads(cmds.getAttr("%s.snapshotNondag" % self.node)) if self.exists() else {}
 
     @property
     def geometry(self):
@@ -93,14 +93,14 @@ class Connector(Node):
         # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotGeometry" % self.setup_node)) if self.exists() else {}
+        return json.loads(cmds.getAttr("%s.snapshotGeometry" % self.node)) if self.exists() else {}
 
-    @property
-    def setup_node(self):
-        """
-        """
+    # @property
+    # def setup_node(self):
+    #     """
+    #     """
 
-        return libName.update(self.name, suffix="setup", append=self.SUFFIX)
+    #     return libName.update(self.node, suffix="setup", append=self.SUFFIX)
 
     @property
     def parent(self):
@@ -121,7 +121,7 @@ class Connector(Node):
         Does connector exist
         """
 
-        return cmds.objExists(self.setup_node)
+        return cmds.objExists(self.node)
 
     def set_scale(self, value):
         """
@@ -200,14 +200,16 @@ class Connector(Node):
 
         return [self.__get_grp(axis) for axis in ["X", "Y", "Z", "N"]]
 
-    def __create_top_node(self):
+    def __create_setup_node(self):
         """
         Top node is a group node that is parent of all connector nodes
         """
 
-        cmds.group(name=self.setup_node, empty=True)
-        cmds.setAttr('%s.inheritsTransform' % self.setup_node, False)
-        cmds.parent(self.setup_node, self.__parent.setup_node)
+        cmds.group(name=self.node, empty=True)
+        cmds.setAttr('%s.inheritsTransform' % self.node, False)
+        cmds.parent(self.node, self.__parent.setup_node)
+
+        self.__burn_nodes["node"] = self.node
 
     def __create_geometry(self):
         """
@@ -216,7 +218,7 @@ class Connector(Node):
 
         for axis in ["X", "Y", "Z", "N"]:
 
-            solid = cmds.polyCylinder(name=libName.update(self.name, suffix="cncGeo", append="solid%s" % axis.upper()),
+            solid = cmds.polyCylinder(name=libName.update(self.node, suffix="cncGeo", append="solid%s" % axis.upper()),
                                       r=self.RADIUS,
                                       h=1,
                                       sx=16,
@@ -243,14 +245,14 @@ class Connector(Node):
 
             dashed = cmds.polyUnite(pieces,
                                     ch=False,
-                                    name=libName.update(self.name, suffix="cncGeo", append="dashed%s" % axis.upper()))[0]
+                                    name=libName.update(self.node, suffix="cncGeo", append="dashed%s" % axis.upper()))[0]
 
             cmds.xform(dashed, cp=True)
             cmds.move(-0.5, dashed, y=True)
 
             # Create group
             grp = cmds.group([solid, dashed],
-                             name=libName.update(self.name, suffix="grp", append="connector%s" % axis.upper()))
+                             name=libName.update(self.node, suffix="grp", append="connector%s" % axis.upper()))
 
             # Store solid, dashed and grp
             self.__geometry[axis] = dict(solid=solid, dashed=dashed, grp=grp)
@@ -273,9 +275,9 @@ class Connector(Node):
                                                              outsideLattice=True)
 
         # Rename lattice
-        self.lattice = cmds.rename(lattice, libName.update(self.name, suffix='ltc'))
-        self.lattice_handle = cmds.rename(lattice_handle, libName.update(self.name, suffix='lth'))
-        self.lattice_base = cmds.rename(lattice_base, libName.update(self.name, suffix='ltb'))
+        self.lattice = cmds.rename(lattice, libName.update(self.node, suffix='ltc'))
+        self.lattice_handle = cmds.rename(lattice_handle, libName.update(self.node, suffix='lth'))
+        self.lattice_base = cmds.rename(lattice_base, libName.update(self.node, suffix='ltb'))
 
         # Move lattice points to 0 on Y (worldspace)
         cmds.move(0, '%s.pt[*][*][*]' % self.lattice_handle, y=True)
@@ -286,14 +288,14 @@ class Connector(Node):
         _, _end = cmds.cluster(['%s.pt[0:1][0][0]' % self.lattice_handle,
                                 '%s.pt[0:1][0][1]' % self.lattice_handle])
 
-        self.start = cmds.rename(_start, libName.update(self.name, suffix="clh", append="start"))
-        self.end = cmds.rename(_end, libName.update(self.name, suffix="clh", append="end"))
+        self.start = cmds.rename(_start, libName.update(self.node, suffix="clh", append="start"))
+        self.end = cmds.rename(_end, libName.update(self.node, suffix="clh", append="end"))
 
-        self.start_cl = cmds.rename('%sCluster' % self.start, libName.update(self.name, suffix="cls", append="start"))
-        self.end_cl = cmds.rename('%sCluster' % self.end, libName.update(self.name, suffix="cls", append="end"))
+        self.start_cl = cmds.rename('%sCluster' % self.start, libName.update(self.node, suffix="cls", append="start"))
+        self.end_cl = cmds.rename('%sCluster' % self.end, libName.update(self.node, suffix="cls", append="end"))
 
-        self.start_grp = cmds.group(self.start, name=libName.update(self.name, suffix="clhGrp", append="start"))
-        self.end_grp = cmds.group(self.end, name=libName.update(self.name, suffix="clhGrp", append="end"))
+        self.start_grp = cmds.group(self.start, name=libName.update(self.node, suffix="clhGrp", append="start"))
+        self.end_grp = cmds.group(self.end, name=libName.update(self.node, suffix="clhGrp", append="end"))
 
         # Hide visibility of deformers
         for clh in [self.start, self.end, self.start_grp, self.end_grp]:
@@ -318,8 +320,8 @@ class Connector(Node):
                                maintainOffset=False)
 
         # Constrain parent and child joints to cluster grps
-        cmds.pointConstraint(self.__parent.joint, self.start_grp, mo=False)
-        cmds.pointConstraint(self.__child.joint, self.end_grp, mo=False)
+        cmds.pointConstraint(self.__parent.node, self.start_grp, mo=False)
+        cmds.pointConstraint(self.__child.node, self.end_grp, mo=False)
 
         # Store nodes
         self.__burn_nodes["lattice_handle"] = self.lattice_handle
@@ -328,13 +330,13 @@ class Connector(Node):
         self.__burn_nodes["end_grp"] = self.end_grp
 
         # Parent geometry groups
-        cmds.parent(self.__get_all_grps(), self.setup_node)
+        cmds.parent(self.__get_all_grps(), self.node)
 
         # Parent deformers
         cmds.parent([self.lattice_handle,
                      self.lattice_base,
                      self.start_grp,
-                     self.end_grp], self.setup_node)
+                     self.end_grp], self.node)
 
     def __update_aim_index(self):
         """
@@ -344,13 +346,13 @@ class Connector(Node):
         if self.exists():
 
             # Query parent joint enum items
-            enums = cmds.attributeQuery('aimAt', node=self.__parent.joint, listEnum=True)[0].split(':')
+            enums = cmds.attributeQuery('aimAt', node=self.__parent.node, listEnum=True)[0].split(':')
             enum_index = enums.index(self.__child.aim)
 
             # Update index to reflect alias index of child
             cmds.setAttr("%s.secondTerm" % self.__aim_cond, enum_index)
 
-            state_conds = json.loads(cmds.getAttr("%s.snapshotStates" % self.setup_node))
+            state_conds = json.loads(cmds.getAttr("%s.snapshotStates" % self.node))
             for key, node in state_conds.items():
                 cmds.setAttr("%s.secondTerm" % node, enum_index)
 
@@ -365,20 +367,20 @@ class Connector(Node):
         index = targets.index(self.__child.aim)
 
         # Query parent joint enum items
-        enums = cmds.attributeQuery('aimAt', node=self.__parent.joint, listEnum=True)[0].split(':')
+        enums = cmds.attributeQuery('aimAt', node=self.__parent.node, listEnum=True)[0].split(':')
         enum_index = enums.index(self.__child.aim)
 
         # Create condition that turns on aim for child constraint if
         # enum index is set to match childs name
-        self.__aim_cond = cmds.createNode('condition', name=libName.update(self.name, suffix="cond"))
+        self.__aim_cond = cmds.createNode('condition', name=libName.update(self.node, suffix="cond"))
         cmds.setAttr('%s.secondTerm' % self.__aim_cond, enum_index)
         cmds.setAttr('%s.colorIfTrueR' % self.__aim_cond, 1)
         cmds.setAttr('%s.colorIfFalseR' % self.__aim_cond, 0)
-        cmds.connectAttr('%s.aimAt' % self.__parent.joint, '%s.firstTerm' % self.__aim_cond)
+        cmds.connectAttr('%s.aimAt' % self.__parent.node, '%s.firstTerm' % self.__aim_cond)
         cmds.connectAttr('%s.outColorR' % self.__aim_cond, '%s.%s' % (self.__parent.constraint, aliases[index]))
 
         # Set enum to match child aim
-        cmds.setAttr('%s.aimAt' % self.__parent.joint, enum_index)
+        cmds.setAttr('%s.aimAt' % self.__parent.node, enum_index)
 
         # Store
         self.__burn_nondag.append(self.__aim_cond)
@@ -392,24 +394,24 @@ class Connector(Node):
             grp = self.__get_grp(axis)
 
             # Condition that allows odd indexes to be visible
-            even_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axisEven%s" % axis))
-            cmds.connectAttr("%s.aimOrder" % self.__parent.joint, "%s.firstTerm" % even_cond)
+            even_cond = cmds.createNode("condition", name=libName.update(self.node, suffix="cond", append="axisEven%s" % axis))
+            cmds.connectAttr("%s.aimOrder" % self.__parent.node, "%s.firstTerm" % even_cond)
             cmds.setAttr("%s.secondTerm" % even_cond, axis_index  + 1)
             cmds.setAttr("%s.colorIfTrueR" % even_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % even_cond, 0)
             cmds.connectAttr("%s.outColorR" % even_cond, "%s.visibility" % grp)
 
             # A secondary condition that allows odds to be visible
-            odd_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axisOdd%s" % axis))
-            cmds.connectAttr("%s.aimOrder" % self.__parent.joint, "%s.firstTerm" % odd_cond)
+            odd_cond = cmds.createNode("condition", name=libName.update(self.node, suffix="cond", append="axisOdd%s" % axis))
+            cmds.connectAttr("%s.aimOrder" % self.__parent.node, "%s.firstTerm" % odd_cond)
             cmds.setAttr("%s.secondTerm" % odd_cond, axis_index)
             cmds.setAttr("%s.colorIfTrueR" % odd_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % odd_cond, 0)
             cmds.connectAttr("%s.outColorR" % odd_cond, "%s.colorIfFalseR" % even_cond)
 
             # Allow room for defaults
-            def_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axisDef%s" % axis))
-            cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.firstTerm" % def_cond)
+            def_cond = cmds.createNode("condition", name=libName.update(self.node, suffix="cond", append="axisDef%s" % axis))
+            cmds.connectAttr("%s.aimAt" % self.__parent.node, "%s.firstTerm" % def_cond)
 
             cmds.setAttr("%s.secondTerm" % def_cond, (len(self.__parent.DEFAULT_AIMS) - 1))
             cmds.setAttr("%s.colorIfTrueR" % def_cond, 1)
@@ -420,8 +422,8 @@ class Connector(Node):
             cmds.connectAttr("%s.outColorR" % def_cond, "%s.colorIfTrueR" % odd_cond)
 
             # A state condition that determines which geometry is display, solid or dashed
-            state_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="state%s" % axis))
-            cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.firstTerm" % state_cond)
+            state_cond = cmds.createNode("condition", name=libName.update(self.node, suffix="cond", append="state%s" % axis))
+            cmds.connectAttr("%s.aimAt" % self.__parent.node, "%s.firstTerm" % state_cond)
             cmds.setAttr("%s.secondTerm" % state_cond, enum_index)
             cmds.setAttr("%s.colorIfTrueR" % state_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % state_cond, 0)
@@ -434,7 +436,7 @@ class Connector(Node):
             dashed = self.__get_transform(axis, "dashed")
 
             # A reverse node is needed to allow for alternate geometry visibility
-            state_rev = cmds.createNode("reverse", name=libName.update(self.name, suffix="rev", append="state%s" % axis))
+            state_rev = cmds.createNode("reverse", name=libName.update(self.node, suffix="rev", append="state%s" % axis))
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.inputX" % state_rev)
             cmds.connectAttr("%s.outputX" % state_rev, "%s.visibility" % dashed)
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.visibility" % solid)
@@ -447,11 +449,11 @@ class Connector(Node):
         grp = self.__get_grp(axis)
 
         # N condition is True if aim is index 0
-        n_cond = cmds.createNode("condition", name=libName.update(self.name, suffix="cond", append="axis%s" % axis))
-        cmds.setAttr("%s.secondTerm" % n_cond, 1)
+        n_cond = cmds.createNode("condition", name=libName.update(self.node, suffix="cond", append="axis%s" % axis))
+        cmds.setAttr("%s.secondTerm" % n_cond, (len(self.__parent.DEFAULT_AIMS) - 1))
         cmds.setAttr("%s.colorIfTrueR" % n_cond, 1)
         cmds.setAttr("%s.colorIfFalseR" % n_cond, 0)
-        cmds.connectAttr("%s.aimAt" % self.__parent.joint, "%s.firstTerm" % n_cond)
+        cmds.connectAttr("%s.aimAt" % self.__parent.node, "%s.firstTerm" % n_cond)
         cmds.connectAttr("%s.outColorR" % n_cond, "%s.visibility" % grp)
 
         cmds.setAttr("%s.operation" % n_cond, 5)
@@ -485,7 +487,7 @@ class Connector(Node):
                        "N": (0.7, 0.7, 0.7)}
 
         for axis, rgb in shader_data.items():
-            shader, sg = libShader.get_or_create_shader(libName.update(self.name,
+            shader, sg = libShader.get_or_create_shader(libName.update(self.node,
                                                         position="N",
                                                         description="color%s" % axis,
                                                         index=0,
@@ -505,23 +507,23 @@ class Connector(Node):
         """
 
         for key in ["snapshotNodes", "snapshotGeometry", "snapshotNondag", "snapshotAim", "snapshotStates"]:
-            cmds.addAttr(self.setup_node, ln=key, dt='string')
-            cmds.setAttr('%s.%s' % (self.setup_node, key), k=False)
+            cmds.addAttr(self.node, ln=key, dt='string')
+            cmds.setAttr('%s.%s' % (self.node, key), k=False)
 
     def __post(self):
         """
         """
 
         # Burn in nodes
-        cmds.setAttr("%s.snapshotAim" % self.setup_node, json.dumps(self.__aim_cond), type="string")
-        cmds.setAttr("%s.snapshotNodes" % self.setup_node, json.dumps(self.__burn_nodes), type="string")
-        cmds.setAttr("%s.snapshotStates" % self.setup_node, json.dumps(self.__burn_states), type="string")
-        cmds.setAttr("%s.snapshotNondag" % self.setup_node, json.dumps(self.__burn_nondag), type="string")
-        cmds.setAttr("%s.snapshotGeometry" % self.setup_node, json.dumps(self.__burn_geometry), type="string")
+        cmds.setAttr("%s.snapshotAim" % self.node, json.dumps(self.__aim_cond), type="string")
+        cmds.setAttr("%s.snapshotNodes" % self.node, json.dumps(self.__burn_nodes), type="string")
+        cmds.setAttr("%s.snapshotStates" % self.node, json.dumps(self.__burn_states), type="string")
+        cmds.setAttr("%s.snapshotNondag" % self.node, json.dumps(self.__burn_nondag), type="string")
+        cmds.setAttr("%s.snapshotGeometry" % self.node, json.dumps(self.__burn_geometry), type="string")
 
         # Remove selection access
-        cmds.setAttr("%s.overrideEnabled" % self.setup_node, 1)
-        cmds.setAttr("%s.overrideDisplayType" % self.setup_node, 2)
+        cmds.setAttr("%s.overrideEnabled" % self.node, 1)
+        cmds.setAttr("%s.overrideDisplayType" % self.node, 2)
 
     def reinit(self):
         """
@@ -529,14 +531,14 @@ class Connector(Node):
         """
 
         if not self.exists():
-            raise Exception('Cannot reinit \'%s\' as connector does not exist.' % self.setup_node)
+            raise Exception('Cannot reinit \'%s\' as connector does not exist.' % self.node)
 
         # Get setup node:
         for key, item in self.nodes.items():
             setattr(self, key, item)
 
         # Restore aim condition
-        self.__aim_cond = json.loads(cmds.getAttr("%s.snapshotAim" % self.setup_node))
+        self.__aim_cond = json.loads(cmds.getAttr("%s.snapshotAim" % self.node))
 
         # Refresh aim index
         self.__update_aim_index()
@@ -551,7 +553,7 @@ class Connector(Node):
         if self.exists():
             return self.reinit()
 
-        self.__create_top_node()
+        self.__create_setup_node()
         self.__create_attribtues()
         self.__create_geometry()
         self.__create_deformers()
@@ -573,4 +575,4 @@ class Connector(Node):
             geometry.extend(self.geometry[axis].values())
 
         cmds.delete(self.nondag)
-        cmds.delete(self.setup_node)
+        cmds.delete(self.node)

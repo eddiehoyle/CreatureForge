@@ -70,12 +70,12 @@ def duplicate(guide, hierarchy=True):
 
     # Create duplicate hierarchy
     for parent in data:
-        libXform.match_translates(dup_data[parent].joint, parent.joint)
+        libXform.match_translates(dup_data[parent].node, parent.node)
         for child in data[parent]:
             dup_data[parent].add_child(dup_data[child])
 
     # Select top guide
-    top_guide = dup_data.values().pop(0).joint
+    top_guide = dup_data.values().pop(0).node
     while cmds.listRelatives(top_guide, parent=True):
         top_guide = cmds.listRelatives(top_guide, parent=True)[0]
 
@@ -84,9 +84,9 @@ def duplicate(guide, hierarchy=True):
     dup_guides = dup_data.values()
     dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(*libName.decompile(top_guide, 3)))))
 
-    cmds.select(dup_guides[0].joint, r=True)
+    cmds.select(dup_guides[0].node, r=True)
 
-    logger.info("Duplicate guides created: %s" % [g.name for g in dup_guides])
+    logger.info("Duplicate guides created: %s" % [g.node for g in dup_guides])
     return dup_guides
 
 def reinit(guide):
@@ -380,6 +380,12 @@ def set_axis(guide, primary="X", secondary="Y"):
 
     guide.set_axis(primary, secondary)
 
+def set_orient(guide, vector3f=[0.0, 0.0, 0.0]):
+    """
+    """
+
+    pass
+
 def write(path, guides=[]):
     """write(path, guides=[])
     Write out a json data snapshot of all guides
@@ -422,8 +428,8 @@ def write(path, guides=[]):
     # Create a data snapshot dict of guide
     data = {}
     for guide in guides:
-        data[guide.joint] = dict(children=guide.children.keys(),
-                                parent=guide.parent.name if guide.parent else None,
+        data[guide.node] = dict(children=[c.node for c in guide.children],
+                                parent=guide.parent.node if guide.parent else None,
                                 xform=guide.get_translates(),
                                 aim_at=guide.get_aim_at(),
                                 axis=guide.get_axis())
@@ -474,16 +480,16 @@ def read(path, compile_guides=False):
     # Set guides translates
     for guide in data.keys():
         guide = validate(guide)
-        guide.set_translates(data[guide.name]["xform"])
+        guide.set_translates(data[guide.node]["xform"])
 
     # Create hierarchy, set aim targets
     for guide in data.keys():
         guide = validate(guide)
-        for child in data[guide.name]["children"]:
+        for child in data[guide.node]["children"]:
             child = validate(child)
             add_child(guide, child)
-            guide.set_axis(data[guide.name]["axis"])
-        guide.aim_at(data[guide.name]["aim_at"])
+            guide.set_axis(*data[guide.node]["axis"][:2])
+        guide.set_aim_at(data[guide.node]["aim_at"])
 
     # Compile into joints
     if compile_guides:

@@ -1,12 +1,16 @@
 # IMPORTANT
-- [ ] Update connector model with colored 'up' nodes
-- [ ] Create Joint model for decompiling a joint into guide
 - [ ] Figure out what's left to build for a release
+
+# Low tier
+- [ ] Create Joint model for decompiling a joint into guide
 
 ## Stretch goal
 - [ ] Build main window
 
 ## Done
+- [x] Fix up model
+- [x] Write template save/load logic
+- [x] Update connector model with colored 'up' nodes
 - [x] Create a name class that is much more easier and shorthand to work with
 - [x] Write position save/load logic
 - [x] Write rebuild logic
@@ -40,9 +44,6 @@
 ## Core
 - [x] Write logging tool
 - [ ] Figure out how to build an API for users
-
-## IO
-- [x] Write template save/load logic
 
 ## Template
 - [ ] Create a template from guides

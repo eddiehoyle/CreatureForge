@@ -5,7 +5,7 @@ Utility methods
 """
 
 from maya import cmds
-# from crefor.lib import libName
+from crefor.model.guide.guide import Guide
 from crefor import log
 
 logger = log.get_logger(__name__)
@@ -34,19 +34,19 @@ def write_hierarchy(guide):
     all_guides = cmds.listRelatives(guide, allDescendents=True, type="joint") or []
     all_guides.insert(0, guide)
     for guide in all_guides:
-        children = [api.reinit(c) for c in cmds.listRelatives(guide, children=True, type="joint") or []]
-        guide = api.reinit(guide)
+        children = [Guide.validate(c) for c in cmds.listRelatives(guide, children=True, type="joint") or []]
+        guide = Guide.validate(guide)
 
         data[guide] = children
     return data
 
 def write_hierarchy_recursive(guide):
-    guide = api.reinit(guide)
+    guide = Guide.validate(guide)
     def recur(guide):
-        guide = api.reinit(guide)
+        guide = Guide.validate(guide)
         hierarchy = {}
         for child in cmds.listRelatives(guide.joint, children=True, type="joint") or []:
-            child = api.reinit(child)
+            child = Guide.validate(child)
             hierarchy[child] = recur(child)
         return hierarchy
     return {guide: recur(guide)}

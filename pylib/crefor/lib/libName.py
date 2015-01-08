@@ -152,7 +152,7 @@ class __Name(object):
         if not string:
             return self.description
 
-        if str(string).isalpha():
+        if str(string)[0].isalpha():
             string = "%s%s" % (string[0].upper(), string[1:])
 
         return "%s%s" % (self.description, string)

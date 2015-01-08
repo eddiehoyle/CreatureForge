@@ -1,90 +1,252 @@
 {
-    "C_temp_1_gde": {
-        "aim_at": "C_temp_2_aim", 
+    "C_temp_8_gde": {
+        "aim_at": "world", 
         "axis": "xyz", 
-        "children": [
-            "C_temp_2_gde"
-        ], 
+        "children": [], 
         "parent": "C_temp_6_gde", 
         "xform": [
-            6.117223624808297, 
-            1.094170474319574, 
-            -7.901461159431898
+            6.0, 
+            0.0, 
+            0.0
         ]
     }, 
-    "C_temp_5_gde": {
+    "C_temp_1_gde": {
         "aim_at": "C_temp_3_aim", 
         "axis": "xyz", 
         "children": [
             "C_temp_3_gde"
         ], 
-        "parent": "C_temp_4_gde", 
+        "parent": "C_temp_0_gde", 
         "xform": [
-            4.1581382801076145, 
-            -1.580957587066223e-13, 
-            -4.7833909102919705
+            -2.0, 
+            0.0, 
+            -4.0
         ]
     }, 
-    "C_temp_4_gde": {
-        "aim_at": "C_temp_5_aim", 
+    "C_temp_17_gde": {
+        "aim_at": "C_temp_10_aim", 
         "axis": "xyz", 
         "children": [
-            "C_temp_5_gde"
+            "C_temp_18_gde", 
+            "C_temp_10_gde"
         ], 
-        "parent": "C_temp_6_gde", 
+        "parent": "C_temp_15_gde", 
         "xform": [
-            1.744058694694612, 
-            3.9077516939983834, 
-            -5.093454171095859
+            4.0, 
+            0.0, 
+            6.0
         ]
     }, 
-    "C_temp_2_gde": {
-        "aim_at": "C_temp_0_aim", 
-        "axis": "xyz", 
-        "children": [
-            "C_temp_0_gde"
-        ], 
-        "parent": "C_temp_1_gde", 
-        "xform": [
-            8.5313032102213, 
-            -2.8135812196789676, 
-            -7.59139789862801
-        ]
-    }, 
-    "C_temp_3_gde": {
-        "aim_at": "local", 
+    "C_temp_5_gde": {
+        "aim_at": "world", 
         "axis": "xyz", 
         "children": [], 
-        "parent": "C_temp_5_gde", 
+        "parent": "C_temp_3_gde", 
         "xform": [
-            0.0, 
+            -2.0, 
             0.0, 
             0.0
         ]
     }, 
-    "C_temp_6_gde": {
-        "aim_at": "C_temp_1_aim", 
+    "C_temp_9_gde": {
+        "aim_at": "C_temp_19_aim", 
         "axis": "xyz", 
         "children": [
-            "C_temp_1_gde", 
-            "C_temp_4_gde"
+            "C_temp_19_gde"
         ], 
-        "parent": null, 
+        "parent": "C_temp_0_gde", 
         "xform": [
-            3.399694068632744, 
-            5.679265795277983, 
-            -8.397550146417716
+            0.0, 
+            0.0, 
+            -2.0
+        ]
+    }, 
+    "C_temp_12_gde": {
+        "aim_at": "world", 
+        "axis": "xyz", 
+        "children": [], 
+        "parent": "C_temp_16_gde", 
+        "xform": [
+            -2.0, 
+            0.0, 
+            8.0
+        ]
+    }, 
+    "C_temp_13_gde": {
+        "aim_at": "world", 
+        "axis": "xyz", 
+        "children": [], 
+        "parent": "C_temp_19_gde", 
+        "xform": [
+            0.0, 
+            0.0, 
+            6.0
+        ]
+    }, 
+    "C_temp_4_gde": {
+        "aim_at": "world", 
+        "axis": "xyz", 
+        "children": [], 
+        "parent": "C_temp_3_gde", 
+        "xform": [
+            -6.0, 
+            0.0, 
+            0.0
+        ]
+    }, 
+    "C_temp_16_gde": {
+        "aim_at": "C_temp_12_aim", 
+        "axis": "xyz", 
+        "children": [
+            "C_temp_14_gde", 
+            "C_temp_12_gde"
+        ], 
+        "parent": "C_temp_11_gde", 
+        "xform": [
+            -4.0, 
+            0.0, 
+            6.0
+        ]
+    }, 
+    "C_temp_15_gde": {
+        "aim_at": "C_temp_17_aim", 
+        "axis": "xyz", 
+        "children": [
+            "C_temp_17_gde"
+        ], 
+        "parent": "C_temp_19_gde", 
+        "xform": [
+            2.0, 
+            0.0, 
+            4.0
+        ]
+    }, 
+    "C_temp_18_gde": {
+        "aim_at": "world", 
+        "axis": "xyz", 
+        "children": [], 
+        "parent": "C_temp_17_gde", 
+        "xform": [
+            2.0, 
+            0.0, 
+            8.0
+        ]
+    }, 
+    "C_temp_11_gde": {
+        "aim_at": "C_temp_16_aim", 
+        "axis": "xyz", 
+        "children": [
+            "C_temp_16_gde"
+        ], 
+        "parent": "C_temp_19_gde", 
+        "xform": [
+            -2.0, 
+            0.0, 
+            4.0
+        ]
+    }, 
+    "C_temp_2_gde": {
+        "aim_at": "C_temp_6_aim", 
+        "axis": "xyz", 
+        "children": [
+            "C_temp_6_gde"
+        ], 
+        "parent": "C_temp_0_gde", 
+        "xform": [
+            2.0, 
+            0.0, 
+            -4.0
+        ]
+    }, 
+    "C_temp_3_gde": {
+        "aim_at": "C_temp_5_aim", 
+        "axis": "xyz", 
+        "children": [
+            "C_temp_4_gde", 
+            "C_temp_5_gde"
+        ], 
+        "parent": "C_temp_1_gde", 
+        "xform": [
+            -4.0, 
+            0.0, 
+            -2.0
+        ]
+    }, 
+    "C_temp_6_gde": {
+        "aim_at": "C_temp_8_aim", 
+        "axis": "xyz", 
+        "children": [
+            "C_temp_7_gde", 
+            "C_temp_8_gde"
+        ], 
+        "parent": "C_temp_2_gde", 
+        "xform": [
+            4.0, 
+            0.0, 
+            -2.0
+        ]
+    }, 
+    "C_temp_7_gde": {
+        "aim_at": "world", 
+        "axis": "xyz", 
+        "children": [], 
+        "parent": "C_temp_6_gde", 
+        "xform": [
+            2.0, 
+            0.0, 
+            0.0
         ]
     }, 
     "C_temp_0_gde": {
-        "aim_at": "local", 
+        "aim_at": "C_temp_9_aim", 
+        "axis": "xyz", 
+        "children": [
+            "C_temp_1_gde", 
+            "C_temp_2_gde", 
+            "C_temp_9_gde"
+        ], 
+        "parent": null, 
+        "xform": [
+            0.0, 
+            0.0, 
+            -6.0
+        ]
+    }, 
+    "C_temp_19_gde": {
+        "aim_at": "C_temp_13_aim", 
+        "axis": "xyz", 
+        "children": [
+            "C_temp_11_gde", 
+            "C_temp_15_gde", 
+            "C_temp_13_gde"
+        ], 
+        "parent": "C_temp_9_gde", 
+        "xform": [
+            0.0, 
+            0.0, 
+            2.0
+        ]
+    }, 
+    "C_temp_10_gde": {
+        "aim_at": "world", 
         "axis": "xyz", 
         "children": [], 
-        "parent": "C_temp_2_gde", 
+        "parent": "C_temp_17_gde", 
         "xform": [
-            4.373164930113685, 
-            -2.8135812196788095, 
-            -2.8080069883360395
+            6.0, 
+            0.0, 
+            8.0
+        ]
+    }, 
+    "C_temp_14_gde": {
+        "aim_at": "world", 
+        "axis": "xyz", 
+        "children": [], 
+        "parent": "C_temp_16_gde", 
+        "xform": [
+            -6.0, 
+            0.0, 
+            8.0
         ]
     }
 }

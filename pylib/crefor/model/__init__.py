@@ -19,34 +19,34 @@ class Node(object):
         self.descrption = descrption
         self.index = index
 
-        self.name = libName.compile(self.position,
+        self.node = libName.compile(self.position,
                                     self.descrption,
                                     self.index,
                                     self.SUFFIX)
 
     def __str__(self):
-        return self.name
+        return self.node
 
     def __repr__(self):
-        return "<%s '%s'>" % (self.__class__.__name__, self.name)
+        return "<%s '%s'>" % (self.__class__.__name__, self.node)
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.node)
 
     def __getitem__(self, index):
-        return self.name[index]
+        return self.node[index]
 
     def __eq__(self, other):
         try:
-            return self.name == other.name
+            return self.node == other.name
         except Exception:
-            return self.name == str(other)
+            return self.node == str(other)
 
     def __ne__(self, other):
         try:
-            return self.name != other.name
+            return self.node != other.name
         except Exception:
-            return self.name == str(other)
+            return self.node == str(other)
 
     def __lt__(self, other):
         try:
