@@ -9,7 +9,7 @@ from maya import cmds
 from copy import deepcopy
 
 from collections import OrderedDict
-from crefor.lib import libName, libShader
+from crefor.lib import libName, libShader, libAttr
 from crefor.model import Node
 from crefor.model.guide.connector import Connector
 from crefor.model.guide.up import Up
@@ -44,12 +44,19 @@ class Guide(Node):
     DEFAULT_AIMS = ["world"]
     UP_SCALE_VALUE = RADIUS/3.3
 
-    AIM_ORDER = OrderedDict([("xyz", [(0, 0, 0), (0, 180, 0)]),
-                             ("xzy", [(-90, 0, 0), (-90, 180, 0)]),
-                             ("yxz", [(0, -180, -90), (0, 0, 90)]),
-                             ("yzx", [(0, -90, -90), (180, 90, -90)]),
-                             ("zxy", [(-90, 180, -90), (90, 180, -90)]),
-                             ("zyx", [(-90, 90, -90), (-90, -90, 90)])])
+    # AIM_ORDER = OrderedDict([("xyz", [(0, 0, 0), (0, 180, 0)]),
+    #                          ("xzy", [(-90, 0, 0), (-90, 180, 0)]),
+    #                          ("yxz", [(0, -180, -90), (0, 0, 90)]),
+    #                          ("yzx", [(0, -90, -90), (180, 90, -90)]),
+    #                          ("zxy", [(-90, 180, -90), (90, 180, -90)]),
+    #                          ("zyx", [(-90, 90, -90), (-90, -90, 90)])])
+
+    AIM_ORDER = OrderedDict([("xy", [(0, 0, 0), (0, 180, 0)]),
+                             ("xz", [(-90, 0, 0), (-90, 180, 0)]),
+                             ("yx", [(0, -180, -90), (0, 0, 90)]),
+                             ("yz", [(0, -90, -90), (180, 90, -90)]),
+                             ("zx", [(-90, 180, -90), (90, 180, -90)]),
+                             ("zy", [(-90, 90, -90), (-90, -90, 90)])])
 
     @staticmethod
     def validate(guide):
@@ -94,7 +101,8 @@ class Guide(Node):
             return self.reinit()
 
         self.__create_nodes()
-        self.__create_attribtues()
+        # self.__create_attribtues()
+        self.__create_up()
         self.__create_aim()
         self.__create_shader()
         self.__post()
@@ -297,6 +305,26 @@ class Guide(Node):
             connectors.append(Connector(self, child).reinit())
         return connectors
 
+    @property
+    def primary_orient(self):
+        """
+        """
+
+        if self.exists():
+            order = self.AIM_ORDER.keys()
+            return order[cmds.getAttr("%s.aimOrient" % self.node)][0]
+        return None
+
+    @property
+    def secondary_orient(self):
+        """
+        """
+
+        if self.exists():
+            order = self.AIM_ORDER.keys()
+            return order[cmds.getAttr("%s.aimOrient" % self.node)][1]
+        return None
+
     # ======================================================================== #
     # Setters
     # ======================================================================== #
@@ -312,13 +340,9 @@ class Guide(Node):
                        "as the same axis: %s, %s" % (primary, secondary))
                 raise ValueError(msg)
 
-            base = list(self.AIM_ORDER.keys()[0])
-
             try:
-                base.pop(base.index(str(primary).lower()))
-                base.pop(base.index(str(secondary).lower()))
-                axis = "".join([primary, secondary, "".join(base)]).lower()
-                cmds.setAttr("%s.aimOrder" % self.node, self.AIM_ORDER.keys().index(axis))
+                axis = "%s%s" % (primary, secondary)
+                cmds.setAttr("%s.aimOrient" % self.node, self.AIM_ORDER.keys().index(axis))
 
             except Exception:
                 msg = "Primary and/or secondary axis not valid: %s, %s" % (primary, secondary)
@@ -430,7 +454,7 @@ class Guide(Node):
         """
         if self.exists():
             order = self.AIM_ORDER.keys()
-            return order[cmds.getAttr("%s.aimOrder" % self.node)]
+            return order[cmds.getAttr("%s.aimOrient" % self.node)]
         else:
             return None
 
@@ -459,13 +483,6 @@ class Guide(Node):
     # ======================================================================== #
     # Public
     # ======================================================================== #
-
-    def exists(self):
-        """
-        Does the guide exist in Maya?
-        """
-
-        return cmds.objExists(self.node)
 
     def strip(self):
         """strip()
@@ -585,15 +602,6 @@ class Guide(Node):
 
         self.__remove_aim(guide)
 
-    # def get_orient(self):
-    #     """get_orient()
-    #     """
-
-    #     if self.exists():
-    #         return cmds.getAttr("%s.nodeOrient" % self.node)
-    #     else:
-    #         return []
-
     def get_snapshot(self):
         """get_snapshot()
         Get a dictionary snapshot of guide data.
@@ -702,11 +710,40 @@ class Guide(Node):
         
         # Create node and parent sphere under
         cmds.select(cl=True)
-        cmds.joint(name=self.node)
+        self.node = cmds.joint(name=self.node)
         cmds.setAttr("%s.radius" % self.node, cb=False)
         cmds.setAttr("%s.radius" % self.node, l=True)
         cmds.select(cl=True)
 
+        # Create attributes
+        cmds.setAttr("%s.rotateOrder" % self.node, k=False)
+        cmds.setAttr("%s.rotateOrder" % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln="guideScale", at="double", min=0.01, dv=1)
+        cmds.setAttr("%s.guideScale" % self.node, k=False)
+        cmds.setAttr("%s.guideScale" % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln='aimAt', at='enum', en=":".join(self.DEFAULT_AIMS))
+        cmds.setAttr('%s.aimAt' % self.node, k=False)
+        cmds.setAttr('%s.aimAt' % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln='aimOrient', at='enum', en=":".join(self.AIM_ORDER.keys()))
+        cmds.setAttr('%s.aimOrient' % self.node, k=False)
+        cmds.setAttr('%s.aimOrient' % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln="aimFlip", at="bool", min=0, max=1, dv=0)
+        cmds.setAttr("%s.aimFlip" % self.node, k=False)
+        cmds.setAttr("%s.aimFlip" % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln="debug", at="bool", min=0, max=1, dv=0)
+        cmds.setAttr("%s.debug" % self.node, k=False)
+        cmds.setAttr("%s.debug" % self.node, cb=True)
+
+        for key in ["snapshotNodes", "snapshotNondag"]:
+            cmds.addAttr(self.node, ln=key, dt="string")
+            cmds.setAttr("%s.%s" % (self.node, key), k=False)
+
+        # Create shapes
         _sphere = cmds.sphere(radius=self.RADIUS, ch=False)[0]
         self.shapes = cmds.listRelatives(_sphere, type='nurbsSurface', children=True)
         cmds.parent(self.shapes, self.node, r=True, s=True)
@@ -715,6 +752,19 @@ class Guide(Node):
         # Setup node
         self.setup_node = cmds.group(name=libName.update(self.node, suffix="setup"), empty=True)
         cmds.pointConstraint(self.node, self.setup_node, mo=False)
+
+        # Create scale cluster
+        _cl, _scale = cmds.cluster(self.shapes)
+        cmds.setAttr("%s.relative" % _cl, True)
+        self.scale = cmds.rename(_scale, libName.update(self.node, append="scale", suffix="clh"))
+        cmds.parent(self.scale, self.setup_node)
+
+        # _ = cmds.spaceLocator()
+        # loc = cmds.listRelatives(_, children=True)[0]
+        # cmds.parent(loc, self.node, r=True, s=True)
+
+        for axis in ["X", "Y", "Z"]:
+            cmds.connectAttr("%s.guideScale" % self.node, "%s.scale%s" % (self.scale, axis))
 
         for axis in ["X", "Y", "Z"]:
             cmds.setAttr("%s.jointOrient%s" % (self.node, axis), k=False)
@@ -729,55 +779,28 @@ class Guide(Node):
         cmds.setAttr("%s.visibility" % self.node, k=False)
         cmds.setAttr("%s.visibility" % self.node, l=True)
 
-        # Create up transform
-        # self.up = cmds.group(name=libName.update(self.node, suffix="up"), empty=True)
-        # # _aim_sphere = cmds.sphere()[0]
-        # # _aim_sphere_shapes = cmds.listRelatives(_aim_sphere, type="nurbsSurface")
+        # Create main aim transform
+        self.aim = cmds.group(name=libName.update(self.node, suffix="aim"), empty=True)
+        cmds.connectAttr("%s.debug" % self.node, "%s.displayLocalAxis" % self.aim)
 
-        # _up_x = cmds.sphere(name=libName.update(self.node, append="X", suffix="up"))[0]
-        # _up_y = cmds.sphere(name=libName.update(self.node, append="Y", suffix="up"))[0]
-        # _up_z = cmds.sphere(name=libName.update(self.node, append="Z", suffix="up"))[0]
+        cmds.setAttr('%s.translateZ' % self.aim, -0.00000001)
 
-        # self.up_x_shape = cmds.listRelatives(_up_x, type="nurbsSurface")[0]
-        # self.up_y_shape = cmds.listRelatives(_up_y, type="nurbsSurface")[0]
-        # self.up_z_shape = cmds.listRelatives(_up_z, type="nurbsSurface")[0]
+        self.__snapshot_nodes["setup_node"] = self.setup_node
+        self.__snapshot_nodes["scale"] = self.scale
+        self.__snapshot_nodes["aim"] = self.aim
+        self.__snapshot_nodes["node"] = self.node
+        self.__snapshot_nodes["shapes"] = self.shapes
 
-        # _aim_sphere_shapes = []
-        # _aim_sphere_shapes.append(self.up_x_shape)
-        # _aim_sphere_shapes.append(self.up_y_shape)
-        # _aim_sphere_shapes.append(self.up_z_shape)
+        # Tidy up
+        cmds.parent([self.aim], self.setup_node)
+        self.__trash.extend([_sphere])
 
-        # cmds.parent(_aim_sphere_shapes, self.up, r=True, s=True)
-        # cmds.setAttr('%s.translateY' % self.up, 2)
-
-        # # Scale up
-        # _clh = cmds.cluster(_aim_sphere_shapes)[1]
-        # cmds.setAttr('%s.scale' % _clh, 
-        #              self.UP_SCALE_VALUE,
-        #              self.UP_SCALE_VALUE,
-        #              self.UP_SCALE_VALUE,
-        #              type='float3')
-        # cmds.delete(self.up, ch=True)
+    def __create_up(self):
+        """
+        """
 
         self.__up = Up(self)
         self.__up.create()
-
-        # Create main aim transform
-        self.aim = cmds.group(name=libName.update(self.node, suffix="aim"), empty=True)
-
-        cmds.setAttr('%s.translateX' % self.aim, -0.00000001)
-
-        # cmds.addAttr(self.node, ln='AIM', at='enum', en="-")
-        # cmds.setAttr('%s.AIM' % self.node, k=False)
-        # cmds.setAttr('%s.AIM' % self.node, cb=True)
-
-        cmds.addAttr(self.node, ln='aimAt', at='enum', en=":".join(self.DEFAULT_AIMS))
-        cmds.setAttr('%s.aimAt' % self.node, k=False)
-        cmds.setAttr('%s.aimAt' % self.node, cb=True)
-
-        cmds.addAttr(self.node, ln='aimOrder', at='enum', en=":".join(self.AIM_ORDER.keys()))
-        cmds.setAttr('%s.aimOrder' % self.node, k=False)
-        cmds.setAttr('%s.aimOrder' % self.node, cb=True)
 
         _up_conds = []
         for axis_index, axis in enumerate(self.AIM_ORDER):
@@ -794,7 +817,7 @@ class Guide(Node):
             up_cond = cmds.createNode("condition", name=up_name)
             _up_conds.append(up_cond)
 
-            cmds.connectAttr("%s.aimOrder" % self.node, "%s.firstTerm" % up_cond)
+            cmds.connectAttr("%s.aimOrient" % self.node, "%s.firstTerm" % up_cond)
             cmds.setAttr("%s.secondTerm" % up_cond, axis_index)
             cmds.setAttr("%s.colorIfTrueR" % up_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % up_cond, 0)
@@ -805,43 +828,39 @@ class Guide(Node):
             cmds.connectAttr("%s.aimAt" % self.node, "%s.colorIfTrueR" % cond)
 
         # Tidy up
-        cmds.parent([self.up, self.aim], self.setup_node)
-        self.__trash.extend([_sphere])
-
-        self.__snapshot_nodes["setup_node"] = self.setup_node
-        self.__snapshot_nodes["aim"] = self.aim
-        self.__snapshot_nodes["node"] = self.node
-        self.__snapshot_nodes["shapes"] = self.shapes
+        cmds.parent([self.__up.node], self.setup_node)
 
     def __create_attribtues(self):
         """
         """
 
-        # cmds.addAttr(self.node, ln="aimFlip", at="bool", min=0, max=1, dv=0)
-        # cmds.setAttr("%s.aimFlip" % self.node, k=False)
-        # cmds.setAttr("%s.aimFlip" % self.node, cb=True)
-
-        cmds.addAttr(self.node, ln='aimFlip', at='enum', en=":".join(["pos", "neg"]))
-        cmds.setAttr('%s.aimFlip' % self.node, k=False)
-        cmds.setAttr('%s.aimFlip' % self.node, cb=True)
-
-        cmds.addAttr(self.node, ln='debug', at='bool', min=0, max=1, dv=0)
-        cmds.setAttr('%s.debug' % self.node, k=False)
-        cmds.setAttr('%s.debug' % self.node, cb=True)
-        cmds.connectAttr('%s.debug' % self.node, '%s.displayLocalAxis' % self.aim)
-
-        # cmds.addAttr(self.node, ln="rotateOrder", at='enum', en=":".join(self.AIM_ORDER.keys()))
-        # cmds.setAttr("%srotateOrder" % self.node, k=False)
-        # cmds.setAttr("%srotateOrder" % self.node, cb=True)
-
         cmds.setAttr("%s.rotateOrder" % self.node, k=False)
         cmds.setAttr("%s.rotateOrder" % self.node, cb=True)
 
+        cmds.addAttr(self.node, ln="guideScale", at="double", min=0.01, dv=1)
+        cmds.setAttr("%s.guideScale" % self.node, k=False)
+        cmds.setAttr("%s.guideScale" % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln='aimAt', at='enum', en=":".join(self.DEFAULT_AIMS))
+        cmds.setAttr('%s.aimAt' % self.node, k=False)
+        cmds.setAttr('%s.aimAt' % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln='aimOrient', at='enum', en=":".join(self.AIM_ORDER.keys()))
+        cmds.setAttr('%s.aimOrient' % self.node, k=False)
+        cmds.setAttr('%s.aimOrient' % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln="aimFlip", at="bool", min=0, max=1, dv=0)
+        cmds.setAttr("%s.aimFlip" % self.node, k=False)
+        cmds.setAttr("%s.aimFlip" % self.node, cb=True)
+
+        cmds.addAttr(self.node, ln="debug", at="bool", min=0, max=1, dv=0)
+        cmds.setAttr("%s.debug" % self.node, k=False)
+        cmds.setAttr("%s.debug" % self.node, cb=True)
+        cmds.connectAttr("%s.debug" % self.node, "%s.displayLocalAxis" % self.aim)
+
         for key in ["snapshotNodes", "snapshotNondag"]:
-            cmds.addAttr(self.node, ln=key, dt='string')
-            cmds.setAttr('%s.%s' % (self.node, key), k=False)
-
-
+            cmds.addAttr(self.node, ln=key, dt="string")
+            cmds.setAttr("%s.%s" % (self.node, key), k=False)
 
     def __create_aim(self):
         """
@@ -879,8 +898,7 @@ class Guide(Node):
 
         for pair_index, axis in enumerate(self.AIM_ORDER.keys()):
 
-            # Unpack values
-            pos, neg = self.AIM_ORDER[axis]
+            primary, secondary = self.AIM_ORDER[axis]
 
             # Axis condition
             pair_cond = cmds.createNode("condition",
@@ -888,7 +906,7 @@ class Guide(Node):
                                                             append="aim%s" % pair_index,
                                                             suffix="cond"))
 
-            cmds.connectAttr("%s.aimOrder" % self.node, "%s.firstTerm" % pair_cond)
+            cmds.connectAttr("%s.aimOrient" % self.node, "%s.firstTerm" % pair_cond)
             cmds.setAttr("%s.secondTerm" % pair_cond, pair_index)
             cmds.setAttr("%s.colorIfFalse" % pair_cond, *(0, 0, 0), type="float3")
             cmds.connectAttr("%s.outColor" % pair_cond, "%s.input3D[%s]" % (aim_offset_pma, pair_index))
@@ -901,8 +919,8 @@ class Guide(Node):
             cmds.connectAttr("%s.aimFlip" % self.node, "%s.firstTerm" % flip_cond)
             cmds.setAttr("%s.secondTerm" % flip_cond, 1)
 
-            cmds.setAttr("%s.colorIfTrue" % flip_cond, *neg, type="float3")
-            cmds.setAttr("%s.colorIfFalse" % flip_cond, *pos, type="float3")
+            cmds.setAttr("%s.colorIfTrue" % flip_cond, *secondary, type="float3")
+            cmds.setAttr("%s.colorIfFalse" % flip_cond, *primary, type="float3")
             cmds.connectAttr("%s.outColor" % flip_cond, "%s.colorIfTrue" % pair_cond)
 
         self.__snapshot_nondag.append(condition)

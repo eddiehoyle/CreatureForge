@@ -3,7 +3,7 @@
 '''
 '''
 
-# from maya import cmds
+from maya import cmds
 from crefor.lib import libName
 
 class Node(object):
@@ -23,6 +23,9 @@ class Node(object):
                                     self.descrption,
                                     self.index,
                                     self.SUFFIX)
+
+    def exists(self):
+        return cmds.objExists(self.node)
 
     def __str__(self):
         return self.node

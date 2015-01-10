@@ -7,7 +7,7 @@ import json
 from copy import deepcopy
 from maya import cmds
 from crefor.model import Node
-from crefor.lib import libName, libShader
+from crefor.lib import libName, libShader, libAttr
 
 __all__ = ["Connector"]
 
@@ -95,13 +95,6 @@ class Connector(Node):
 
         return json.loads(cmds.getAttr("%s.snapshotGeometry" % self.node)) if self.exists() else {}
 
-    # @property
-    # def setup_node(self):
-    #     """
-    #     """
-
-    #     return libName.update(self.node, suffix="setup", append=self.SUFFIX)
-
     @property
     def parent(self):
         """
@@ -115,13 +108,6 @@ class Connector(Node):
         """
 
         return self.__child
-
-    def exists(self):
-        """exists(self)
-        Does connector exist
-        """
-
-        return cmds.objExists(self.node)
 
     def set_scale(self, value):
         """
@@ -282,7 +268,6 @@ class Connector(Node):
         # Move lattice points to 0 on Y (worldspace)
         cmds.move(0, '%s.pt[*][*][*]' % self.lattice_handle, y=True)
 
-
         _, _start = cmds.cluster(['%s.pt[0:1][1][0]' % self.lattice_handle,
                                   '%s.pt[0:1][1][1]' % self.lattice_handle])
         _, _end = cmds.cluster(['%s.pt[0:1][0][0]' % self.lattice_handle,
@@ -291,8 +276,8 @@ class Connector(Node):
         self.start = cmds.rename(_start, libName.update(self.node, suffix="clh", append="start"))
         self.end = cmds.rename(_end, libName.update(self.node, suffix="clh", append="end"))
 
-        self.start_cl = cmds.rename('%sCluster' % self.start, libName.update(self.node, suffix="cls", append="start"))
-        self.end_cl = cmds.rename('%sCluster' % self.end, libName.update(self.node, suffix="cls", append="end"))
+        self.start_cl = cmds.rename("%sCluster" % self.start, libName.update(self.node, suffix="cls", append="start"))
+        self.end_cl = cmds.rename("%sCluster" % self.end, libName.update(self.node, suffix="cls", append="end"))
 
         self.start_grp = cmds.group(self.start, name=libName.update(self.node, suffix="clhGrp", append="start"))
         self.end_grp = cmds.group(self.end, name=libName.update(self.node, suffix="clhGrp", append="end"))
@@ -300,9 +285,9 @@ class Connector(Node):
         # Hide visibility of deformers
         for clh in [self.start, self.end, self.start_grp, self.end_grp]:
             cmds.xform(clh, piv=(0, 0, 0), ws=True)
-            cmds.setAttr('%s.visibility' % clh, 0)
-        cmds.setAttr('%s.visibility' % self.lattice_handle, 0)
-        cmds.setAttr('%s.visibility' % self.lattice_base, 0)
+            cmds.setAttr("%s.visibility" % clh, 0)
+        cmds.setAttr("%s.visibility" % self.lattice_handle, 0)
+        cmds.setAttr("%s.visibility" % self.lattice_base, 0)
 
         # Apply offset transforms to clusters
         cmds.move(self.CLUSTER_OFFSET * -1, self.start, y=True)
@@ -322,6 +307,15 @@ class Connector(Node):
         # Constrain parent and child joints to cluster grps
         cmds.pointConstraint(self.__parent.node, self.start_grp, mo=False)
         cmds.pointConstraint(self.__child.node, self.end_grp, mo=False)
+
+        # Connect scale to guide
+        for axis in ["X", "Y", "Z"]:
+            cmds.connectAttr("%s.guideScale" % self.parent.node, "%s.scale%s" % (self.start_grp, axis))
+            cmds.connectAttr("%s.guideScale" % self.child.node, "%s.scale%s" % (self.end_grp, axis))
+
+        # Lock all attributes
+        libAttr.lock_all(self.start, hide=True)
+        libAttr.lock_all(self.end, hide=True)
 
         # Store nodes
         self.__burn_nodes["lattice_handle"] = self.lattice_handle
@@ -395,7 +389,7 @@ class Connector(Node):
 
             # Condition that allows odd indexes to be visible
             even_cond = cmds.createNode("condition", name=libName.update(self.node, suffix="cond", append="axisEven%s" % axis))
-            cmds.connectAttr("%s.aimOrder" % self.__parent.node, "%s.firstTerm" % even_cond)
+            cmds.connectAttr("%s.aimOrient" % self.__parent.node, "%s.firstTerm" % even_cond)
             cmds.setAttr("%s.secondTerm" % even_cond, axis_index  + 1)
             cmds.setAttr("%s.colorIfTrueR" % even_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % even_cond, 0)
@@ -403,7 +397,7 @@ class Connector(Node):
 
             # A secondary condition that allows odds to be visible
             odd_cond = cmds.createNode("condition", name=libName.update(self.node, suffix="cond", append="axisOdd%s" % axis))
-            cmds.connectAttr("%s.aimOrder" % self.__parent.node, "%s.firstTerm" % odd_cond)
+            cmds.connectAttr("%s.aimOrient" % self.__parent.node, "%s.firstTerm" % odd_cond)
             cmds.setAttr("%s.secondTerm" % odd_cond, axis_index)
             cmds.setAttr("%s.colorIfTrueR" % odd_cond, 1)
             cmds.setAttr("%s.colorIfFalseR" % odd_cond, 0)
@@ -561,8 +555,8 @@ class Connector(Node):
         self.__create_shader()
         self.__post()
 
-        self.set_start_scale(1)
-        self.set_end_scale(0.1)
+        # self.set_start_scale(1)
+        # self.set_end_scale(0.1)
 
         return self
 
