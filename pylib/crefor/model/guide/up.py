@@ -28,7 +28,6 @@ class Up(Node):
 
         self.__shapes = {}
         self.__snapshot_nodes = {}
-        self.__snapshot_nondag = {}
 
     @property
     def nodes(self):
@@ -41,28 +40,12 @@ class Up(Node):
         **Example**:
 
         >>> arm = Guide("L", "arm", 0).create()
-        >>> arm.nodes
-        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
+        >>> up = Up(arm)
+        >>> up.nodes
+        # Result: {u'nodes': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
         return json.loads(cmds.getAttr("%s.snapshotNodes" % self.node)) if self.exists() else {}
-
-    @property
-    def nondag(self):
-        """nodes(self)
-        Return important nodes from Guide class
-
-        :returns:   Dictionary of important nodes in {"attr": "value"} format
-        :rtype:     dict
-
-        **Example**:
-
-        >>> arm = Guide("L", "arm", 0).create()
-        >>> arm.nodes
-        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
-        """
-
-        return json.loads(cmds.getAttr("%s.snapshotNondag" % self.node)) if self.exists() else {}
 
     def get_shape(self, axis):
         """
@@ -72,6 +55,15 @@ class Up(Node):
             return getattr(self, axis.lower())
         except AttributeError:
             return None
+
+    def get_position(self, local=False):
+        """
+        """
+
+        return cmds.xform(self.node,
+                          q=True,
+                          ws=not local,
+                          t=True) if self.exists() else None
 
     def flip(self):
         """
@@ -89,13 +81,14 @@ class Up(Node):
             cmds.setAttr("%s.translateY" % self.node,
                          (cmds.getAttr("%s.translateY" % self.node) * -1))
 
-    def set_translates(self, vector3f):
+    def set_position(self, vector3f, local=False):
         """
         """
 
         if self.exists():
             try:
-                cmds.setAttr("%s.translate" % self.node, *vector3f, type="float3")
+                # cmds.setAttr("%s.translate" % self.node, *vector3f, type="float3")
+                cmds.xform(self.node, ws=not local, t=vector3f)
             except Exception:
                 logger.error("Failed to set translates on '%s' with args: '%s'" % (self.node, vector3f))
 
@@ -104,6 +97,12 @@ class Up(Node):
         """
 
         self.node = cmds.group(name=self.node, empty=True)
+        self.grp = cmds.group(self.node, name=libName.update(self.node, append="up", suffix="grp"))
+
+        for attr in ["translate", "rotate"]:
+            for axis in ["X", "Y", "Z"]:
+                cmds.setAttr("%s.%s%s" % (self.grp, attr, axis), k=False)
+                cmds.setAttr("%s.%s%s" % (self.grp, attr, axis), l=True)
 
         for attr in ["rotate", "scale"]:
             for axis in ["X", "Y", "Z"]:
@@ -112,28 +111,29 @@ class Up(Node):
         cmds.setAttr("%s.visibility" % self.node, k=False)
         cmds.setAttr("%s.visibility" % self.node, l=True)
 
-        _x = cmds.sphere(name=libName.update(self.node, append="X", suffix="up"))[0]
-        _y = cmds.sphere(name=libName.update(self.node, append="Y", suffix="up"))[0]
-        _z = cmds.sphere(name=libName.update(self.node, append="Z", suffix="up"))[0]
+        _x = cmds.sphere(name=libName.update(self.node, append="X", suffix="up"), radius=self.DEFAULT_SCALE)[0]
+        _y = cmds.sphere(name=libName.update(self.node, append="Y", suffix="up"), radius=self.DEFAULT_SCALE)[0]
+        _z = cmds.sphere(name=libName.update(self.node, append="Z", suffix="up"), radius=self.DEFAULT_SCALE)[0]
 
         self.x = cmds.listRelatives(_x, type="nurbsSurface")[0]
         self.y = cmds.listRelatives(_y, type="nurbsSurface")[0]
         self.z = cmds.listRelatives(_z, type="nurbsSurface")[0]
 
-        self.__shapes["x"] = self.x
-        self.__shapes["y"] = self.y
-        self.__shapes["z"] = self.z
-
         cmds.parent([self.x, self.y, self.z], self.node, r=True, s=True)
 
-        # Scale up
-        # _clh = cmds.cluster(self.__shapes.values())[1]
-        # cmds.setAttr("%s.scale" % _clh, *(Up.SCALE, Up.SCALE, Up.SCALE), type="float3")
+        for axis in ["X", "Y", "Z"]:
+            cmds.connectAttr("%s.guideScale" % self.guide.node, "%s.scale%s" % (self.grp, axis))
 
         # Tidy up
+        cmds.parent(self.grp, self.guide.setup_node)
+
         cmds.delete(self.node, ch=True)
         cmds.delete([_x, _y, _z])
-        self.__snapshot_nodes = self.__shapes
+
+        self.__snapshot_nodes["x"] = self.x
+        self.__snapshot_nodes["y"] = self.y
+        self.__snapshot_nodes["z"] = self.z
+        self.__snapshot_nodes["grp"] = self.grp
 
         # Add attributes
         cmds.addAttr(self.node, ln="guideScale", at="double", min=0.01, dv=1)
@@ -146,33 +146,8 @@ class Up(Node):
         self.scale = cmds.rename(_scale, libName.update(self.node, append="upScale", suffix="clh"))
         cmds.parent(self.scale, self.node)
 
-        _cl, _scale = cmds.cluster([self.x, self.y, self.z])
-        cmds.setAttr("%s.relative" % _cl, True)
-        self.scale_inh = cmds.rename(_scale, libName.update(self.node, append="upInheritScale", suffix="clh"))
-        cmds.parent(self.scale_inh, self.node)
-
-        pma = cmds.createNode("plusMinusAverage")
-        md = cmds.createNode("multiplyDivide")
-        cmds.setAttr("%s.input2" % md, *(Up.DEFAULT_SCALE, Up.DEFAULT_SCALE, Up.DEFAULT_SCALE), type="float3")
-        for axis in ["x", "y", "z"]:
-
-            cmds.setAttr("%s.input3D[0].input3D%s" % (pma, axis), -1)
-
-            cmds.connectAttr("%s.guideScale" % self.node, "%s.input3D[1].input3D%s" % (pma, axis))
-            cmds.connectAttr("%s.guideScale" % self.guide.node, "%s.input1%s" % (md, axis.upper()))
-            cmds.connectAttr("%s.output%s" % (md, axis.upper()), "%s.input3D[2].input3D%s" % (pma, axis))
-
-            cmds.connectAttr("%s.output3D%s" % (pma, axis), "%s.scale%s" % (self.scale, axis.upper()))
-
-        up_pma = cmds.createNode("plusMinusAverage")
-        up_md = cmds.createNode("multiplyDivide")
-        cmds.setAttr("%s.input1D[0]" % up_pma, -2)
-        cmds.setAttr("%s.input2X" % up_md, 2)
-
-        cmds.connectAttr("%s.guideScale" % self.guide.node, "%s.input1X" % up_md)
-        cmds.connectAttr("%s.outputX" % up_md, "%s.input1D[1]" % up_pma)
-        cmds.connectAttr("%s.output1D" % up_pma, "%s.translateY" % self.scale_inh)
-        print up_pma
+        for axis in ["X", "Y", "Z"]:
+            cmds.connectAttr("%s.guideScale" % self.node, "%s.scale%s" % (self.scale, axis))
 
         # Offset node
         cmds.setAttr("%s.translateY" % self.node, 2)
@@ -192,9 +167,9 @@ class Up(Node):
                                                         index=0,
                                                         suffix="shd"), "lambert")
 
-            cmds.setAttr('%s.color' % shader, *rgb, type='float3')
-            cmds.setAttr('%s.incandescence' % shader, *rgb, type='float3')
-            cmds.setAttr('%s.diffuse' % shader, 0)
+            cmds.setAttr("%s.color" % shader, *rgb, type="float3")
+            cmds.setAttr("%s.incandescence" % shader, *rgb, type="float3")
+            cmds.setAttr("%s.diffuse" % shader, 0)
 
             cmds.sets(self.get_shape(axis),
                       edit=True,
@@ -211,16 +186,28 @@ class Up(Node):
             cmds.setAttr('%s.%s' % (self.node, key), k=False)
 
         cmds.setAttr("%s.snapshotNodes" % self.node, json.dumps(self.__snapshot_nodes), type="string")
-        cmds.setAttr("%s.snapshotNondag" % self.node, json.dumps(self.__snapshot_nondag), type="string")
+
+        # Lock down cluster
+        cmds.setAttr("%s.visibility" % self.scale, False)
+        libAttr.lock_translates(self.scale, hide=True)
+        libAttr.lock_rotates(self.scale, hide=True)
+        libAttr.lock_vis(self.scale, hide=True)
 
     def create(self):
         """
         """
 
+        if self.exists():
+            msg = "Cannot create Up model '%s', already exists with guide: '%s'" % (self.node, self.guide.node)
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         self.__create_nodes()
         self.__create_shaders()
 
         self.__post()
+
+        return self
 
     def reinit(self):
         """

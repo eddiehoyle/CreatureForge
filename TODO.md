@@ -2,7 +2,6 @@
 - [ ] Finish up guide scaling and up model inheriting guide scale
 - [ ] Figure out what's left to build for a release
 
-
 # Low tier
 - [ ] Create Joint model for decompiling a joint into guide
 

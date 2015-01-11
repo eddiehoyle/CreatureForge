@@ -313,6 +313,8 @@ class Connector(Node):
             cmds.connectAttr("%s.guideScale" % self.parent.node, "%s.scale%s" % (self.start_grp, axis))
             cmds.connectAttr("%s.guideScale" % self.child.node, "%s.scale%s" % (self.end_grp, axis))
 
+            cmds.setAttr("%s.scale%s" % (self.end, axis), 0.1)
+
         # Lock all attributes
         libAttr.lock_all(self.start, hide=True)
         libAttr.lock_all(self.end, hide=True)
