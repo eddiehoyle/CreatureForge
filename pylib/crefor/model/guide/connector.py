@@ -38,11 +38,10 @@ class Connector(Node):
         self.__shaders = {}
 
         # Collection of nodes for re-init
-        self.__burn_aim = None
-        self.__burn_states = dict()
-        self.__burn_nodes = dict()
-        self.__burn_nondag = []
-        self.__burn_geometry = {}
+        self.__nodes = {}
+        self.__nondag = []
+        self.__states = {}
+        self.__geo = {}
 
     @property
     def nodes(self):
@@ -59,7 +58,11 @@ class Connector(Node):
         # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotNodes" % self.node)) if self.exists() else {}
+        if self.exists():
+            if not self.__nodes:
+                self.__nodes = json.loads(cmds.getAttr("%s.nodes" % self.node))
+            return self.__nodes
+        return {}
 
     @property
     def nondag(self):
@@ -76,10 +79,31 @@ class Connector(Node):
         # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotNondag" % self.node)) if self.exists() else {}
+        return json.loads(cmds.getAttr("%s.nondag" % self.node)) if self.exists() else {}
 
     @property
-    def geometry(self):
+    def states(self):
+        """nodes(self)
+        Return important nodes from Guide class
+
+        :returns:   Dictionary of important nodes in {"attr": "value"} format
+        :rtype:     dict
+
+        **Example**:
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.nodes
+        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
+        """
+
+        if self.exists():
+            if not self.__states:
+                self.__states = json.loads(cmds.getAttr("%s.states" % self.node))
+            return self.__states
+        return {}
+
+    @property
+    def geo(self):
         """geometry(self)
         Return geometry from Guide class
 
@@ -93,7 +117,7 @@ class Connector(Node):
         # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotGeometry" % self.node)) if self.exists() else {}
+        return json.loads(cmds.getAttr("%s.geo" % self.node)) if self.exists() else {}
 
     @property
     def parent(self):
@@ -186,16 +210,21 @@ class Connector(Node):
 
         return [self.__get_grp(axis) for axis in ["X", "Y", "Z", "N"]]
 
-    def __create_setup_node(self):
+    def __create_nodes(self):
         """
         Top node is a group node that is parent of all connector nodes
         """
 
         cmds.group(name=self.node, empty=True)
         cmds.setAttr('%s.inheritsTransform' % self.node, False)
-        cmds.parent(self.node, self.__parent.setup_node)
+        cmds.parent(self.node, self.__parent.setup)
 
-        self.__burn_nodes["node"] = self.node
+        # Attributes for reinit
+        for key in ["nodes", "geo", "nondag", "states"]:
+            cmds.addAttr(self.node, ln=key, dt='string')
+            cmds.setAttr('%s.%s' % (self.node, key), k=False)
+
+        self.__nodes["node"] = self.node
 
     def __create_geometry(self):
         """
@@ -244,7 +273,7 @@ class Connector(Node):
             self.__geometry[axis] = dict(solid=solid, dashed=dashed, grp=grp)
 
         # Burn geometry
-        self.__burn_geometry = deepcopy(self.__geometry)
+        self.__geo = deepcopy(self.__geometry)
 
     def __create_deformers(self):
         """
@@ -320,10 +349,10 @@ class Connector(Node):
         libAttr.lock_all(self.end, hide=True)
 
         # Store nodes
-        self.__burn_nodes["lattice_handle"] = self.lattice_handle
-        self.__burn_nodes["lattice_base"] = self.lattice_base
-        self.__burn_nodes["start_grp"] = self.start_grp
-        self.__burn_nodes["end_grp"] = self.end_grp
+        self.__nodes["lattice_handle"] = self.lattice_handle
+        self.__nodes["lattice_base"] = self.lattice_base
+        self.__nodes["start_grp"] = self.start_grp
+        self.__nodes["end_grp"] = self.end_grp
 
         # Parent geometry groups
         cmds.parent(self.__get_all_grps(), self.node)
@@ -348,11 +377,11 @@ class Connector(Node):
             # Update index to reflect alias index of child
             cmds.setAttr("%s.secondTerm" % self.__aim_cond, enum_index)
 
-            state_conds = json.loads(cmds.getAttr("%s.snapshotStates" % self.node))
+            state_conds = json.loads(cmds.getAttr("%s.states" % self.node))
             for key, node in state_conds.items():
                 cmds.setAttr("%s.secondTerm" % node, enum_index)
 
-    def __create_visibilty_network(self):
+    def __create_visibility(self):
         """
         Create visibility nodes
         """
@@ -379,7 +408,8 @@ class Connector(Node):
         cmds.setAttr('%s.aimAt' % self.__parent.node, enum_index)
 
         # Store
-        self.__burn_nondag.append(self.__aim_cond)
+        # self.__nondag.append(self.__aim_cond)
+        self.__nodes["__aim_cond"] = self.__aim_cond
 
         # Loop through X, Y and Z axis to create vis network for
         # solid and dashed geometry state
@@ -425,7 +455,7 @@ class Connector(Node):
             cmds.setAttr("%s.colorIfFalseR" % state_cond, 0)
 
             # Store for reinit
-            self.__burn_states[axis] = state_cond
+            self.__states[axis] = state_cond
 
             # Geometry
             solid = self.__get_transform(axis, "solid")
@@ -437,7 +467,7 @@ class Connector(Node):
             cmds.connectAttr("%s.outputX" % state_rev, "%s.visibility" % dashed)
             cmds.connectAttr("%s.outColorR" % state_cond, "%s.visibility" % solid)
 
-            self.__burn_nondag.extend([odd_cond, even_cond, state_rev, state_cond])
+            self.__nondag.extend([odd_cond, even_cond, state_rev, state_cond])
 
         # The N axis is when world/local aim is set on parent joint aim
         # This allows for grey dashed geometry to be visible
@@ -462,7 +492,7 @@ class Connector(Node):
         cmds.setAttr("%s.visibility" % solid, 0)
         cmds.setAttr("%s.visibility" % dashed, 1)
 
-        self.__burn_nondag.append(n_cond)
+        self.__nondag.append(n_cond)
 
         # Loop through all aliases on and set non-connected attributes to be 0
         for alias in aliases:
@@ -502,20 +532,15 @@ class Connector(Node):
         """
         """
 
-        for key in ["snapshotNodes", "snapshotGeometry", "snapshotNondag", "snapshotAim", "snapshotStates"]:
-            cmds.addAttr(self.node, ln=key, dt='string')
-            cmds.setAttr('%s.%s' % (self.node, key), k=False)
-
     def __post(self):
         """
         """
 
         # Burn in nodes
-        cmds.setAttr("%s.snapshotAim" % self.node, json.dumps(self.__aim_cond), type="string")
-        cmds.setAttr("%s.snapshotNodes" % self.node, json.dumps(self.__burn_nodes), type="string")
-        cmds.setAttr("%s.snapshotStates" % self.node, json.dumps(self.__burn_states), type="string")
-        cmds.setAttr("%s.snapshotNondag" % self.node, json.dumps(self.__burn_nondag), type="string")
-        cmds.setAttr("%s.snapshotGeometry" % self.node, json.dumps(self.__burn_geometry), type="string")
+        cmds.setAttr("%s.nodes" % self.node, json.dumps(self.__nodes), type="string")
+        cmds.setAttr("%s.states" % self.node, json.dumps(self.__states), type="string")
+        cmds.setAttr("%s.nondag" % self.node, json.dumps(self.__nondag), type="string")
+        cmds.setAttr("%s.geo" % self.node, json.dumps(self.__geo), type="string")
 
         # Remove selection access
         cmds.setAttr("%s.overrideEnabled" % self.node, 1)
@@ -529,12 +554,17 @@ class Connector(Node):
         if not self.exists():
             raise Exception('Cannot reinit \'%s\' as connector does not exist.' % self.node)
 
+        self.__nodes = json.loads(cmds.getAttr("%s.nodes" % self.node))
+        self.__nondag = json.loads(cmds.getAttr("%s.nondag" % self.node))
+        self.__states = json.loads(cmds.getAttr("%s.states" % self.node))
+        self.__geo = json.loads(cmds.getAttr("%s.geo" % self.node))
+
+        # Unique attribute
+        self.__aim_cond = self.nodes.pop("__aim_cond")
+
         # Get setup node:
         for key, item in self.nodes.items():
             setattr(self, key, item)
-
-        # Restore aim condition
-        self.__aim_cond = json.loads(cmds.getAttr("%s.snapshotAim" % self.node))
 
         # Refresh aim index
         self.__update_aim_index()
@@ -549,16 +579,12 @@ class Connector(Node):
         if self.exists():
             return self.reinit()
 
-        self.__create_setup_node()
-        self.__create_attribtues()
+        self.__create_nodes()
         self.__create_geometry()
         self.__create_deformers()
-        self.__create_visibilty_network()
+        self.__create_visibility()
         self.__create_shader()
         self.__post()
-
-        # self.set_start_scale(1)
-        # self.set_end_scale(0.1)
 
         return self
 
@@ -566,9 +592,9 @@ class Connector(Node):
         """
         """
 
-        geometry = []
-        for axis in self.geometry:
-            geometry.extend(self.geometry[axis].values())
+        # geo = []
+        # for axis in self.geo:
+        #     geo.extend(self.geo[axis].values())
 
         cmds.delete(self.nondag)
         cmds.delete(self.node)

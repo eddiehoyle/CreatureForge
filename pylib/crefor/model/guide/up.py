@@ -27,7 +27,7 @@ class Up(Node):
         self.guide = guide
 
         self.__shapes = {}
-        self.__snapshot_nodes = {}
+        self.__nodes = {}
 
     @property
     def nodes(self):
@@ -45,7 +45,11 @@ class Up(Node):
         # Result: {u'nodes': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotNodes" % self.node)) if self.exists() else {}
+        if self.exists():
+            if not self.__nodes:
+                self.__nodes = json.loads(cmds.getAttr("%s.nodes" % self.node))
+            return self.__nodes
+        return {}
 
     def get_shape(self, axis):
         """
@@ -87,7 +91,6 @@ class Up(Node):
 
         if self.exists():
             try:
-                # cmds.setAttr("%s.translate" % self.node, *vector3f, type="float3")
                 cmds.xform(self.node, ws=not local, t=vector3f)
             except Exception:
                 logger.error("Failed to set translates on '%s' with args: '%s'" % (self.node, vector3f))
@@ -125,15 +128,15 @@ class Up(Node):
             cmds.connectAttr("%s.guideScale" % self.guide.node, "%s.scale%s" % (self.grp, axis))
 
         # Tidy up
-        cmds.parent(self.grp, self.guide.setup_node)
+        cmds.parent(self.grp, self.guide.setup)
 
         cmds.delete(self.node, ch=True)
         cmds.delete([_x, _y, _z])
 
-        self.__snapshot_nodes["x"] = self.x
-        self.__snapshot_nodes["y"] = self.y
-        self.__snapshot_nodes["z"] = self.z
-        self.__snapshot_nodes["grp"] = self.grp
+        self.__nodes["x"] = self.x
+        self.__nodes["y"] = self.y
+        self.__nodes["z"] = self.z
+        self.__nodes["grp"] = self.grp
 
         # Add attributes
         cmds.addAttr(self.node, ln="guideScale", at="double", min=0.01, dv=1)
@@ -181,11 +184,11 @@ class Up(Node):
         """
 
         # Burn in nodes
-        for key in ["snapshotNodes", "snapshotNondag"]:
+        for key in ["nodes", "snapshotNondag"]:
             cmds.addAttr(self.node, ln=key, dt='string')
             cmds.setAttr('%s.%s' % (self.node, key), k=False)
 
-        cmds.setAttr("%s.snapshotNodes" % self.node, json.dumps(self.__snapshot_nodes), type="string")
+        cmds.setAttr("%s.nodes" % self.node, json.dumps(self.__nodes), type="string")
 
         # Lock down cluster
         cmds.setAttr("%s.visibility" % self.scale, False)
@@ -215,6 +218,9 @@ class Up(Node):
 
         for key, item in self.nodes.items():
             setattr(self, key, item)
+
+        # Get snapshot
+        self.__nodes = json.loads(cmds.getAttr("%s.nodes" % self.node))
 
         return self
 

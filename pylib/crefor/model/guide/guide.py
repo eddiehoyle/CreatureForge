@@ -7,7 +7,6 @@ Guide model
 import time
 import json
 from maya import cmds
-from copy import deepcopy
 
 from collections import OrderedDict
 from crefor.lib import libName, libShader, libAttr
@@ -90,9 +89,8 @@ class Guide(Node):
 
         self.__trash = []
 
-        self.__snapshot_nodes = {}
-        self.__snapshot_nondag = []
-        self.__nondag_nodes = {}
+        self.__nodes = {}
+        self.__nondag = []
 
     def create(self):
         """create()
@@ -129,6 +127,10 @@ class Guide(Node):
 
         self.up = Up(self).reinit()
 
+        # Get snapshot
+        self.__nodes = json.loads(cmds.getAttr("%s.nodes" % self.node))
+        self.__nondag = json.loads(cmds.getAttr("%s.nondag" % self.node))
+
         return self
 
     def duplicate(self):
@@ -147,7 +149,7 @@ class Guide(Node):
             self.strip()
 
             cmds.delete(self.nondag)
-            cmds.delete(self.setup_node)
+            cmds.delete(self.setup)
             cmds.delete(self.node)
 
     def compile(self):
@@ -202,15 +204,6 @@ class Guide(Node):
     # Properties
     # ======================================================================== #
 
-    # @property
-    # def up(self):
-    #     """up
-    #     Return up
-    #     """
-
-    #     if self.exists():
-    #         return self.up.node
-
     @property
     def nodes(self):
         """nodes()
@@ -226,7 +219,11 @@ class Guide(Node):
         # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotNodes" % self.node)) if self.exists() else {}
+        if self.exists():
+            if not self.__nodes:
+                self.__nodes = json.loads(cmds.getAttr("%s.nodes" % self.node))
+            return self.__nodes
+        return {}
 
     @property
     def nondag(self):
@@ -243,7 +240,11 @@ class Guide(Node):
         # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
         """
 
-        return json.loads(cmds.getAttr("%s.snapshotNondag" % self.node)) if self.exists() else {}
+        if self.exists():
+            if not self.__nondag:
+                self.__nondag = json.loads(cmds.getAttr("%s.nondag" % self.node))
+            return self.__nondag
+        return {}
 
     @property
     def short_name(self):
@@ -692,8 +693,7 @@ class Guide(Node):
             return
 
         # Remove connector
-        connectors = deepcopy(self.connectors)
-
+        connectors = self.connectors
         for con in connectors:
             if con.parent == self:
                 con.remove()
@@ -761,7 +761,7 @@ class Guide(Node):
         cmds.setAttr("%s.debug" % self.node, k=False)
         cmds.setAttr("%s.debug" % self.node, cb=True)
 
-        for key in ["snapshotNodes", "snapshotNondag"]:
+        for key in ["nodes", "nondag"]:
             cmds.addAttr(self.node, ln=key, dt="string")
             cmds.setAttr("%s.%s" % (self.node, key), k=False)
 
@@ -772,14 +772,14 @@ class Guide(Node):
         cmds.setAttr('%s.drawStyle' % self.node, 2)
 
         # Setup node
-        self.setup_node = cmds.group(name=libName.update(self.node, suffix="setup"), empty=True)
-        cmds.pointConstraint(self.node, self.setup_node, mo=False)
+        self.setup = cmds.group(name=libName.update(self.node, suffix="setup"), empty=True)
+        cmds.pointConstraint(self.node, self.setup, mo=False)
 
         # Create scale cluster
         _cl, _scale = cmds.cluster(self.shapes)
         cmds.setAttr("%s.relative" % _cl, True)
         self.scale = cmds.rename(_scale, libName.update(self.node, append="scale", suffix="clh"))
-        cmds.parent(self.scale, self.setup_node)
+        cmds.parent(self.scale, self.setup)
 
         # _ = cmds.spaceLocator()
         # loc = cmds.listRelatives(_, children=True)[0]
@@ -807,14 +807,14 @@ class Guide(Node):
 
         cmds.setAttr('%s.translateZ' % self.aim, -0.00000001)
 
-        self.__snapshot_nodes["setup_node"] = self.setup_node
-        self.__snapshot_nodes["scale"] = self.scale
-        self.__snapshot_nodes["aim"] = self.aim
-        self.__snapshot_nodes["node"] = self.node
-        self.__snapshot_nodes["shapes"] = self.shapes
+        self.__nodes["setup"] = self.setup
+        self.__nodes["scale"] = self.scale
+        self.__nodes["aim"] = self.aim
+        self.__nodes["node"] = self.node
+        self.__nodes["shapes"] = self.shapes
 
         # Tidy up
-        cmds.parent([self.aim], self.setup_node)
+        cmds.parent([self.aim], self.setup)
         self.__trash.extend([_sphere])
 
     def __create_up(self):
@@ -853,7 +853,7 @@ class Guide(Node):
         """
 
         # Create local orient
-        self.orient = cmds.orientConstraint(self.node, self.setup_node, mo=True)[0]
+        self.orient = cmds.orientConstraint(self.node, self.setup, mo=True)[0]
         aliases = cmds.orientConstraint(self.orient, q=True, wal=True)
         targets = cmds.orientConstraint(self.orient, q=True, tl=True)
         index = targets.index(self.node)
@@ -909,16 +909,16 @@ class Guide(Node):
             cmds.setAttr("%s.colorIfFalse" % flip_cond, *primary, type="float3")
             cmds.connectAttr("%s.outColor" % flip_cond, "%s.colorIfTrue" % pair_cond)
 
-        self.__snapshot_nondag.append(condition)
-        self.__snapshot_nodes["constraint"] = self.constraint
+        self.__nondag.append(condition)
+        self.__nodes["constraint"] = self.constraint
 
     def __create_shader(self):
 
         self.shader, self.sg = libShader.get_or_create_shader("C_guide_0_shd", 'lambert')
         cmds.sets(self.shapes, edit=True, forceElement=self.sg)
 
-        self.__snapshot_nodes["shader"] = self.shader
-        self.__snapshot_nodes["sg"] = self.sg
+        self.__nodes["shader"] = self.shader
+        self.__nodes["sg"] = self.sg
 
         rgb = (1, 1, 0)
         cmds.setAttr('%s.color' % self.shader, *rgb, type='float3')
@@ -934,5 +934,5 @@ class Guide(Node):
         cmds.delete(self.__trash)
 
         # Burn in nodes
-        cmds.setAttr("%s.snapshotNodes" % self.node, json.dumps(self.__snapshot_nodes), type="string")
-        cmds.setAttr("%s.snapshotNondag" % self.node, json.dumps(self.__snapshot_nondag), type="string")
+        cmds.setAttr("%s.nodes" % self.node, json.dumps(self.__nodes), type="string")
+        cmds.setAttr("%s.nondag" % self.node, json.dumps(self.__nondag), type="string")
