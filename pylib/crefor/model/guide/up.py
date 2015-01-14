@@ -184,7 +184,7 @@ class Up(Node):
         """
 
         # Burn in nodes
-        for key in ["nodes", "snapshotNondag"]:
+        for key in ["nodes"]:
             cmds.addAttr(self.node, ln=key, dt='string')
             cmds.setAttr('%s.%s' % (self.node, key), k=False)
 

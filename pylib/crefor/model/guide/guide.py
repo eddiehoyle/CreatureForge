@@ -148,6 +148,8 @@ class Guide(Node):
 
             self.strip()
 
+            self.up.remove()
+
             cmds.delete(self.nondag)
             cmds.delete(self.setup)
             cmds.delete(self.node)
@@ -352,28 +354,6 @@ class Guide(Node):
                 msg = "Primary and/or secondary axis not valid: %s, %s" % (primary, secondary)
                 raise ValueError(msg)
 
-    # def set_orient(self, vector3f):
-    #     """
-    #     """
-
-    #     if self.exists():
-
-    #         snapshot = self.get_snapshot()
-
-    #         for child in self.children:
-    #             self.remove_child(child)
-
-    #         cmds.setAttr("%s.nodeOrient" % self.node, *vector3f, type="float3")
-
-    #         children = snapshot["children"]
-    #         if children:
-    #             for child in children:
-    #                 self.add_child(child)
-
-    #         aim_at = snapshot["aim_at"]
-    #         enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(':')
-    #         cmds.setAttr("%s.aimAt" % self.node, enums.index(aim_at))
-
     def set_scale(self, value):
         """
         Scale guide and related connectors
@@ -391,7 +371,7 @@ class Guide(Node):
         if selected:
             cmds.select(selected, r=True)
 
-    def set_aim_at(self, guide, add=False):
+    def aim_at(self, guide, add=False):
         """
         Aim at input guide if it is a child. If not, then use the
         add boolean argument to create as a child and aim at it.
@@ -424,14 +404,21 @@ class Guide(Node):
             enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
             cmds.setAttr("%s.aimAt" % self.node, enums.index(guide.aim))
 
-    def set_translates(self, vector3f):
+    def aim_flip(self, value):
+        """
+        """
+
+        if self.exists():
+            cmds.setAttr("%s.aimFlip" % self.node, bool(value))
+
+    def set_position(self, vector3f, local=False):
         """
         Set position of guide
         """
 
         if self.exists():
             logger.debug("Setting '%s' position: %s" % (self.node, vector3f))
-            cmds.xform(self.node, ws=True, t=vector3f)
+            cmds.xform(self.node, ws=not local, t=vector3f)
 
     def set_debug(self, debug):
         """
@@ -490,6 +477,29 @@ class Guide(Node):
             msg = "Guide '%s' is not a child of: '%s'" % (guide.node, self.node)
             logger.error(msg)
             raise RuntimeError(msg)
+
+    def snapshot(self):
+        """snapshot()
+        Get a dictionary snapshot of guide data.
+
+        :returns:           Dictionary of relevant guide information
+        :rtype:             dict
+
+        **Example**:
+
+        >>> root = Guide("C", "root", 0)
+        >>> root.snapshot()
+        """
+
+        return dict(node=self.node,
+                    parent=self.parent.node if self.parent else None,
+                    children=[c.node for c in self.children],
+                    aim_at=self.get_aim_at(),
+                    aim_flip=bool(cmds.getAttr("%s.aimFlip" % self.node)),
+                    position=self.get_position(local=False),
+                    up_position=self.get_up_position(local=False),
+                    primary=self.primary,
+                    secondary=self.secondary) if self.exists() else {}
 
     # ======================================================================== #
     # Public
@@ -620,28 +630,6 @@ class Guide(Node):
         """
 
         self.__remove_aim(guide)
-
-    def get_snapshot(self):
-        """get_snapshot()
-        Get a dictionary snapshot of guide data.
-
-        :returns:           Dictionary of relevant guide information
-        :rtype:             dict
-
-        **Example**:
-
-        >>> root = Guide("C", "root", 0)
-        >>> root.get_snapshot()
-        """
-
-        return dict(node=self.node,
-                    parent=self.parent.node if self.parent else None,
-                    children=[c.node for c in self.children],
-                    aim_at=self.get_aim_at(),
-                    position=self.get_position(local=False),
-                    up_position=self.get_up_position(local=False),
-                    primary=self.primary,
-                    secondary=self.secondary) if self.exists() else {}
 
     # ======================================================================== #
     # Private
@@ -781,9 +769,14 @@ class Guide(Node):
         self.scale = cmds.rename(_scale, libName.update(self.node, append="scale", suffix="clh"))
         cmds.parent(self.scale, self.setup)
 
-        # _ = cmds.spaceLocator()
-        # loc = cmds.listRelatives(_, children=True)[0]
-        # cmds.parent(loc, self.node, r=True, s=True)
+        # Lock down scale
+        for attr in ["translate", "rotate"]:
+            for axis in ["X", "Y", "Z"]:
+                cmds.setAttr("%s.%s%s" % (self.scale, attr, axis), k=False)
+                cmds.setAttr("%s.%s%s" % (self.scale, attr, axis), l=True)
+        cmds.setAttr("%s.visibility" % self.scale, 0)
+        cmds.setAttr("%s.visibility" % self.scale, k=False)
+        cmds.setAttr("%s.visibility" % self.scale, l=True)
 
         for axis in ["X", "Y", "Z"]:
             cmds.connectAttr("%s.guideScale" % self.node, "%s.scale%s" % (self.scale, axis))

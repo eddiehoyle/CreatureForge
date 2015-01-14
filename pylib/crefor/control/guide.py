@@ -288,7 +288,7 @@ def compile():
     for guide in guides:
         guide.remove()
 
-    return joints
+    return joints.values()
 
 def decompile():
     """decompile()
@@ -428,11 +428,7 @@ def write(path, guides=[]):
     # Create a data snapshot dict of guide
     data = {}
     for guide in guides:
-        data[guide.node] = dict(children=[c.node for c in guide.children],
-                                parent=guide.parent.node if guide.parent else None,
-                                xform=guide.get_translates(),
-                                aim_at=guide.get_aim_at(),
-                                axis=guide.get_axis())
+        data[guide.node] = guide.snapshot()
 
     # Write file to disk
     try:
@@ -477,19 +473,24 @@ def read(path, compile_guides=False):
         if not cmds.objExists(guide):
             raise NameError("Guide '%s' does not exist." % guide)
 
-    # Set guides translates
-    for guide in data.keys():
+    # Setup behaviour
+    for guide, snapshot in data.items():
         guide = validate(guide)
-        guide.set_translates(data[guide.node]["xform"])
 
-    # Create hierarchy, set aim targets
-    for guide in data.keys():
+        guide.set_position(snapshot["position"], local=False)
+        guide.set_axis(snapshot["primary"], snapshot["secondary"])
+
+    # Create hierarchy
+    for guide, snapshot in data.items():
         guide = validate(guide)
-        for child in data[guide.node]["children"]:
+        for child in snapshot["children"]:
             child = validate(child)
             add_child(guide, child)
-            guide.set_axis(*data[guide.node]["axis"][:2])
-        guide.set_aim_at(data[guide.node]["aim_at"])
+
+        guide.up.set_position(snapshot["up_position"], local=False)
+
+        guide.aim_flip(snapshot["aim_flip"])
+        guide.aim_at(snapshot["aim_at"])
 
     # Compile into joints
     if compile_guides:
