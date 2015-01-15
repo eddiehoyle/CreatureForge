@@ -10,6 +10,7 @@ from crefor import log
 from crefor.lib import libName, libShader, libAttr
 from crefor.model import Node
 
+from crefor import log
 logger = log.get_logger(__name__)
 
 __all__ = ["Up"]

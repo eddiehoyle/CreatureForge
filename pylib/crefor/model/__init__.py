@@ -6,12 +6,33 @@
 from maya import cmds
 from crefor.lib import libName
 
+from crefor import log
+logger = log.get_logger(__name__)
+
 class Node(object):
     '''
     Base node
     '''
 
     SUFFIX = 'nde'
+
+    @classmethod
+    def validate(cls, node):
+        """validate(node)
+        """
+
+        if isinstance(node, cls) and str(node).endswith(cls.SUFFIX):
+            return node
+        else:
+            try:
+                if not str(node).endswith(cls.SUFFIX):
+                    raise Exception
+                return cls(*libName.decompile(str(node), 3)).reinit()
+            except Exception as e:
+                msg = "Failed to initialise node as %s: '%s'" % (cls.__name__, node)
+                e.args = [msg]
+                logger.error(msg)
+                raise
 
     def __init__(self, position, descrption, index=0):
         

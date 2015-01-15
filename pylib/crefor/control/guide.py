@@ -10,10 +10,10 @@ import os
 import json
 from maya import cmds
 
-from crefor import log
 from crefor.lib import libUtil, libXform, libName
 from crefor.model.guide.guide import Guide
 
+from crefor import log
 logger = log.get_logger(__name__)
 
 def create(position, description, index=0):

@@ -1,5 +1,4 @@
 # IMPORTANT
-- [ ] Finish up guide scaling and up model inheriting guide scale
 - [ ] Figure out what's left to build for a release
 
 # Low tier
@@ -9,6 +8,7 @@
 - [ ] Build main window
 
 ## Done
+- [x] Finish up guide scaling and up model inheriting guide scale
 - [x] Fix up model
 - [x] Write template save/load logic
 - [x] Update connector model with colored 'up' nodes

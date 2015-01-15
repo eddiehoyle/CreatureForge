@@ -13,8 +13,9 @@ from crefor.lib import libName, libShader, libAttr
 from crefor.model import Node
 from crefor.model.guide.connector import Connector
 from crefor.model.guide.up import Up
-from crefor import log
+from crefor.model.shader import Shader
 
+from crefor import log
 logger = log.get_logger(__name__)
 
 __all__ = ["Guide"]
@@ -51,26 +52,25 @@ class Guide(Node):
                              ("zxy", [(-90, 180, -90), (90, 180, -90)]),
                              ("zyx", [(-90, 90, -90), (-90, -90, 90)])])
 
-    # AIM_ORIENT = OrderedDict([("xy", [(0, 0, 0), (0, 180, 0)]),
-    #                          ("xz", [(-90, 0, 0), (-90, 180, 0)]),
-    #                          ("yx", [(0, -180, -90), (0, 0, 90)]),
-    #                          ("yz", [(0, -90, -90), (180, 90, -90)]),
-    #                          ("zx", [(-90, 180, -90), (90, 180, -90)]),
-    #                          ("zy", [(-90, 90, -90), (-90, -90, 90)])])
-
-    @staticmethod
-    def validate(guide):
+    @classmethod
+    def validate(cls, node):
         """validate(guide)
         """
 
-        if isinstance(guide, Guide):
-            return guide
-        else:
-            try:
-                return Guide(*libName.decompile(str(guide), 3)).reinit()
-            except Exception as e:
-                logger.error("Failed to initialise node as guide: '%s'" % guide)
-                raise
+        try:
+            if not str(node).endswith(cls.SUFFIX):
+                raise NameError()
+
+            if isinstance(node, Guide):
+                return node
+            else:
+                return Guide(*libName.decompile(str(node), 3)).reinit()
+
+        except Exception as e:
+            msg = "Node '%s' validation failed with type: '%s'" % (node, cls.__name__)
+            e.args = [msg]
+            logger.error(msg)
+            raise e
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
@@ -81,16 +81,17 @@ class Guide(Node):
 
         # Constraint default options
         self.world = None
-        self.custom = None
 
         # Aim constraint
         self.constraint = None
         self.orient = None
 
-        self.__trash = []
-
+        # Snapshot
         self.__nodes = {}
         self.__nondag = []
+
+        # Other
+        self.__trash = []
 
     def create(self):
         """create()
@@ -120,6 +121,11 @@ class Guide(Node):
 
         if not self.exists():
             raise Exception('Cannot reinit \'%s\' as guide does not exist.' % self.node)
+
+        # Unique key
+        shader_data = self.nodes.pop("shader")
+        self.shader = Shader(*libName.decompile(shader_data["shader"], 3),
+                             shader=shader_data["type"]).reinit()
 
         # Get setup node
         for key, item in self.nodes.items():
@@ -153,6 +159,8 @@ class Guide(Node):
             cmds.delete(self.nondag)
             cmds.delete(self.setup)
             cmds.delete(self.node)
+
+            self.shader.remove()
 
     def compile(self):
         """
@@ -432,15 +440,6 @@ class Guide(Node):
     # Getters
     # ======================================================================== #
 
-    def get_axis(self):
-        """
-        """
-
-        if self.exists():
-            order = self.AIM_ORIENT.keys()
-            return order[cmds.getAttr("%s.aimOrient" % self.node)]
-        return None
-
     def get_position(self, local=False):
         """
         """
@@ -473,6 +472,7 @@ class Guide(Node):
         guide = Guide.validate(guide)
         try:
             return self.children.index(guide.node)
+
         except Exception:
             msg = "Guide '%s' is not a child of: '%s'" % (guide.node, self.node)
             logger.error(msg)
@@ -512,7 +512,6 @@ class Guide(Node):
 
         if self.exists():
 
-            parent = self.parent
             if self.parent:
                 self.remove_parent()
 
@@ -717,6 +716,9 @@ class Guide(Node):
 
 
     def __create_nodes(self):
+        """
+        Create important nodes
+        """
         
         # Create node and parent sphere under
         cmds.select(cl=True)
@@ -906,17 +908,19 @@ class Guide(Node):
         self.__nodes["constraint"] = self.constraint
 
     def __create_shader(self):
+        """
+        """
 
-        self.shader, self.sg = libShader.get_or_create_shader("C_guide_0_shd", 'lambert')
-        cmds.sets(self.shapes, edit=True, forceElement=self.sg)
-
-        self.__nodes["shader"] = self.shader
-        self.__nodes["sg"] = self.sg
+        self.shader = Shader(*libName.decompile(self.node, 3)).create()
+        self.shader.add(self.shapes)
 
         rgb = (1, 1, 0)
         cmds.setAttr('%s.color' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.diffuse' % self.shader, 0)
+
+        self.__nodes["shader"] = {"shader": self.shader.node,
+                                  "type": self.shader.type}
 
     def __post(self):
         """

@@ -9,6 +9,9 @@ from maya import cmds
 from crefor.model import Node
 from crefor.lib import libName, libShader, libAttr
 
+from crefor import log
+logger = log.get_logger(__name__)
+
 __all__ = ["Connector"]
 
 class Connector(Node):
