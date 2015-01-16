@@ -9,6 +9,7 @@ from maya import cmds
 from crefor import log
 from crefor.lib import libName, libShader, libAttr
 from crefor.model import Node
+from crefor.model.shader import Shader
 
 from crefor import log
 logger = log.get_logger(__name__)
@@ -29,6 +30,7 @@ class Up(Node):
 
         self.__shapes = {}
         self.__nodes = {}
+        self.__shaders = {}
 
     @property
     def nodes(self):
@@ -50,6 +52,24 @@ class Up(Node):
             if not self.__nodes:
                 self.__nodes = json.loads(cmds.getAttr("%s.nodes" % self.node))
             return self.__nodes
+        return {}
+
+    @property
+    def shaders(self):
+        """
+        """
+
+        if self.exists():
+            if not self.__shaders:
+                self.__shaders = json.loads(cmds.getAttr("%s.shaders" % self.node))
+            
+            shaders = []
+            for axis, shader_data in self.__shaders.items():
+                node = shader_data["node"]
+                _type = shader_data["type"]
+                shaders.append(Shader(*libName.decompile(node, 3), shader=_type).reinit())
+
+            return shaders
         return {}
 
     def get_shape(self, axis):
@@ -165,19 +185,25 @@ class Up(Node):
                        "Z": (0, 0, 1)}
 
         for axis, rgb in shader_data.items():
-            shader, sg = libShader.get_or_create_shader(libName.update(self.node,
-                                                        position="N",
-                                                        description="color%s" % axis,
-                                                        index=0,
-                                                        suffix="shd"), "lambert")
 
-            cmds.setAttr("%s.color" % shader, *rgb, type="float3")
-            cmds.setAttr("%s.incandescence" % shader, *rgb, type="float3")
-            cmds.setAttr("%s.diffuse" % shader, 0)
+            shader = Shader("N", "guide%s" % axis.title(), 0).create()
+            # shader, sg = libShader.get_or_create_shader(libName.update(self.node,
+            #                                             position="N",
+            #                                             description="color%s" % axis,
+            #                                             index=0,
+            #                                             suffix="shd"), "lambert")
 
-            cmds.sets(self.get_shape(axis),
-                      edit=True,
-                      forceElement=sg)
+            cmds.setAttr("%s.color" % shader.node, *rgb, type="float3")
+            cmds.setAttr("%s.incandescence" % shader.node, *rgb, type="float3")
+            cmds.setAttr("%s.diffuse" % shader.node, 0)
+
+            shader.add(self.get_shape(axis))
+
+            self.__shaders[axis] = {"node": shader.node, "type": shader.type}
+
+            # cmds.sets(self.get_shape(axis),
+            #           edit=True,
+            #           forceElement=sg)
 
     def __post(self):
         """
@@ -185,11 +211,12 @@ class Up(Node):
         """
 
         # Burn in nodes
-        for key in ["nodes"]:
+        for key in ["nodes", "shaders"]:
             cmds.addAttr(self.node, ln=key, dt='string')
             cmds.setAttr('%s.%s' % (self.node, key), k=False)
 
         cmds.setAttr("%s.nodes" % self.node, json.dumps(self.__nodes), type="string")
+        cmds.setAttr("%s.shaders" % self.node, json.dumps(self.__shaders), type="string")
 
         # Lock down cluster
         cmds.setAttr("%s.visibility" % self.scale, False)
@@ -220,6 +247,15 @@ class Up(Node):
         for key, item in self.nodes.items():
             setattr(self, key, item)
 
+        shaders = json.loads(cmds.getAttr("%s.shaders" % self.node))
+        for axis in shaders:
+
+            node = shaders[axis]["node"]
+            _type = shaders[axis]["type"]
+
+            self.__shaders[axis] = {"node": Shader(*libName.decompile(node, 3), shader=_type).node,
+                                    "type": _type}
+
         # Get snapshot
         self.__nodes = json.loads(cmds.getAttr("%s.nodes" % self.node))
 
@@ -231,3 +267,7 @@ class Up(Node):
 
         if self.exists():
             cmds.delete(self.node)
+
+            for axis, shader_data in self.__shaders.items():
+                shader = Shader(*libName.decompile(shader_data["node"], 3)).reinit()
+                shader.remove()

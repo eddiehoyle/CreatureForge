@@ -7,7 +7,8 @@ import json
 from copy import deepcopy
 from maya import cmds
 from crefor.model import Node
-from crefor.lib import libName, libShader, libAttr
+from crefor.model.shader import Shader
+from crefor.lib import libName, libAttr
 
 from crefor import log
 logger = log.get_logger(__name__)
@@ -123,6 +124,24 @@ class Connector(Node):
         return json.loads(cmds.getAttr("%s.geo" % self.node)) if self.exists() else {}
 
     @property
+    def shaders(self):
+        """
+        """
+
+        if self.exists():
+            if not self.__shaders:
+                self.__shaders = json.loads(cmds.getAttr("%s.shaders" % self.node))
+            
+            shaders = []
+            for axis, shader_data in self.__shaders.items():
+                node = shader_data["node"]
+                _type = shader_data["type"]
+                shaders.append(Shader(*libName.decompile(node, 3), shader=_type).reinit())
+
+            return shaders
+        return {}
+
+    @property
     def parent(self):
         """
         """
@@ -223,7 +242,7 @@ class Connector(Node):
         cmds.parent(self.node, self.__parent.setup)
 
         # Attributes for reinit
-        for key in ["nodes", "geo", "nondag", "states"]:
+        for key in ["nodes", "geo", "nondag", "states", "shaders"]:
             cmds.addAttr(self.node, ln=key, dt='string')
             cmds.setAttr('%s.%s' % (self.node, key), k=False)
 
@@ -516,24 +535,18 @@ class Connector(Node):
                        "N": (0.7, 0.7, 0.7)}
 
         for axis, rgb in shader_data.items():
-            shader, sg = libShader.get_or_create_shader(libName.update(self.node,
-                                                        position="N",
-                                                        description="color%s" % axis,
-                                                        index=0,
-                                                        suffix="shd"), "lambert")
 
-            cmds.setAttr('%s.color' % shader, *rgb, type='float3')
-            cmds.setAttr('%s.incandescence' % shader, *rgb, type='float3')
-            cmds.setAttr('%s.diffuse' % shader, 0)
+            shader = Shader("N", "guide%s" % axis.title(), 0).create()
 
-            self.__shaders[axis] = dict(shader=shader, sg=sg)
+            cmds.setAttr('%s.color' % shader.node, *rgb, type='float3')
+            cmds.setAttr('%s.incandescence' % shader.node, *rgb, type='float3')
+            cmds.setAttr('%s.diffuse' % shader.node, 0)
 
-            cmds.sets(self.__get_shapes(axis, "solid"), edit=True, forceElement=sg)
-            cmds.sets(self.__get_shapes(axis, "dashed"), edit=True, forceElement=sg)
+            self.__shaders[axis] = {"node": shader.node,
+                                    "type": shader.type}
 
-    def __create_attribtues(self):
-        """
-        """
+            shader.add(self.__get_shapes(axis, "solid"))
+            shader.add(self.__get_shapes(axis, "solid"))
 
     def __post(self):
         """
@@ -544,6 +557,7 @@ class Connector(Node):
         cmds.setAttr("%s.states" % self.node, json.dumps(self.__states), type="string")
         cmds.setAttr("%s.nondag" % self.node, json.dumps(self.__nondag), type="string")
         cmds.setAttr("%s.geo" % self.node, json.dumps(self.__geo), type="string")
+        cmds.setAttr("%s.shaders" % self.node, json.dumps(self.__shaders), type="string")
 
         # Remove selection access
         cmds.setAttr("%s.overrideEnabled" % self.node, 1)
@@ -561,6 +575,15 @@ class Connector(Node):
         self.__nondag = json.loads(cmds.getAttr("%s.nondag" % self.node))
         self.__states = json.loads(cmds.getAttr("%s.states" % self.node))
         self.__geo = json.loads(cmds.getAttr("%s.geo" % self.node))
+
+        shaders = json.loads(cmds.getAttr("%s.shaders" % self.node))
+        for axis in shaders:
+
+            node = shaders[axis]["node"]
+            _type = shaders[axis]["type"]
+
+            self.__shaders[axis] = {"node": Shader(*libName.decompile(node, 3), shader=_type).node,
+                                    "type": _type}
 
         # Unique attribute
         self.__aim_cond = self.nodes.pop("__aim_cond")
@@ -595,9 +618,9 @@ class Connector(Node):
         """
         """
 
-        # geo = []
-        # for axis in self.geo:
-        #     geo.extend(self.geo[axis].values())
-
         cmds.delete(self.nondag)
         cmds.delete(self.node)
+
+        for axis, shader_data in self.__shaders.items():
+            shader = Shader(*libName.decompile(shader_data["node"], 3)).reinit()
+            shader.remove()

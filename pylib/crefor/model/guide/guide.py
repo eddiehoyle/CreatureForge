@@ -9,7 +9,7 @@ import json
 from maya import cmds
 
 from collections import OrderedDict
-from crefor.lib import libName, libShader, libAttr
+from crefor.lib import libName
 from crefor.model import Node
 from crefor.model.guide.connector import Connector
 from crefor.model.guide.up import Up
@@ -122,9 +122,9 @@ class Guide(Node):
         if not self.exists():
             raise Exception('Cannot reinit \'%s\' as guide does not exist.' % self.node)
 
-        # Unique key
-        shader_data = self.nodes.pop("shader")
-        self.shader = Shader(*libName.decompile(shader_data["shader"], 3),
+        # Shaders
+        shader_data = json.loads(cmds.getAttr("%s.shaders" % self.node))
+        self.shader = Shader(*libName.decompile(shader_data["node"], 3),
                              shader=shader_data["type"]).reinit()
 
         # Get setup node
@@ -751,7 +751,7 @@ class Guide(Node):
         cmds.setAttr("%s.debug" % self.node, k=False)
         cmds.setAttr("%s.debug" % self.node, cb=True)
 
-        for key in ["nodes", "nondag"]:
+        for key in ["nodes", "nondag", "shaders"]:
             cmds.addAttr(self.node, ln=key, dt="string")
             cmds.setAttr("%s.%s" % (self.node, key), k=False)
 
@@ -829,7 +829,7 @@ class Guide(Node):
                 up_pma = cmds.createNode("plusMinusAverage", name=up_pma)
                 cmds.connectAttr("%s.output1D" % up_pma, "%s.visibility" % self.up.get_shape(up))
 
-            up_name = libName.update(self.node, suffix="cond", append="%sUp%s" % (0, up.upper()))
+            up_name = libName.update(self.node, suffix="cond", append="Up%s" % ("".join(axis).title()))
             up_cond = cmds.createNode("condition", name=up_name)
             _up_conds.append(up_cond)
 
@@ -911,7 +911,7 @@ class Guide(Node):
         """
         """
 
-        self.shader = Shader(*libName.decompile(self.node, 3)).create()
+        self.shader = Shader("N", "guide", 0).create()
         self.shader.add(self.shapes)
 
         rgb = (1, 1, 0)
@@ -919,8 +919,8 @@ class Guide(Node):
         cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
         cmds.setAttr('%s.diffuse' % self.shader, 0)
 
-        self.__nodes["shader"] = {"shader": self.shader.node,
-                                  "type": self.shader.type}
+        # self.__shaders = {"node": self.shader.node,
+        #                   "type": self.shader.type}
 
     def __post(self):
         """
@@ -933,3 +933,6 @@ class Guide(Node):
         # Burn in nodes
         cmds.setAttr("%s.nodes" % self.node, json.dumps(self.__nodes), type="string")
         cmds.setAttr("%s.nondag" % self.node, json.dumps(self.__nondag), type="string")
+
+        shader_data = {"node": self.shader.node, "type": self.shader.type}
+        cmds.setAttr("%s.shaders" % self.node, json.dumps(shader_data), type="string")
