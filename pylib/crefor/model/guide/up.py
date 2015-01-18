@@ -187,11 +187,6 @@ class Up(Node):
         for axis, rgb in shader_data.items():
 
             shader = Shader("N", "guide%s" % axis.title(), 0).create()
-            # shader, sg = libShader.get_or_create_shader(libName.update(self.node,
-            #                                             position="N",
-            #                                             description="color%s" % axis,
-            #                                             index=0,
-            #                                             suffix="shd"), "lambert")
 
             cmds.setAttr("%s.color" % shader.node, *rgb, type="float3")
             cmds.setAttr("%s.incandescence" % shader.node, *rgb, type="float3")
@@ -200,10 +195,6 @@ class Up(Node):
             shader.add(self.get_shape(axis))
 
             self.__shaders[axis] = {"node": shader.node, "type": shader.type}
-
-            # cmds.sets(self.get_shape(axis),
-            #           edit=True,
-            #           forceElement=sg)
 
     def __post(self):
         """
