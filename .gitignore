@@ -2,5 +2,4 @@
 .mayaSwatches
 *.psd
 .DS_STORE
-pylib/crefor/tests/
 docs/_build
