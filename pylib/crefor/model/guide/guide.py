@@ -61,10 +61,10 @@ class Guide(Node):
             if not str(node).endswith(cls.SUFFIX):
                 raise NameError()
 
-            if isinstance(node, Guide):
+            if isinstance(node, cls):
                 return node
             else:
-                return Guide(*libName.decompile(str(node), 3)).reinit()
+                return cls(*libName.decompile(str(node), 3)).reinit()
 
         except Exception as e:
             msg = "Node '%s' validation failed with type: '%s'" % (node, cls.__name__)

@@ -1,11 +1,9 @@
 # IMPORTANT
-- [ ] Figure out what's left to build for a release
+- [ ] Create template logic
+- [ ] Finish off docstrings
 
 # Low tier
 - [ ] Create Joint model for decompiling a joint into guide
-
-## Stretch goal
-- [ ] Build main window
 
 ## Done
 - [x] Finish up guide scaling and up model inheriting guide scale
@@ -44,7 +42,7 @@
 
 ## Core
 - [x] Write logging tool
-- [ ] Figure out how to build an API for users
+- [x] Figure out how to build an API for users
 
 ## Template
 - [ ] Create a template from guides
