@@ -7,18 +7,18 @@ import os
 
 from maya import cmds
 
-from crefor import api
+from crefor.control import guide
 from crefor.model.guide.guide import Guide
+from crefor.view.guide.dialogs import CreateGuideDialog
 from crefor.lib import libName, libXform
 from crefor import log
+
 
 
 from PySide.QtCore import QSize, Qt
 from PySide.QtGui import QWidget, QHBoxLayout, QPushButton, QIcon, QPixmap
 
 logger = log.get_logger(__name__)
-
-WIDGET = None
 
 class GuideWidget(QWidget):
 
@@ -113,19 +113,33 @@ class GuideWidget(QWidget):
     def sizeHint(self):
         return QSize(self.BUTTON_SIZE*len(self.buttons.keys()), self.BUTTON_SIZE)
 
+    def __validate(self):
+        """
+        """
+
+        guides = []
+        selected = cmds.ls(sl=1)
+        for sel in selected:
+            try:
+                guides.append(Guide.validate(sel))
+            except Exception:
+                pass
+
+        return guides
+
     def __create(self):
         """
         Create a new guide
         """
 
-        index = 0
-        name = "C_temp_%s_gde" % index
-        while cmds.objExists(name):
-            index += 1
-            name = "C_temp_%s_gde" % index
+        global CREATE_GUIDE_DIALOG
+        CREATE_GUIDE_DIALOG = CreateGuideDialog()
+        CREATE_GUIDE_DIALOG.exec_()
 
-        guide = api.create(*name.split("_")[:-1])
-        cmds.select(guide.joint, r=True)
+        position, description, index = CREATE_GUIDE_DIALOG.results
+        if all([position, description, isinstance(index, int)]):
+            _guide = guide.create(position, description, index)
+            cmds.select(_guide.node, r=True)
 
     def __remove(self):
         """
@@ -133,9 +147,12 @@ class GuideWidget(QWidget):
         """
 
         cmds.undoInfo(openChunk=True)
-        selected = [g for g in cmds.ls(sl=True) if g.endswith(Guide.SUFFIX)]
-        for guide in selected:
-            api.remove(guide)
+
+        guides = self.__validate()
+
+        for _guide in guides:
+            guide.remove(_guide)
+
         cmds.undoInfo(closeChunk=True)
 
     def __set_parent(self):
@@ -143,50 +160,55 @@ class GuideWidget(QWidget):
         Set all selected guides to have the same parent
         """
 
-        selected = cmds.ls(sl=True)
-        if len(selected) >= 2:
+        guides = self.__validate()
 
-            children = selected[:-1]
-            parent = selected[-1]
+        if len(guides) >= 2:
+
+            children = guides[:-1]
+            parent = guides[-1]
             for child in children:
-                api.set_parent(child, parent)
+                guide.set_parent(child, parent)
 
-            cmds.select(parent, r=True)
+            cmds.select(parent.node, r=True)
 
     def __add_child(self):
         """
         Add all selected guides as child to first selected
         """
 
-        selected = cmds.ls(sl=True)
-        if len(selected) >= 2:
+        guides = self.__validate()
 
-            children = selected[:-1]
-            parent = selected[-1]
+        if len(guides) >= 2:
+
+            children = guides[:-1]
+            parent = guides[-1]
             for child in children:
-                api.add_child(parent, child)
+                guide.add_child(parent, child)
+
+            cmds.select([g.node for g in children], r=True)
 
     def __remove_parent(self):
         """
         Remove parent from guide
         """
 
-        selected = cmds.ls(sl=True)
-        if selected:
-            for node in selected:
-                api.remove_parent(node)
+        guides = self.__validate()
+
+        if guides:
+            for _guide in guides:
+                guide.remove_parent(_guide)
 
     def __duplicate(self):
         """
         Duplicate selected guides hierarchy
         """
 
+        guides = self.__validate()
+
         top = []
+        for _guide in guides:
 
-        selected = cmds.ls(sl=True)
-        for sel in selected:
-
-            nodes = api.duplicate(sel, hierarchy=True)
+            nodes = guide.duplicate(_guide, hierarchy=True)
             top.append(nodes[0])
 
         # Select top guides
@@ -197,15 +219,16 @@ class GuideWidget(QWidget):
         Create hierarchy from sequentially selected guides 
         """
 
-        selected = cmds.ls(sl=1)
+        guides = self.__validate()
+
         last = None
-        while len(selected):
-            parent = last or selected.pop(0)
-            child = selected.pop(0)
+        while len(guides):
+            parent = last or guides.pop(0)
+            child = guides.pop(0)
 
             last = child
 
-            api.set_parent(child, parent)
+            guide.set_parent(child, parent)
 
     def __cycle_aim(self):
         """
@@ -213,31 +236,32 @@ class GuideWidget(QWidget):
         in enum. Skips world/local aims.
         """
 
-        selected = cmds.ls(sl=1)
-        for node in selected:
-            aims = cmds.attributeQuery("aimAt", node=node, listEnum=True)[0].split(":")
-            current_index = cmds.getAttr("%s.aimAt" % node)
+        guides = self.__validate()
+
+        for _guide in guides:
+            aims = cmds.attributeQuery("aimAt", node=_guide.node, listEnum=True)[0].split(":")
+            current_index = cmds.getAttr("%s.aimAt" % _guide.node)
             index = 1
 
             if not current_index == (len(aims) - 1):
                 index = (current_index + 1)
 
-            cmds.setAttr("%s.aimAt" % node, index)
+            cmds.setAttr("%s.aimAt" % _guide.node, index)
 
     def __decompile(self):
         """
         """
 
-        api.decompile()
+        guide.decompile()
 
     def __compile(self):
         """
         """
 
-        api.compile()
+        guide.compile()
 
 
 def show():
-    global WIDGET
-    WIDGET = GuideWidget()
-    WIDGET.show()
+    global GUIDE_WIDGET
+    GUIDE_WIDGET = GuideWidget()
+    GUIDE_WIDGET.show()

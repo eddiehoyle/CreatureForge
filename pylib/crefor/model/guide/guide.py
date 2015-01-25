@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 """
-Guide model
+A guide model used to represent a joint in Maya and includes
+some extra functionality for simple aim manipulation and control.
 """
 
 import time
@@ -55,6 +56,19 @@ class Guide(Node):
     @classmethod
     def validate(cls, node):
         """validate(guide)
+
+        Confirm the input node is a guide.
+
+        :param      node:       Maya node to validate
+        :type       node:       Guide, str
+        :returns:               Initialised guide
+        :rtype:                 Guide
+        :raises:                TypeError, NameError
+
+        **Example**:
+
+        >>> Guide.validate("C_spine_0_gde")
+        # Result: <Guide 'C_spine_0_gde'> #
         """
 
         try:
@@ -66,11 +80,10 @@ class Guide(Node):
             else:
                 return cls(*libName.decompile(str(node), 3)).reinit()
 
-        except Exception as e:
+        except Exception:
             msg = "Node '%s' validation failed with type: '%s'" % (node, cls.__name__)
-            e.args = [msg]
             logger.error(msg)
-            raise e
+            raise TypeError(msg)
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
@@ -95,10 +108,21 @@ class Guide(Node):
 
     def create(self):
         """create()
+
+        Create a guide node.
+
+        :returns:       Guide model
+        :rtype:         Guide
+        :raises:        RuntimeError
+
+        **Example**:
+
+        >>> root = Guide("C", "root", 0)
+        # Result: <Guide 'C_root_0_gde'> #
         """
 
         if self.exists():
-            msg = "Cannot create guide '%s', already exists." % (self.node)
+            msg = "Cannot create guide '%s' as a matching Maya node already exists." % (self.node)
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -117,10 +141,24 @@ class Guide(Node):
 
     def reinit(self):
         """reinit()
+
+        Reinitialise an existing guide. The guide must exist in the
+        Maya scene otherwise a RuntimeError exception is raised.
+
+        :returns:       Guide model
+        :rtype:         Guide
+        :raises:        RuntimeError
+
+        **Example**:
+
+        >>> root = Guide("C", "root", 0)
+        >>> root.create()
+        >>> root.reinit()
+        # Result: <Guide 'C_root_0_gde'> #
         """
 
         if not self.exists():
-            raise Exception('Cannot reinit \'%s\' as guide does not exist.' % self.node)
+            raise RuntimeError("Cannot reinit '%s' as guide does not exist." % self.node)
 
         # Shaders
         shader_data = json.loads(cmds.getAttr("%s.shaders" % self.node))
@@ -141,13 +179,30 @@ class Guide(Node):
 
     def duplicate(self):
         """duplicate()
+
+        Create a new guide from this guide. The duplicate guide index
+        will be the nearest positive unused integer.
+
+        :returns:       Guide model
+        :rtype:         Guide
+        :raises:        RuntimeError
+
+        **Example**:
+
+        >>> root = Guide("C", "root", 0)
+        >>> root.create()
+        >>> root.duplicate()
+        # Result: <Guide 'C_root_1_gde'> #
         """
+
+        if not self.exists():
+            raise RuntimeError("Cannot duplicate guide '%s' as it does not exist." % self.node)
 
         name = libName.generate(self.node)
         return Guide(*libName.decompile(name, 3)).create()
 
     def remove(self):
-        """
+        """remove()
         """
 
         if self.exists():
