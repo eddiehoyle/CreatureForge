@@ -45,6 +45,7 @@ class Guide(Node):
     RADIUS = 1.0
     DEFAULT_AIMS = ["world"]
     UP_SCALE_VALUE = RADIUS/3.3
+    SCALE = 0.5
 
     AIM_ORIENT = OrderedDict([("xyz", [(0, 0, 0), (0, 180, 0)]),
                              ("xzy", [(-90, 0, 0), (-90, 180, 0)]),
@@ -72,6 +73,7 @@ class Guide(Node):
         """
 
         try:
+
             if not str(node).endswith(cls.SUFFIX):
                 raise NameError()
 
@@ -417,23 +419,6 @@ class Guide(Node):
                 msg = "Primary and/or secondary axis not valid: %s, %s" % (primary, secondary)
                 raise ValueError(msg)
 
-    def set_scale(self, value):
-        """
-        Scale guide and related connectors
-        """
-
-        selected = cmds.ls(sl=1)
-        if self.node:
-            cls, clh = cmds.cluster(self.shapes)
-            cmds.setAttr('%s.scale' % clh, value, value, value, type='float3')
-            cmds.delete(self.shapes, ch=True)
-
-        for con in self.connectors:
-            con.set_start_scale(value)
-
-        if selected:
-            cmds.select(selected, r=True)
-
     def aim_at(self, guide, add=False):
         """
         Aim at input guide if it is a child. If not, then use the
@@ -465,7 +450,7 @@ class Guide(Node):
                     raise RuntimeError("Guide '%s' is not a child of '%s'" % (guide.node, self.node))
 
             enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
-            cmds.setAttr("%s.aimAt" % self.node, enums.index(guide.aim))
+            cmds.setAttr("%s.aimAt" % self.node, enums.index(guide.node))
 
     def aim_flip(self, value):
         """
@@ -515,8 +500,9 @@ class Guide(Node):
         """
 
         if self.exists():
-            enums = cmds.attributeQuery('aimAt', node=self.node, listEnum=True)[0].split(':')
+            enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
             return enums[cmds.getAttr("%s.aimAt" % self.node)]
+
         else:
             return None
 
@@ -706,7 +692,7 @@ class Guide(Node):
 
         # Edit aim attribute on node to include new child
         enums = cmds.attributeQuery('aimAt', node=self.node, listEnum=True)[0].split(':')
-        enums.append(guide.aim)
+        enums.append(guide.node)
         cmds.addAttr('%s.aimAt' % self.node, e=True, en=':'.join(enums))
 
         # Create connector
@@ -745,7 +731,7 @@ class Guide(Node):
         # Parent guide to world
         cmds.parent(guide.node, world=True)
         enums = cmds.attributeQuery('aimAt', node=self.node, listEnum=True)[0].split(':')
-        enums.remove(guide.aim)
+        enums.remove(guide.node)
         cmds.addAttr('%s.aimAt' % self.node, e=True, en=':'.join(enums))
         cmds.setAttr('%s.aimAt' % self.node, len(enums) - 1)
 

@@ -394,7 +394,7 @@ class Connector(Node):
 
             # Query parent joint enum items
             enums = cmds.attributeQuery('aimAt', node=self.__parent.node, listEnum=True)[0].split(':')
-            enum_index = enums.index(self.__child.aim)
+            enum_index = enums.index(self.__child.node)
 
             # Update index to reflect alias index of child
             cmds.setAttr("%s.secondTerm" % self.__aim_cond, enum_index)
@@ -415,7 +415,7 @@ class Connector(Node):
 
         # Query parent joint enum items
         enums = cmds.attributeQuery('aimAt', node=self.__parent.node, listEnum=True)[0].split(':')
-        enum_index = enums.index(self.__child.aim)
+        enum_index = enums.index(self.__child.node)
 
         # Create condition that turns on aim for child constraint if
         # enum index is set to match childs name
@@ -545,7 +545,7 @@ class Connector(Node):
             self.__shaders[axis] = {"node": shader.node,
                                     "type": shader.type}
 
-            shader.add(self.__get_shapes(axis, "solid"))
+            shader.add(self.__get_shapes(axis, "dashed"))
             shader.add(self.__get_shapes(axis, "solid"))
 
     def __post(self):
@@ -620,6 +620,7 @@ class Connector(Node):
 
         cmds.delete(self.nondag)
         cmds.delete(self.node)
+        cmds.delete(self.__aim_cond)
 
         for axis, shader_data in self.__shaders.items():
             shader = Shader(*libName.decompile(shader_data["node"], 3)).reinit()

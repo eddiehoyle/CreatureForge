@@ -1,11 +1,12 @@
 # IMPORTANT
-- [ ] Create template logic
 - [ ] Finish off docstrings
-
-# Low tier
-- [ ] Create Joint model for decompiling a joint into guide
+- [ ] Write renaming logic
+- [ ] Remove index from create dialog
 
 ## Done
+- [x] Write logging tool
+- [x] Figure out how to build an API for users
+- [x] Create simple widget for guides
 - [x] Finish up guide scaling and up model inheriting guide scale
 - [x] Fix up model
 - [x] Write template save/load logic
@@ -40,17 +41,6 @@
 - [x] Add NXYZ logic
 - [x] Rebuild connector model after messing it up so much
 
-## Core
-- [x] Write logging tool
-- [x] Figure out how to build an API for users
-
-## Template
-- [ ] Create a template from guides
-
-## UI
-- [x] Create simple widget for guides
-- [ ] PLAN PLAN PLAN PLAN PLAN 
-- [ ] Write plugin logic
-
-## Web
-- [ ] Create web page for creature forge app
+## Future
+- [ ] Create template logic
+- [ ] Create Joint model for decompiling a joint into guide

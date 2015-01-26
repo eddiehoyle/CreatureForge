@@ -196,7 +196,7 @@ class GuideWidget(QWidget):
 
         if guides:
             for _guide in guides:
-                guide.remove_parent(_guide)
+                _guide.remove_parent()
 
     def __duplicate(self):
         """

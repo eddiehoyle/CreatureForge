@@ -498,7 +498,7 @@ def read(path, compile_guides=False):
 
     return 
 
-def rebuild(path="/Users/eddiehoyle/Python/creatureforge/examples/data/test.json", compile_guides=False):
+def rebuild(path, compile_guides=False):
     """
     Rebuild all guides from a snapshot
 
