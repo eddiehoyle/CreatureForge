@@ -211,3 +211,15 @@ def generate(name):
 
 def is_valid(name):
     return len(name.split(__Name.SEP)) == 4
+
+def position(name):
+    return __Name(*name.split(__Name.SEP)).position
+
+def description(name):
+    return __Name(*name.split(__Name.SEP)).description
+
+def index(name):
+    return __Name(*name.split(__Name.SEP)).index
+
+def suffix(name):
+    return __Name(*name.split(__Name.SEP)).suffix

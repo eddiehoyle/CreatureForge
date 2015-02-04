@@ -21,7 +21,8 @@ class Up(Node):
     """
 
     SUFFIX = "up"
-    DEFAULT_SCALE = 0.2
+    DEFAULT_SCALE = 0.4
+    DEFAULT_TRANSLATE = (0, 3, 0)
 
     def __init__(self, guide):
         super(Up, self).__init__(*libName.decompile(str(guide), 3))
@@ -174,7 +175,7 @@ class Up(Node):
             cmds.connectAttr("%s.guideScale" % self.node, "%s.scale%s" % (self.scale, axis))
 
         # Offset node
-        cmds.setAttr("%s.translateY" % self.node, 2)
+        cmds.setAttr("%s.translate" % self.node, *self.DEFAULT_TRANSLATE, type="float3")
 
     def __create_shaders(self):
         """

@@ -43,8 +43,7 @@ class Guide(Node):
     SEP = "_"
     SUFFIX = 'gde'
     RADIUS = 1.0
-    DEFAULT_AIMS = ["world"]
-    UP_SCALE_VALUE = RADIUS/3.3
+    DEFAULT_AIMS = ["world", "custom"]
     SCALE = 0.5
 
     AIM_ORIENT = OrderedDict([("xyz", [(0, 0, 0), (0, 180, 0)]),
@@ -100,6 +99,7 @@ class Guide(Node):
         # Aim constraint
         self.constraint = None
         self.orient = None
+        self.aim_cond = None
 
         # Snapshot
         self.__nodes = {}
@@ -124,7 +124,7 @@ class Guide(Node):
         """
 
         if self.exists():
-            msg = "Cannot create guide '%s' as a matching Maya node already exists." % (self.node)
+            msg = "Cannot create guide '%s' as a Maya node already exists: <type '%s'>" % (self.node, cmds.nodeType(self.node))
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -213,7 +213,9 @@ class Guide(Node):
 
             self.up.remove()
 
-            cmds.delete(self.nondag)
+            if self.nondag:
+                cmds.delete(self.nondag)
+
             cmds.delete(self.setup)
             cmds.delete(self.node)
 
@@ -368,8 +370,9 @@ class Guide(Node):
         """
 
         connectors = []
-        for child in self.children:
-            connectors.append(Connector(self, child).reinit())
+        if self.exists():
+            for child in self.children:
+                connectors.append(Connector(self, child).reinit())
         return connectors
 
     @property
@@ -476,6 +479,15 @@ class Guide(Node):
         if self.exists():
             cmds.setAttr('%s.debug' % self.node, bool(debug))
 
+    def set_offset(self, vector3f):
+        """
+        """
+
+        if self.exists():
+            cmds.setAttr("%s.offsetOrientX" % self.node, vector3f[0])
+            cmds.setAttr("%s.offsetOrientY" % self.node, vector3f[1])
+            cmds.setAttr("%s.offsetOrientZ" % self.node, vector3f[2])
+
     # ======================================================================== #
     # Getters
     # ======================================================================== #
@@ -506,6 +518,18 @@ class Guide(Node):
         else:
             return None
 
+    def get_offset_orient(self):
+        """
+        """
+
+        if self.exists():
+            attrs = ["%s.%s" % (self.node, attr) for attr in ["offsetOrientX",
+                                                              "offsetOrientY",
+                                                              "offsetOrientZ"]]
+            return map(cmds.getAttr, attrs)
+        else:
+            return (0, 0, 0)
+
     def get_child(self, guide):
         """
         """
@@ -535,6 +559,7 @@ class Guide(Node):
         return dict(node=self.node,
                     parent=self.parent.node if self.parent else None,
                     children=[c.node for c in self.children],
+                    offset=self.get_offset(),
                     aim_at=self.get_aim_at(),
                     aim_flip=bool(cmds.getAttr("%s.aimFlip" % self.node)),
                     position=self.get_position(local=False),
@@ -699,8 +724,44 @@ class Guide(Node):
         con = Connector(self, guide)
         con.create()
 
+        # Query aliases and target list from parent aim constraint
+        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+        targets = cmds.aimConstraint(self.constraint, q=True, tl=True)
+        index = targets.index(guide.aim)
+
+        # Query parent joint enum items
+        enums = cmds.attributeQuery('aimAt', node=self.node, listEnum=True)[0].split(':')
+        enum_index = enums.index(guide.node)
+
+        # Create condition that turns on aim for child constraint if
+        # enum index is set to match childs name
+        new_cond = cmds.createNode("condition",
+                                   name=libName.update(self.node,
+                                                       append=libName.description(guide.node),
+                                                       suffix="cond"))
+
+        cmds.setAttr('%s.secondTerm' % new_cond, enum_index)
+        cmds.setAttr('%s.colorIfTrueR' % new_cond, 1)
+        cmds.setAttr('%s.colorIfFalseR' % new_cond, 0)
+        cmds.connectAttr('%s.aimAt' % self.node, '%s.firstTerm' % new_cond)
+        cmds.connectAttr('%s.outColorR' % new_cond, '%s.%s' % (self.constraint, aliases[index]))
+
+        # Set enum to match child aim
+        cmds.setAttr("%s.aimAt" % self.node, enum_index)
+
+        # Loop through all aliases on and set non-connected attributes to be 0
+        for alias in aliases:
+            if not cmds.listConnections('%s.%s' % (self.constraint, alias),
+                                        source=True,
+                                        destination=False,
+                                        plugs=True):
+                cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
+
         # Parent new guide under self
         cmds.parent(guide.node, self.node, a=True)
+
+        # Store new condition
+        self.__nondag.append(new_cond)
 
         return guide
 
@@ -726,34 +787,55 @@ class Guide(Node):
             if con.parent == self:
                 con.remove()
                 connectors.remove(con)
+                print 'con', con.node
                 break
 
         # Parent guide to world
         cmds.parent(guide.node, world=True)
-        enums = cmds.attributeQuery('aimAt', node=self.node, listEnum=True)[0].split(':')
+
+        # Remove enum name
+        enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
         enums.remove(guide.node)
-        cmds.addAttr('%s.aimAt' % self.node, e=True, en=':'.join(enums))
-        cmds.setAttr('%s.aimAt' % self.node, len(enums) - 1)
+        cmds.addAttr("%s.aimAt" % self.node, e=True, en=":".join(enums))
+        cmds.setAttr("%s.aimAt" % self.node, len(enums) - 1)
 
         aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
         for alias in aliases:
-            if not cmds.listConnections('%s.%s' % (self.constraint, alias),
+            if not cmds.listConnections("%s.%s" % (self.constraint, alias),
                                         source=True,
                                         destination=False,
                                         plugs=True):
-                cmds.setAttr('%s.%s' % (self.constraint, alias), 0)
+                cmds.setAttr("%s.%s" % (self.constraint, alias), 0)
 
         # Default to world
         if len(enums) == 1:
-            cmds.setAttr('%s.aimAt' % self.node, 0)
+            cmds.setAttr("%s.aimAt" % self.node, 0)
 
         # Reinit children
-        for con in connectors:
-            con.reinit()
+        # for con in connectors:
+        #     con.reinit()
 
         logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.node,
                                                            guide.node,
                                                            time.time()-t))
+
+    def __update_aim_index(self):
+        """
+        Refresh aim index of aim condition
+        """
+
+        if self.exists():
+
+            # Query parent joint enum items
+            enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(':')
+            enum_index = enums.index(self.__child.node)
+
+            # Update index to reflect alias index of child
+            cmds.setAttr("%s.secondTerm" % self.aim_cond, enum_index)
+
+            state_conds = json.loads(cmds.getAttr("%s.states" % self.node))
+            for key, node in state_conds.items():
+                cmds.setAttr("%s.secondTerm" % node, enum_index)
 
 
     def __create_nodes(self):
@@ -784,6 +866,11 @@ class Guide(Node):
         cmds.setAttr('%s.aimOrient' % self.node, k=False)
         cmds.setAttr('%s.aimOrient' % self.node, cb=True)
 
+        for axis in ["offsetOrientX", "offsetOrientY", "offsetOrientZ"]:
+            cmds.addAttr(self.node, ln=axis, at="double", dv=0)
+            cmds.setAttr("%s.%s" % (self.node, axis), cb=True)
+            cmds.setAttr("%s.%s" % (self.node, axis), k=True)
+
         cmds.addAttr(self.node, ln="aimFlip", at="bool", min=0, max=1, dv=0)
         cmds.setAttr("%s.aimFlip" % self.node, k=False)
         cmds.setAttr("%s.aimFlip" % self.node, cb=True)
@@ -798,7 +885,8 @@ class Guide(Node):
 
         # Create shapes
         _sphere = cmds.sphere(radius=self.RADIUS, ch=False)[0]
-        self.shapes = cmds.listRelatives(_sphere, type='nurbsSurface', children=True)
+        _shapes = cmds.listRelatives(_sphere, type='nurbsSurface', children=True)
+        self.shapes = [cmds.rename(_shapes[0], "%sShape" % self.node)]
         cmds.parent(self.shapes, self.node, r=True, s=True)
         cmds.setAttr('%s.drawStyle' % self.node, 2)
 
@@ -886,6 +974,7 @@ class Guide(Node):
 
     def __create_aim(self):
         """
+        Initial aim creation method
         """
 
         # Create local orient
@@ -893,13 +982,15 @@ class Guide(Node):
         aliases = cmds.orientConstraint(self.orient, q=True, wal=True)
         targets = cmds.orientConstraint(self.orient, q=True, tl=True)
         index = targets.index(self.node)
-        condition = cmds.createNode("condition",
-                                    name=libName.update(self.node, suffix="cond", append="local"))
+        self.aim_cond = cmds.createNode("condition",
+                                        name=libName.update(self.node,
+                                                            suffix="cond",
+                                                            append="local"))
 
-        cmds.setAttr('%s.secondTerm' % condition, index)
-        cmds.setAttr('%s.colorIfTrueR' % condition, 1)
-        cmds.setAttr('%s.colorIfFalseR' % condition, 0)
-        cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.orient, aliases[index]))
+        cmds.setAttr("%s.secondTerm" % self.aim_cond, index)
+        cmds.setAttr("%s.colorIfTrueR" % self.aim_cond, 1)
+        cmds.setAttr("%s.colorIfFalseR" % self.aim_cond, 0)
+        cmds.connectAttr("%s.outColorR" % self.aim_cond, "%s.%s" % (self.orient, aliases[index]))
 
         # Create main aim constraint
         self.constraint = cmds.aimConstraint(self.node,
@@ -910,7 +1001,7 @@ class Guide(Node):
                                              upVector=(0, 1, 0),
                                              worldUpType='object')[0]
         aim_aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
-        cmds.connectAttr('%s.outColorR' % condition, '%s.%s' % (self.constraint, aim_aliases[0]))
+        cmds.connectAttr('%s.outColorR' % self.aim_cond, '%s.%s' % (self.constraint, aim_aliases[0]))
 
         # Create custom aim constraint offsets
         aim_offset_pma = cmds.createNode("plusMinusAverage",
@@ -945,7 +1036,14 @@ class Guide(Node):
             cmds.setAttr("%s.colorIfFalse" % flip_cond, *primary, type="float3")
             cmds.connectAttr("%s.outColor" % flip_cond, "%s.colorIfTrue" % pair_cond)
 
-        self.__nondag.append(condition)
+        # Add custom orient offset
+        for attr, axis in zip(["offsetOrientX", "offsetOrientY", "offsetOrientZ"], ["x", "y", "z"]):
+            cmds.connectAttr("%s.%s" % (self.node, attr),
+                             "%s.input3D[%s].input3D%s" % (aim_offset_pma,
+                                                           (pair_index + 1),
+                                                           axis))
+
+        self.__nodes["aim_cond"] = self.aim_cond
         self.__nodes["constraint"] = self.constraint
 
     def __create_shader(self):

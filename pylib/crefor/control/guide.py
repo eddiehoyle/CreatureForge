@@ -380,11 +380,13 @@ def set_axis(guide, primary="X", secondary="Y"):
 
     guide.set_axis(primary, secondary)
 
-def set_orient(guide, vector3f=[0.0, 0.0, 0.0]):
+def set_debug(value):
     """
     """
 
-    pass
+    guides = get_guides()
+    for g in guides:
+        g.set_debug(value)
 
 def write(path, guides=[]):
     """write(path, guides=[])
@@ -491,6 +493,7 @@ def read(path, compile_guides=False):
 
         guide.aim_flip(snapshot["aim_flip"])
         guide.aim_at(snapshot["aim_at"])
+        guide.set_offset(snapshot["offset"])
 
     # Compile into joints
     if compile_guides:
