@@ -11,7 +11,7 @@ import json
 from maya import cmds
 
 from crefor.lib import libUtil, libXform, libName
-from crefor.model.guide.guide import Guide
+from crefor.model.guide import Guide
 
 from crefor import log
 logger = log.get_logger(__name__)

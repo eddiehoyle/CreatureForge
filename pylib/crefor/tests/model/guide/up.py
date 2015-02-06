@@ -4,7 +4,7 @@
 """
 
 from maya import cmds
-from crefor.model.guide.guide import Guide
+from crefor.model.guide import Guide
 from crefor.lib import libName
 
 import unittest
@@ -46,3 +46,13 @@ class TestUp(unittest.TestCase):
                 self.assertEquals(cmds.objExists(node),
                                   True,
                                   "Node does not exist: %s" % node)
+
+class TestUpReinit(TestUp):
+
+    def __create(self):
+        arm = Guide("L", "arm", 0)
+        arm.create()
+
+        up = arm.up.reinit()
+
+        return up

@@ -9,6 +9,7 @@ def get_logger(name):
 
     if logging.Logger.manager.loggerDict.get(name):
         return logging.Logger.manager.loggerDict.get(name)
+
     else:
 
         logger = logging.getLogger(name)

@@ -1,20 +1,19 @@
 #!/usr/bin/env python
 
-'''
-'''
+"""
+"""
 
+import logging
 from maya import cmds
 from crefor.lib import libName
 
-from crefor import log
-logger = log.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class Node(object):
-    '''
-    Base node
-    '''
+    """
+    """
 
-    SUFFIX = 'nde'
+    SUFFIX = "nde"
 
     @classmethod
     def validate(cls, node):

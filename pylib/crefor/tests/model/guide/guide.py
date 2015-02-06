@@ -4,7 +4,7 @@
 """
 
 from maya import cmds
-from crefor.model.guide.guide import Guide
+from crefor.model.guide import Guide
 from crefor.lib import libName
 
 import unittest
