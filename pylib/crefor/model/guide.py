@@ -21,14 +21,15 @@ __all__ = ["Guide"]
 
 class Guide(Node):
     """
-    Guide model
+    A guide model is a represetionation of a joint
+    in Maya that includes some extra functionality.
 
     :param      position:           L, R, C, etc
     :type       position:           str
     :param      description:        Description of guide
     :type       description:        str
-    :param      index:              Inde of guide
-    :type       index:              str
+    :param      index:              Index of guide
+    :type       index:              int
     :returns:                       Guide object
     :rtype:                         Guide
 
@@ -108,8 +109,7 @@ class Guide(Node):
         self.__trash = []
 
     def create(self):
-        """create()
-
+        """
         Create a guide node.
 
         :returns:       Guide model
@@ -141,8 +141,7 @@ class Guide(Node):
         return self
 
     def reinit(self):
-        """reinit()
-
+        """
         Reinitialise an existing guide. The guide must exist in the
         Maya scene otherwise a RuntimeError exception is raised.
 
@@ -179,8 +178,7 @@ class Guide(Node):
         return self
 
     def duplicate(self):
-        """duplicate()
-
+        """
         Create a new guide from this guide. The duplicate guide index
         will be the nearest positive unused integer.
 
@@ -203,7 +201,17 @@ class Guide(Node):
         return Guide(*libName.decompile(name, 3)).create()
 
     def remove(self):
-        """remove()
+        """
+        Remove the guide from the Maya scene. This also automatically
+        detached itself from any children or parent guides.
+
+        **Example**:
+
+        >>> root = Guide("C", "root", 0)
+        >>> root.create()
+        >>> root.remove()
+        >>> root.exists()
+        # Result: False #
         """
 
         if self.exists():
@@ -222,7 +230,21 @@ class Guide(Node):
 
     def compile(self):
         """
-        Compile guide into a node
+        Generate a joint from guide matching the guides
+        orientation, position and other necessary attributes.
+        
+        **Note:**
+        Compiling a guide into a joint does not remove it
+        from the Maya scene.
+
+        :returns:       Compiled joint
+        :rtype:         str
+
+        **Example**:
+
+        >>> root = Guide("C", "root", 0)
+        >>> root.compile()
+        # Result: "C_root_0_jnt"
         """
 
         joint = None
@@ -240,7 +262,7 @@ class Guide(Node):
                                rotationOrder=rotationOrder)
 
             cmds.select(cl=True)
-            logger.debug("Compiled guide '%s' into node: '%s'" % (self.node, joint))
+            logger.debug("Compiled guide '%s' into joint: '%s'" % (self.node, joint))
 
         return joint
 
@@ -250,23 +272,25 @@ class Guide(Node):
 
     def flip(self):
         """
+        Flip primary aim axis to be the opposite of what is was
+
+
         """
 
         if self.exists() and self.up.exists():
-
-            aim_at = cmds.getAttr("%s.aimAt" % self.node)
-            if aim_at >= len(Guide.DEFAULT_AIMS):
-                self.up.flip()
+            self.up.flip()
 
     def flop(self):
         """
+        Flop secondary aim axis to be the opposite of what is was
+
+        **Example:**
+
+
         """
 
         if self.exists() and self.up.exists():
-
-            aim_at = cmds.getAttr("%s.aimAt" % self.node)
-            if aim_at >= len(Guide.DEFAULT_AIMS):
-                self.up.flop()
+            self.up.flop()
 
     # ======================================================================== #
     # Properties
@@ -315,68 +339,99 @@ class Guide(Node):
         return {}
 
     @property
-    def short_name(self):
-        """
-        Short name of guide
-        """
-
-        if self.exists():
-            return cmds.ls(self.node, long=True)[0].split('|')[-1]
-        else:
-            logger.warning("Guide '%s' does not exist." % self.node)
-            return None
-
-    @property
     def long_name(self):
         """
-        Long name of guide
+        Maya formatted ong name of guide node.
+
+        :returns:   Maya formatted long name
+        :rtype:     str
+
+        **Example:**
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.long_name
+        # Restult: |L_arm_0_gde #
         """
 
+        long_name = None
         if self.exists():
-            return cmds.ls(self.node, long=True)[0]
-        else:
-            logger.warning("Guide '%s' does not exist." % self.node)
-            return None
+            long_name = cmds.ls(self.node, long=True)[0]
+        return long_name
 
     @property
     def parent(self):
         """
-        Get parent node and return guide object
+        The current parent guide if availalble
+
+        :returns:   Parent guide node
+        :rtype:     Guide
+
+        **Example:**
+
+        >>> wrist.set_parent(elbow)
+        >>> wrist.parent
+        # Result <Guide 'L_elbow_0_gde'> #
         """
 
-        _parent = cmds.listRelatives(self.node, parent=True, type="joint") if self.exists() else None
-        if _parent:
-            return Guide.validate(_parent[0])
+        if self.exists():
+            parent = cmds.listRelatives(self.node, parent=True, type="joint")
+            if parent:
+                return Guide.validate(parent[0])
         return None
 
     @property
     def children(self):
         """
-        Get children nodes and return dict with guide objects
+        The current children guides if available.
+
+        :returns:   List of initialised child guides
+        :rtype:     list
+
+        **Example:**
+
+        >>> root.children
+        # Result [<Guide 'L_hip_0_gde'>, <Guide 'R_hip_0_gde'>] #
         """
 
-
-        _children = cmds.listRelatives(self.node, children=True, type="joint") or []
         children = []
-        for child in _children:
-            children.append(Guide.validate(child))
-        return children
+        if self.exists():
+            children = cmds.listRelatives(self.node, children=True, type="joint") or []
+        return map(Guide.validate, children)
 
     @property
     def connectors(self):
         """
-        Connectors are stored in sync with children
+        Connectors are in sync with children guides. This will return connector
+        objects for valid children.
+
+        :returns:   List of initialised connector models
+        :rtype:     list
+
+        **Example:**
+
+        >>> root.connectors
+        # Result [<Connector 'L_hip_0_cnc'>, <Connector 'R_hip_0_cnc'>] #
         """
 
         connectors = []
         if self.exists():
             for child in self.children:
-                connectors.append(_Connector(self, child).reinit())
+                connectors.append(Connector(self, child).reinit())
         return connectors
 
     @property
     def primary(self):
         """
+        The guides current primary aim axis
+
+        :returns:   Current primary aim axis
+        :rtype:     str, None
+
+        **Example:**
+
+        >>> root.set_axis(primary="z", secondary="y")
+        >>> root.primary
+        # Result: x #
         """
 
         if self.exists():
@@ -387,6 +442,16 @@ class Guide(Node):
     @property
     def secondary(self):
         """
+        The guides current secondary aim axis
+
+        :returns:   Current secondary aim axis
+        :rtype:     str, None
+
+        **Example:**
+
+        >>> root.set_axis(primary="z", secondary="y")
+        >>> root.secondary
+        # Result: y #
         """
 
         if self.exists():
@@ -494,11 +559,10 @@ class Guide(Node):
     def get_position(self, local=False):
         """
         """
-
-        return cmds.xform(self.node,
-                          q=True,
-                          ws=not local,
-                          t=True) if self.exists() else None
+        position = tuple()
+        if self.exists():
+            position = cmds.xform(self.node, q=True, ws=not local, t=True)
+        return position
 
     def get_up_position(self, local=False):
         """
@@ -720,7 +784,7 @@ class Guide(Node):
         cmds.addAttr('%s.aimAt' % self.node, e=True, en=':'.join(enums))
 
         # Create connector
-        con = _Connector(self, guide)
+        con = Connector(self, guide)
         con.create()
 
         # Parent new guide under self
@@ -1109,27 +1173,35 @@ class Up(Node):
     def get_position(self, local=False):
         """
         """
-
-        return cmds.xform(self.node,
-                          q=True,
-                          ws=not local,
-                          t=True) if self.exists() else None
+        position = tuple()
+        if self.exists():
+            position = cmds.xform(self.node, q=True, ws=not local, t=True)
+        return position
 
     def flip(self):
         """
         """
 
         if self.exists():
-            cmds.setAttr("%s.translateX" % self.node,
-                         (cmds.getAttr("%s.translateX" % self.node) * -1))
+
+            aim_at = cmds.getAttr("%s.aimAt" % self.guide.node)
+            if aim_at >= 1:
+                cmds.setAttr("%s.translateX" % self.node,
+                             (cmds.getAttr("%s.translateX" % self.node) * -1))
+            else:
+                logger.warning("Cannot flip aim when guide '%s' is set to world space" % self.guide.node)
 
     def flop(self):
         """
         """
 
         if self.exists():
-            cmds.setAttr("%s.translateY" % self.node,
-                         (cmds.getAttr("%s.translateY" % self.node) * -1))
+            aim_at = cmds.getAttr("%s.aimAt" % self.guide.node)
+            if aim_at >= 1:
+                cmds.setAttr("%s.translateY" % self.node,
+                             (cmds.getAttr("%s.translateY" % self.node) * -1))
+            else:
+                logger.warning("Cannot flop aim when guide '%s' is set to world space" % self.guide.node)
 
     def set_position(self, vector3f, local=False):
         """
@@ -1289,7 +1361,7 @@ class Up(Node):
                 shader.remove()
 
 
-class _Connector(Node):
+class Connector(Node):
     """
     A connector model is used to create a connection between
     two guide models. This includes a annotation pointing between
@@ -1306,7 +1378,7 @@ class _Connector(Node):
 
     **Example**:
 
-    >>> _Connector("C_spine_0_gde", "L_arm_0_gde")
+    >>> Connector("C_spine_0_gde", "L_arm_0_gde")
     # Result: <Connector 'L_arm_0_gde'> #
     """
 
@@ -1321,7 +1393,7 @@ class _Connector(Node):
         # Collection of nodes for reinit
         self.__nodes = {}
 
-        super(_Connector, self).__init__(*libName.decompile(self.child.node, 3))
+        super(Connector, self).__init__(*libName.decompile(self.child.node, 3))
 
     @property
     def parent(self):
@@ -1477,7 +1549,7 @@ class _Connector(Node):
 
         **Example**:
 
-        >>> con = _Connector("C_spine_0_gde", "L_arm_0_gde")
+        >>> con = Connector("C_spine_0_gde", "L_arm_0_gde")
         >>> con.create()
         # Result: <Connector 'L_arm_0_cnc'> #
         """

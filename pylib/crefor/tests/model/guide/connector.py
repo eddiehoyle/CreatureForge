@@ -64,49 +64,31 @@ class TestConnector(unittest.TestCase):
         arm, spine, connectors = self.__create()
 
         arm.remove()
+
+        self.assertEquals(spine.connectors == [],
+                          True,
+                          "Parent still has connectors: %s" % spine.connectors)
+
         spine.remove()
 
-        # self.assertEquals(spine.connectors == [],
-        #                   True,
-        #                   "Parent still has connectors: %s" % spine.connectors)
+        self.assertEquals(arm.connectors == [],
+                          True,
+                          "Child has connectors for some reason: %s" % arm.connectors)
 
-        # spine.remove()
+    def test_node(self):
+        """
+        Test property nodes
+        """
 
-        # self.assertEquals(arm.connectors == [],
-        #                   True,
-        #                   "Child has connectors for some reason: %s" % arm.connectors)
-        # self.assertEquals(spine.connectors == [],
-        #                   True,
-        #                   "Parent still has connectors: %s" % spine.connectors)
+        arm, spine, connectors = self.__create()
 
-    # def test_node(self):
-    #     """
-    #     Test property nodes
-    #     """
+        self.assertEquals(len(connectors[0].nodes) != 0,
+                          True,
+                          "Connector nodes returned empty list: %s" % connectors[0].nodes)
 
-    #     arm, spine, connectors = self.__create()
-
-    #     self.assertEquals(len(connectors[0].nodes) != 0,
-    #                       True,
-    #                       "Connector nodes returned empty list: %s" % connectors[0].nodes)
-
-    #     for node in connectors[0].nodes.values():
-    #         self.assertEquals(cmds.objExists(node), True,
-    #                           "Node does not exist: %s" % node)
-
-    # def test_nondag(self):
-    #     """
-    #     Test property nondag
-    #     """
-
-    #     arm, spine, connectors = self.__create()
-    #     self.assertEquals(len(connectors[0].nondag) != 0,
-    #                       True,
-    #                       "Connector nodes returned empty list: %s" % connectors[0].nodes)
-
-    #     for node in connectors[0].nondag:
-    #         self.assertEquals(cmds.objExists(node), True,
-    #                           "Node does not exist: %s" % node)
+        for node in connectors[0].nodes.values():
+            self.assertEquals(cmds.objExists(node), True,
+                              "Node does not exist: %s" % node)
 
 
 class TestConnectorReinit(TestConnector):

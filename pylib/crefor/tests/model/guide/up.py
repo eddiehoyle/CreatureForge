@@ -4,6 +4,7 @@
 """
 
 from maya import cmds
+from crefor.model.guide import Up
 from crefor.model.guide import Guide
 from crefor.lib import libName
 
@@ -53,6 +54,6 @@ class TestUpReinit(TestUp):
         arm = Guide("L", "arm", 0)
         arm.create()
 
-        up = arm.up.reinit()
+        up = Up(*libName.decompile(arm.node, 3)).reinit()
 
         return up

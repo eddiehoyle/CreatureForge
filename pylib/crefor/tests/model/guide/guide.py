@@ -201,7 +201,7 @@ class TestGuide(unittest.TestCase):
 
     def test_strip(self):
         """
-        Test strip() guide
+        Test strip()
         """
 
         arm, spine = self.__create()
@@ -212,18 +212,6 @@ class TestGuide(unittest.TestCase):
 
         self.assertIsNone(spine.parent, "Guide did not return None as parent: '%s'" % spine.node)
         self.assertEquals(arm.children, [], "Guide did not return empty list as children: '%s'" % arm.children)
-
-    # def test_scale(self):
-    #     """
-    #     Test set_scale on joints
-    #     """
-
-    #     arm, _ = self.__create()
-
-    #     arm.set_scale(2)
-
-    #     # Scale only affects shapes
-    #     self.assertEquals(cmds.getAttr("%s.scale" % arm.node)[0], (1.0, 1.0, 1.0), "Guide scale is not [1, 1, 1]: '%s'" % arm.node)
 
     def get_translates(self):
         """
@@ -279,7 +267,7 @@ class TestGuide(unittest.TestCase):
 
         self.assertRaises(Exception,
                           arm.aim_at,
-                          [spine],
+                          "C_head_0_gde",
                           "Tried to aim at a guide that wasn't a child, no exception was raised.")
 
         arm.aim_at(spine, add=True)
