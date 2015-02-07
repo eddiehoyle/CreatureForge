@@ -465,13 +465,30 @@ class Guide(Node):
 
     def set_axis(self, primary, secondary):
         """
+        Set primary and secondary aim axis for guide. Recognised axis
+        are either 'x', 'y' or 'z'. You cannot set the prmiary and secondary
+        axis to be the same.
+
+        :param      primary:            Primary aim axis
+        :type       primary:            str
+        :param      secondary:          Secondary aim axis
+        :type       secondary:          str
+        :raises:                        ValueError
+
+        **Example:**
+
+        >>> arm.set_axis("x", "z")
+        >>> arm.primary
+        # Result: x #
+        >>> arm.secondary
+        # Result: z #
         """
 
         if self.exists():
 
-            if str(primary).lower() == str(secondary).lower():
-                msg = ("Cannot set both primary and secondary orient " \
-                       "as the same axis: %s, %s" % (primary, secondary))
+            if len(set(map(str, [primary, secondary]))) == 1:
+                msg = ("Cannot set both primary and secondary " \
+                       "as the same axis: '%s', '%s'" % (primary, secondary))
                 raise ValueError(msg)
 
             base = list(self.AIM_ORIENT.keys()[0])
@@ -490,6 +507,22 @@ class Guide(Node):
         """
         Aim at input guide if it is a child. If not, then use the
         add boolean argument to create as a child and aim at it.
+
+        :param      guide:              Child guide to aim at. Also accepts
+                                        any default aim variables found in
+                                        Guide.DEFAULT_AIMS
+        :type       guide:              str, Guide
+        :param      add:                Add this guide and aim at it if it's not
+                                        an existing child
+        :type       add:                boolean
+        :raises:                        RuntimeError
+
+        **Example:**
+
+        >>> arm.aim_at("world")
+        >>> arm.aim_at("C_wrist_0_gde")
+        >>> arm.aim_at("C_nonExistantGuide_0_gde")
+        # RuntimeError: Guide 'C_nonExistantGuide_0_gde' is not a child of 'L_arm_0_gde' # 
         """
 
         if self.exists():
@@ -505,7 +538,7 @@ class Guide(Node):
             try:
                 guide = Guide.validate(guide)
             except Exception:
-                msg = "Cannot aim '%s' at '%s' as it does not exist." % (self, guide)
+                msg = "Cannot aim '%s' at '%s', node does not exist." % (self, guide)
                 logger.error(msg)
                 raise RuntimeError(msg)
 
@@ -519,38 +552,65 @@ class Guide(Node):
             enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
             cmds.setAttr("%s.aimAt" % self.node, enums.index(guide.node))
 
-    def aim_flip(self, value):
+    def set_position(self, x, y, z, local=False):
         """
+        Set position of guide in either world or local space
+
+        :param      x:                  Position of x axis
+        :type       x:                  int, float
+        :param      y:                  Position of y axis
+        :type       y:                  int, float
+        :param      z:                  Position of z axis
+        :type       z:                  int, float
+        :param      local:              In guides local space
+        :type       local:              tuple, list
+
+        **Example:**
+
+        >>> arm.set_position(0, 3, 0, local=False)
+        >>> arm.set_position(12, 3.32, 11.2, local=True)
         """
 
         if self.exists():
-            cmds.setAttr("%s.aimFlip" % self.node, bool(value))
-
-    def set_position(self, vector3f, local=False):
-        """
-        Set position of guide
-        """
-
-        if self.exists():
-            logger.debug("Setting '%s' position: %s" % (self.node, vector3f))
-            cmds.xform(self.node, ws=not local, t=vector3f)
+            logger.debug("Setting '%s' position: %s" % (self.node, [x, y, z]))
+            cmds.xform(self.node, ws=not local, t=[x, y, z])
 
     def set_debug(self, debug):
         """
-        Set debug visibility
+        Set debug visibility of guide. This displays localRotation axis
+
+        :param      debug:          Display local rotation axis
+        :type       debug:          bool
+
+        **Example:**
+        >>> arm.set_debug(True)
+        # Result: True #
         """
 
         if self.exists():
-            cmds.setAttr('%s.debug' % self.node, bool(debug))
+            cmds.setAttr("%s.debug" % self.node, bool(debug))
+            return bool(debug)
+        return False
 
-    def set_offset(self, vector3f):
+    def set_offset(self, x, y, z):
         """
+        Offset the orient by input values
+
+        :param      x:                  Orient of x axis
+        :type       x:                  int, float
+        :param      y:                  Orient of y axis
+        :type       y:                  int, float
+        :param      z:                  Orient of z axis
+        :type       z:                  int, float
+
+        **Example:**
+        >>> arm.set_offset(0, 90, 0)
         """
 
         if self.exists():
-            cmds.setAttr("%s.offsetOrientX" % self.node, vector3f[0])
-            cmds.setAttr("%s.offsetOrientY" % self.node, vector3f[1])
-            cmds.setAttr("%s.offsetOrientZ" % self.node, vector3f[2])
+            cmds.setAttr("%s.offsetOrientX" % self.node, x)
+            cmds.setAttr("%s.offsetOrientY" % self.node, y)
+            cmds.setAttr("%s.offsetOrientZ" % self.node, z)
 
     # ======================================================================== #
     # Getters
