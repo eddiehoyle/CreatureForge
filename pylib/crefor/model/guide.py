@@ -1025,7 +1025,7 @@ class Guide(Node):
         # Remove enum name
         enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
         enums.remove(guide.node)
-        cmds.addAttr("%s.aimAt" % self.node, e=True, en=":".join(enums))
+        libAttr.edit_enum(self.node, "aimAt", enums)
         cmds.setAttr("%s.aimAt" % self.node, len(enums) - 1)
 
         aliases = cmds.aimConstraint(self.aim_constraint, q=True, wal=True)
@@ -1077,41 +1077,21 @@ class Guide(Node):
         cmds.setAttr("%s.radius" % self.node, l=True)
         cmds.select(cl=True)
 
-        # ----------------------- #
         # Create attributes
-        # ----------------------- #
+        libAttr.set_keyable(self.node, "rotateOrder")
 
-        cmds.setAttr("%s.rotateOrder" % self.node, k=False)
-        cmds.setAttr("%s.rotateOrder" % self.node, cb=True)
+        libAttr.add_double(self.node, "guideScale", min=0.01, dv=1)
+        libAttr.add_enum(self.node, "aimAt", enums=self.DEFAULT_AIMS)
+        libAttr.add_enum(self.node, "aimOrient", enums=self.AIM_ORIENT.keys())
 
-        cmds.addAttr(self.node, ln="guideScale", at="double", min=0.01, dv=1)
-        cmds.setAttr("%s.guideScale" % self.node, k=False)
-        cmds.setAttr("%s.guideScale" % self.node, cb=True)
+        for offset_axis in ["offsetOrientX", "offsetOrientY", "offsetOrientZ"]:
+            libAttr.add_double(self.node, offset_axis)
 
-        cmds.addAttr(self.node, ln='aimAt', at='enum', en=":".join(self.DEFAULT_AIMS))
-        cmds.setAttr('%s.aimAt' % self.node, k=False)
-        cmds.setAttr('%s.aimAt' % self.node, cb=True)
-
-        cmds.addAttr(self.node, ln='aimOrient', at='enum', en=":".join(self.AIM_ORIENT.keys()))
-        cmds.setAttr('%s.aimOrient' % self.node, k=False)
-        cmds.setAttr('%s.aimOrient' % self.node, cb=True)
-
-        for axis in ["offsetOrientX", "offsetOrientY", "offsetOrientZ"]:
-            cmds.addAttr(self.node, ln=axis, at="double", dv=0)
-            cmds.setAttr("%s.%s" % (self.node, axis), cb=True)
-            cmds.setAttr("%s.%s" % (self.node, axis), k=True)
-
-        cmds.addAttr(self.node, ln="aimFlip", at="bool", min=0, max=1, dv=0)
-        cmds.setAttr("%s.aimFlip" % self.node, k=False)
-        cmds.setAttr("%s.aimFlip" % self.node, cb=True)
-
-        cmds.addAttr(self.node, ln="debug", at="bool", min=0, max=1, dv=0)
-        cmds.setAttr("%s.debug" % self.node, k=False)
-        cmds.setAttr("%s.debug" % self.node, cb=True)
+        libAttr.add_bool(self.node, "aimFlip", keyable=False, dv=False)
+        libAttr.add_bool(self.node, "debug", keyable=False, dv=False)
 
         for key in ["nodes", "nondag", "shaders"]:
-            cmds.addAttr(self.node, ln=key, dt="string")
-            cmds.setAttr("%s.%s" % (self.node, key), k=False)
+            libAttr.add_string(self.node, key)
 
         # Create shapes
         _sphere = cmds.sphere(radius=self._RADIUS, ch=False)[0]
@@ -1513,9 +1493,9 @@ class Up(Node):
 
         # Lock down cluster
         cmds.setAttr("%s.visibility" % self.scale, False)
-        libAttr.lock_translates(self.scale, hide=True)
-        libAttr.lock_rotates(self.scale, hide=True)
-        libAttr.lock_vis(self.scale, hide=True)
+        libAttr.lock_translates(self.scale)
+        libAttr.lock_rotates(self.scale)
+        libAttr.lock_vis(self.scale)
 
     def create(self):
         """
