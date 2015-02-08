@@ -589,72 +589,133 @@ class Guide(Node):
 
         if self.exists():
             cmds.setAttr("%s.debug" % self.node, bool(debug))
-            return bool(debug)
-        return False
 
     def set_offset(self, x, y, z):
         """
         Offset the orient by input values
 
-        :param      x:                  Orient of x axis
-        :type       x:                  int, float
-        :param      y:                  Orient of y axis
-        :type       y:                  int, float
-        :param      z:                  Orient of z axis
-        :type       z:                  int, float
+        :param      x:          Orient of x axis
+        :type       x:          int, float
+        :param      y:          Orient of y axis
+        :type       y:          int, float
+        :param      z:          Orient of z axis
+        :type       z:          int, float
 
         **Example:**
+
         >>> arm.set_offset(0, 90, 0)
         """
 
         if self.exists():
-            cmds.setAttr("%s.offsetOrientX" % self.node, x)
-            cmds.setAttr("%s.offsetOrientY" % self.node, y)
-            cmds.setAttr("%s.offsetOrientZ" % self.node, z)
+            cmds.setAttr("%s.offsetOrientX" % self.node, float(x))
+            cmds.setAttr("%s.offsetOrientY" % self.node, float(y))
+            cmds.setAttr("%s.offsetOrientZ" % self.node, float(z))
 
     # ======================================================================== #
     # Getters
     # ======================================================================== #
 
-    def get_position(self, local=False):
+    def get_position(self, worldspace=False):
         """
+        Get the position of the guide node. Default values returned
+        are in local space, with the option of returning in worldspace.
+
+        :param      worldspace:         Worldspace
+        :type       worldspace:         boolean
+        :returns:                       Position of guide node
+        :rtype:                         tuple
+
+        **Example:**
+
+        >>> arm.get_position(worldspace=False)
+        # Result: (0, 4.0, 1.2) #
         """
-        position = tuple()
+
+        position = []
         if self.exists():
-            position = cmds.xform(self.node, q=True, ws=not local, t=True)
-        return position
+            position = cmds.xform(self.node, q=True, ws=worldspace, t=True)
+        return tuple(position)
 
-    def get_up_position(self, local=False):
+    def get_up_position(self, worldspace=False):
         """
+        Get the position of the up node. Default values returned
+        are in local space, with the option of returning in
+        worldspace.
+
+        :param      worldspace:         Worldspace
+        :type       worldspace:         boolean
+        :returns:                       Position of up node
+        :rtype:                         tuple
+
+        **Example:**
+
+        >>> arm.get_up_position(worldspace=False)
+        # Result: (0, 4.0, 1.2) #
         """
 
-        return self.up.get_position(local) if self.exists() else None
+        position = []
+        if self.exists():
+            position = self.up.get_position(worldspace=worldspace)
+        return tuple(position)
 
     def get_aim_at(self):
         """
+        Get object that the guide is aiming at. This can either be
+        a Guide node, or one of the values found in Guide.DEFAULT_AIMS.
+
+        :returns:                       Object that guide i saiming at
+        :rtype:                         Guide, None
+
+        **Example:**
+
+        >>> root.get_aim_at():
+        # Result: world #
         """
 
+        aim = None
         if self.exists():
             enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
-            return enums[cmds.getAttr("%s.aimAt" % self.node)]
+            aim = enums[cmds.getAttr("%s.aimAt" % self.node)]
 
-        else:
-            return None
+            # Create guide object if valid
+            if aim not in self.DEFAULT_AIMS:
+                return self.validate(aim)
+
+        return aim
 
     def get_offset_orient(self):
         """
+        Get the offset orient of the guide node.
+
+        :returns:                       Offset orient values
+        :rtype:                         tuple
+
+        **Example:**
+
+        >>> root.get_offset_orient()
+        # Result: (0.0, 0.0, 0.0)
         """
 
+        values = []
         if self.exists():
             attrs = ["%s.%s" % (self.node, attr) for attr in ["offsetOrientX",
                                                               "offsetOrientY",
                                                               "offsetOrientZ"]]
-            return map(cmds.getAttr, attrs)
-        else:
-            return (0, 0, 0)
+            values = map(cmds.getAttr, attrs)
+        return tuple(values)
 
     def get_child(self, guide):
         """
+        Get the input child guide if it is a child guide.
+
+        :param      guide:          Guide
+        :type       guide:          Guide, str
+        :returns:                   Child guide
+        :rtype:                     Guide
+
+        **Example:**
+        >>> root.get_child("L_hip_0_gde")
+        # Result <Guide 'L_hip_0_gde'> #
         """
 
         guide = Guide.validate(guide)
@@ -664,11 +725,11 @@ class Guide(Node):
         except Exception:
             msg = "Guide '%s' is not a child of: '%s'" % (guide.node, self.node)
             logger.error(msg)
-            raise RuntimeError(msg)
+            raise ValueError(msg)
 
     def snapshot(self):
-        """snapshot()
-        Get a dictionary snapshot of guide data.
+        """
+        Create a data snapshot of the guide
 
         :returns:           Dictionary of relevant guide information
         :rtype:             dict
@@ -676,17 +737,19 @@ class Guide(Node):
         **Example**:
 
         >>> root = Guide("C", "root", 0)
+        >>> root.create()
         >>> root.snapshot()
+        # Result: {'node': u'C_root_0_gde', '...': '...'}
         """
 
         return dict(node=self.node,
                     parent=self.parent.node if self.parent else None,
-                    children=[c.node for c in self.children],
-                    offset=self.get_offset(),
+                    children=map(str, self.children),
+                    offset=self.get_offset_orient(),
                     aim_at=self.get_aim_at(),
                     aim_flip=bool(cmds.getAttr("%s.aimFlip" % self.node)),
-                    position=self.get_position(local=False),
-                    up_position=self.get_up_position(local=False),
+                    position=self.get_position(worldspace=True),
+                    up_position=self.get_up_position(worldspace=True),
                     primary=self.primary,
                     secondary=self.secondary) if self.exists() else {}
 
@@ -695,8 +758,16 @@ class Guide(Node):
     # ======================================================================== #
 
     def strip(self):
-        """strip()
-        Strip node of all hierarchy
+        """
+        Remove parent and all child guides if available
+
+        **Example:**
+
+        >>> root.strip()
+        >>> root.parent
+        # Result: None #
+        >>> root.children
+        # Result: [] #
         """
 
         if self.exists():
@@ -711,23 +782,60 @@ class Guide(Node):
 
     def has_child(self, guide):
         """
-        Is guide an immediate child of self
+        Is guide an immediate child of the current guide?
+
+        :param      guide:          Guide
+        :type       guide:          Guide, str
+        :returns:                   If the guide is a child
+        :rtype:                     boolean
+
+        **Example:**
+
+        >>> root.has_child("L_hip_0_gde")
+        # Result: True #
         """
 
-        return Guide.validate(guide).node in [g.node for g in self.children]
+        guide = self.validate(guide)
+        has_child = False
+        if self.exists():
+            has_child = guide in self.children
+        return has_child
 
     def is_parent(self, guide):
         """
-        Is guide the immediate parent of self
+        Is guide the immediate parent of the current guide?
+
+        :param      guide:          Guide
+        :type       guide:          Guide, str
+        :returns:                   If the guide is the parent
+        :rtype:                     boolean
+
+        **Example:**
+
+        >>> wrist.is_parent("L_elbow_0_gde")
+        # Result: True #
         """
 
-        if self.parent:
-            return Guide.validate(guide).node == self.parent.node
-        return False
+        guide = self.validate(guide)
+        is_parent = False
+        if self.exists():
+            is_parent = guide == self.parent
+        return is_parent
 
     def has_parent(self, guide):
         """
-        Iterate over all parents to see if guide is one
+        Is the input guide a parent of the current guide? This method
+        scans all parent guides until it finds the input guide.
+
+        :param      guide:          Guide
+        :type       guide:          Guide, str
+        :returns:                   If the guide has the parent
+        :rtype:                     boolean
+
+        **Example:**
+
+        >>> toe.has_parent("C_root_0_gde")
+        # Result: True #
         """
 
         guide = Guide.validate(guide)
@@ -740,7 +848,19 @@ class Guide(Node):
 
     def set_parent(self, guide):
         """
-        Set guide to be parent of self
+        Set current guides parent to be the input guide.
+
+        :param      guide:          Guide
+        :type       guide:          Guide, str
+        :returns:                   Child guide
+        :rtype:                     Guide
+
+        **Example:**
+
+        >>> elbow = Guide("L", "elbow", 0).create()
+        >>> wrist = Guide("L", "wrist", 0).create()
+        >>> wrist.set_parent("L_elbow_0_gde")
+        # Result: <Guide 'L_wrist_0_gde'> #
         """
 
         t = time.time()
@@ -1230,13 +1350,14 @@ class Up(Node):
         except AttributeError:
             return None
 
-    def get_position(self, local=False):
+    def get_position(self, worldspace=False):
         """
         """
-        position = tuple()
+
+        position = []
         if self.exists():
-            position = cmds.xform(self.node, q=True, ws=not local, t=True)
-        return position
+            position = cmds.xform(self.node, q=True, ws=worldspace, t=True)
+        return tuple(position)
 
     def flip(self):
         """
