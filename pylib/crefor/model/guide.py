@@ -894,7 +894,19 @@ class Guide(Node):
 
     def add_child(self, guide):
         """
-        Add guide to children
+        Add input guide as a child to the current guide.
+
+        :param      guide:          Guide
+        :type       guide:          Guide, str
+        :returns:                   Child guide
+        :rtype:                     Guide
+
+        **Example:**
+
+        >>> elbow = Guide("L", "elbow", 0).create()
+        >>> wrist = Guide("L", "wrist", 0).create()
+        >>> elbow.add_child(wrist)
+        # Result: <Guide 'L_wrist_0_gde'> #
         """
 
         t = time.time()
@@ -927,17 +939,35 @@ class Guide(Node):
 
     def remove_parent(self):
         """
-        If have a parent, tell parent to remove aim to self
+        Remove guides immediate parent.
+
+        **Example:**
+
+        >>> wrist = Guide("L", "wrist", 0).create()
+        >>> wrist.remove_parent()
         """
 
-        if self.parent:
-            self.parent.__remove_aim(self)
+        if self.exists():
+            if self.parent:
+                self.parent.__remove_aim(self)
 
     def remove_child(self, guide):
         """
+        Remove input guide as a child.
+
+        :param      guide:          Guide
+        :type       guide:          Guide, str
+        :returns:                   Child guide
+        :rtype:                     Guide
+
+        **Example:**
+
+        >>> elbow.remove_child(wrist)
         """
 
-        self.__remove_aim(guide)
+        if self.exists():
+            if self.has_child(guide):
+                self.__remove_aim(guide)
 
     # ======================================================================== #
     # Private
@@ -945,9 +975,7 @@ class Guide(Node):
 
     def __add_aim(self, guide):
         """
-        Create a new child aim relationship between self and guide.
-        Guide is considered to be the child of self. Any constraint
-        and attribute updates are added to self, as well as the connector.
+        Add input guide as a child guide.
         """
 
         guide = Guide.validate(guide)
@@ -974,12 +1002,7 @@ class Guide(Node):
 
     def __remove_aim(self, guide):
         """
-        self has guide as a child
-        self has constraint
-        self --> guide
-
-        self is always parent
-        guide is always child
+        Remove input guide as a child guide.
         """
 
         t = time.time()
@@ -1017,17 +1040,15 @@ class Guide(Node):
         if len(enums) == 1:
             cmds.setAttr("%s.aimAt" % self.node, 0)
 
-        # Reinit children
-        # for con in connectors:
-        #     con.reinit()
-
         logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.node,
                                                            guide.node,
                                                            time.time()-t))
 
     def __update_aim_index(self):
         """
-        Refresh aim index of aim condition
+        As guides get added and removed, their linked enum index changes.
+        This method scans the enum attributes and links their value to
+        the current attached child guides.
         """
 
         if self.exists():
@@ -1046,7 +1067,7 @@ class Guide(Node):
 
     def __create_nodes(self):
         """
-        Create important nodes
+        Main node creation method, including custom attributes.
         """
         
         # Create node and parent sphere under
@@ -1056,7 +1077,10 @@ class Guide(Node):
         cmds.setAttr("%s.radius" % self.node, l=True)
         cmds.select(cl=True)
 
+        # ----------------------- #
         # Create attributes
+        # ----------------------- #
+
         cmds.setAttr("%s.rotateOrder" % self.node, k=False)
         cmds.setAttr("%s.rotateOrder" % self.node, cb=True)
 
