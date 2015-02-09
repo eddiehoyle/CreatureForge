@@ -6,7 +6,7 @@
 from PySide.QtCore import *
 from PySide.QtGui import *
 
-from crefor.model.guide.guide import Guide
+from crefor.model.guide import Guide
 from crefor.lib import libName
 
 class CreateGuideDialog(QDialog):

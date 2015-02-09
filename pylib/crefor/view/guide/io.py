@@ -8,7 +8,7 @@ import os
 from maya import cmds
 
 from crefor import api
-from crefor.model.guide.guide import Guide
+from crefor.model.guide import Guide
 from crefor.lib import libName, libXform
 from crefor import log
 

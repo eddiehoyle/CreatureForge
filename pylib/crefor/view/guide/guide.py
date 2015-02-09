@@ -8,12 +8,10 @@ import os
 from maya import cmds
 
 from crefor.control import guide
-from crefor.model.guide.guide import Guide
+from crefor.model.guide import Guide
 from crefor.view.guide.dialogs import CreateGuideDialog
 from crefor.lib import libName, libXform
 from crefor import log
-
-
 
 from PySide.QtCore import QSize, Qt
 from PySide.QtGui import QWidget, QHBoxLayout, QPushButton, QIcon, QPixmap

@@ -479,7 +479,7 @@ def read(path, compile_guides=False):
     for guide, snapshot in data.items():
         guide = validate(guide)
 
-        guide.set_position(snapshot["position"], local=False)
+        guide.set_position(*snapshot["position"], worldspace=True)
         guide.set_axis(snapshot["primary"], snapshot["secondary"])
 
     # Create hierarchy
@@ -489,11 +489,11 @@ def read(path, compile_guides=False):
             child = validate(child)
             add_child(guide, child)
 
-        guide.up.set_position(snapshot["up_position"], local=False)
+        guide.up.set_position(snapshot["up_position"], worldspace=True)
 
         guide.aim_flip(snapshot["aim_flip"])
         guide.aim_at(snapshot["aim_at"])
-        guide.set_offset(snapshot["offset"])
+        guide.set_offset(*snapshot["offset"])
 
     # Compile into joints
     if compile_guides:

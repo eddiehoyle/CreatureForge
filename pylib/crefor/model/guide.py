@@ -94,16 +94,6 @@ class Guide(Node):
         self.up = None
         self.aim = None
 
-        # Constraint default options
-        self.world = None
-
-        # Aim constraint
-        self.aim_constraint = None
-        self.orient_constraint = None
-
-        # Aim condition
-        self.aim_cond = None
-
         # Snapshot
         self.__nodes = {}
         self.__nondag = []
@@ -134,7 +124,7 @@ class Guide(Node):
 
         self.__create_nodes()
         self.__create_up()
-        self.__create_aim()
+        self.__initialise_aim()
         self.__create_shader()
         self.__post()
 
@@ -261,7 +251,7 @@ class Guide(Node):
             # Create joint
             joint = cmds.joint(name=libName.update(self.node, suffix="jnt"),
                                orientation=orientation,
-                               position=self.get_position(),
+                               position=self.get_position(worldspace=True),
                                rotationOrder=rotationOrder)
 
             cmds.select(cl=True)
@@ -275,9 +265,7 @@ class Guide(Node):
 
     def flip(self):
         """
-        Flip primary aim axis to be the opposite of what is was
-
-
+        Flip primary aim axis to be the opposite of it's current value
         """
 
         if self.exists() and self.up.exists():
@@ -285,11 +273,7 @@ class Guide(Node):
 
     def flop(self):
         """
-        Flop secondary aim axis to be the opposite of what is was
-
-        **Example:**
-
-
+        Flop secondary aim axis to be the opposite of it's current value
         """
 
         if self.exists() and self.up.exists():
@@ -298,6 +282,24 @@ class Guide(Node):
     # ======================================================================== #
     # Properties
     # ======================================================================== #
+
+    @property
+    def aim_cond(self):
+        """
+        """
+
+        if self.exists():
+            return self.nodes["__condition"]
+        return None
+
+    @property
+    def constraint(self):
+        """
+        """
+
+        if self.exists():
+            return self.nodes["__constraint"]
+        return None
 
     @property
     def nodes(self):
@@ -575,7 +577,7 @@ class Guide(Node):
             enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
             cmds.setAttr("%s.aimAt" % self.node, enums.index(guide.node))
 
-    def set_position(self, x, y, z, local=False):
+    def set_position(self, x, y, z, worldspace=False):
         """
         Set position of guide in either world or local space
 
@@ -585,18 +587,25 @@ class Guide(Node):
         :type       y:                  int, float
         :param      z:                  Position of z axis
         :type       z:                  int, float
-        :param      local:              In guides local space
-        :type       local:              tuple, list
+        :param      worldspace:         Apply in worldspace
+        :type       worldspace:         tuple, list
 
         **Example:**
 
-        >>> arm.set_position(0, 3, 0, local=False)
-        >>> arm.set_position(12, 3.32, 11.2, local=True)
+        >>> arm.set_position(0, 3, 0, worldspace=False)
+        >>> arm.set_position(12, 3.32, 11.2, worldspace=True)
         """
 
         if self.exists():
             logger.debug("Setting '%s' position: %s" % (self.node, [x, y, z]))
-            cmds.xform(self.node, ws=not local, t=[x, y, z])
+            cmds.xform(self.node, ws=worldspace, t=[x, y, z])
+
+    def aim_flip(self, flip):
+        """
+        """
+
+        if self.exists():
+            libAttr.set(self.node, "aimFlip", bool(flip))
 
     def set_debug(self, debug):
         """
@@ -607,7 +616,6 @@ class Guide(Node):
 
         **Example:**
         >>> arm.set_debug(True)
-        # Result: True #
         """
 
         if self.exists():
@@ -781,7 +789,9 @@ class Guide(Node):
 
     def strip(self):
         """
-        Remove parent and all child guides if available
+        Remove guide from any hierarchy. This unparents itself
+        from any children and removes itself as a child of any
+        nodes.
 
         **Example:**
 
@@ -804,7 +814,7 @@ class Guide(Node):
 
     def has_child(self, guide):
         """
-        Is guide an immediate child of the current guide?
+        Is input guide an immediate child of this guide?
 
         :param      guide:          Guide
         :type       guide:          Guide, str
@@ -825,7 +835,7 @@ class Guide(Node):
 
     def is_parent(self, guide):
         """
-        Is guide the immediate parent of the current guide?
+        Is input guide the immediate parent of this guide?
 
         :param      guide:          Guide
         :type       guide:          Guide, str
@@ -846,8 +856,9 @@ class Guide(Node):
 
     def has_parent(self, guide):
         """
-        Is the input guide a parent of the current guide? This method
-        scans all parent guides until it finds the input guide.
+        Is the input guide a parent of this guide? This method
+        reads through all parent guides hierarchy to determine
+        it's return result.
 
         :param      guide:          Guide
         :type       guide:          Guide, str
@@ -870,7 +881,7 @@ class Guide(Node):
 
     def set_parent(self, guide):
         """
-        Set current guides parent to be the input guide.
+        Set this guides parent to be the input guide.
 
         :param      guide:          Guide
         :type       guide:          Guide, str
@@ -916,7 +927,7 @@ class Guide(Node):
 
     def add_child(self, guide):
         """
-        Add input guide as a child to the current guide.
+        Add input guide as a child to this guide.
 
         :param      guide:          Guide
         :type       guide:          Guide, str
@@ -967,6 +978,8 @@ class Guide(Node):
 
         >>> wrist = Guide("L", "wrist", 0).create()
         >>> wrist.remove_parent()
+        >>> wrist.parent
+        # Result: None #
         """
 
         if self.exists():
@@ -981,6 +994,7 @@ class Guide(Node):
         :type       guide:          Guide, str
         :returns:                   Child guide
         :rtype:                     Guide
+        :raises                     ValueError
 
         **Example:**
 
@@ -988,8 +1002,7 @@ class Guide(Node):
         """
 
         if self.exists():
-            if self.has_child(guide):
-                self.__remove_aim(guide)
+            self.__remove_aim(guide)
 
     # ======================================================================== #
     # Private
@@ -997,10 +1010,10 @@ class Guide(Node):
 
     def __add_aim(self, guide):
         """
-        Add input guide as a child guide.
+        Private aim creation method. Add the input guide as a child
+        by extending this guides aimConstraint values and adding
+        an aim enum value to the 'aimAt' attribute.
         """
-
-        guide = Guide.validate(guide)
 
         cmds.aimConstraint(guide.aim, self.aim, worldUpObject=self.up.node,
                            worldUpType='object',
@@ -1029,9 +1042,8 @@ class Guide(Node):
 
         t = time.time()
 
-        guide = Guide.validate(guide)
         if not self.has_child(guide):
-            return
+            raise ValueError("Guide '%s' is not a child of '%s'" % (guide.node, self.node))
 
         # Remove connector
         connectors = self.connectors
@@ -1050,16 +1062,16 @@ class Guide(Node):
         libAttr.edit_enum(self.node, "aimAt", enums)
         libAttr.set(self.node, "aimAt", len(enums) - 1)
 
-        aliases = cmds.aimConstraint(self.aim_constraint, q=True, wal=True)
+        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
         for alias in aliases:
-            if not cmds.listConnections("%s.%s" % (self.aim_constraint, alias),
+            if not cmds.listConnections("%s.%s" % (self.constraint, alias),
                                         source=True,
                                         destination=False,
                                         plugs=True):
-                libAttr.set(self.aim_constraint, alias, 0)
+                libAttr.set(self.constraint, alias, 0)
 
-        # Default to world
-        if len(enums) == 1:
+        # Default to world if no aim objects are attached
+        if len(enums) == len(self.DEFAULT_AIMS):
             libAttr.set(self.node, "aimAt", 0)
 
         logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.node,
@@ -1073,22 +1085,27 @@ class Guide(Node):
         the current attached child guides.
         """
 
-        if self.exists():
+        # Query parent joint enum items
+        enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(':')
+        enum_index = enums.index(self.__child.node)
 
-            # Query parent joint enum items
-            enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(':')
-            enum_index = enums.index(self.__child.node)
+        # Update index to reflect alias index of child
+        libAttr.set(self.aim_cond, "secondTerm", enum_index)
 
-            # Update index to reflect alias index of child
-            libAttr.set(self.aim_cond, "secondTerm", enum_index)
-
-            state_conds = json.loads(cmds.getAttr("%s.states" % self.node))
-            for key, cond in state_conds.items():
-                libAttr.set(self.cond, "secondTerm", enum_index)
+        state_conds = json.loads(cmds.getAttr("%s.states" % self.node))
+        for key, cond in state_conds.items():
+            libAttr.set(self.condition, "secondTerm", enum_index)
 
     def __create_nodes(self):
         """
-        Main node creation method, including custom attributes.
+        Main node creation method.
+
+        A node is simply a Maya joint node, with a nurbs surface sphere
+        shape parented under it as a child. All custom attributes are also
+        created in this method.
+
+        A setup node is a transform with all business logic nodes parented
+        under it, including scale cluster and main aim transform target.
         """
         
         # Create node and parent sphere under
@@ -1115,8 +1132,8 @@ class Guide(Node):
         for attr in ["rotateOrder", "guideScale", "aimAt", "aimOrient", "aimFlip", "debug"]:
             libAttr.set(self.node, attr, keyable=False, channelBox=True)
 
-        for attr in ["offsetOrientX", "offsetOrientY", "offsetOrientZ"]:
-            libAttr.set_keyable(self.node, attr)
+        for axis in ["X", "Y", "Z"]:
+            libAttr.set_keyable(self.node, "offsetOrient%s" % axis)
 
         # Create shapes
         _sphere = cmds.sphere(radius=self._RADIUS, ch=False)[0]
@@ -1148,18 +1165,6 @@ class Guide(Node):
         for attr in ["jointOrient", "rotate", "scale"]:
             for axis in ["X", "Y", "Z"]:
                 libAttr.set(self.node, "%s%s" % (attr, axis), k=False, l=True)
-            # cmds.setAttr("%s.jointOrient%s" % (self.node, axis), k=False)
-            # cmds.setAttr("%s.jointOrient%s" % (self.node, axis), l=True)
-
-            # cmds.setAttr("%s.rotate%s" % (self.node, axis), k=False)
-            # cmds.setAttr("%s.rotate%s" % (self.node, axis), l=True)
-
-            # cmds.setAttr("%s.scale%s" % (self.node, axis), k=False)
-            # cmds.setAttr("%s.scale%s" % (self.node, axis), l=True)
-
-
-        # cmds.setAttr("%s.visibility" % self.node, k=False)
-        # cmds.setAttr("%s.visibility" % self.node, l=True)
 
         # Create main aim transform
         self.aim = cmds.group(name=libName.update(self.node, suffix="aim"), empty=True)
@@ -1179,6 +1184,8 @@ class Guide(Node):
 
     def __create_up(self):
         """
+        Create up object that serves as the up control for the secondary aim
+        axis. This object is accessed with the 'up' property.
         """
 
         self.up = Up(self).create()
@@ -1186,12 +1193,11 @@ class Guide(Node):
         up_conds = []
         for axis_index, axis in enumerate(self.AIM_ORIENT):
 
-            up_axis = axis[1]
-            up_pma = libName.update(self.node, suffix="pma", append="upAxis%s" % up_axis.upper())
+            up_pma = libName.update(self.node, suffix="pma", append="upAxis%s" % axis[1].upper())
 
             if not cmds.objExists(up_pma):
                 up_pma = cmds.createNode("plusMinusAverage", name=up_pma)
-                cmds.connectAttr("%s.output1D" % up_pma, "%s.visibility" % self.up.get_shape(up_axis))
+                cmds.connectAttr("%s.output1D" % up_pma, "%s.visibility" % self.up.get_shape(axis[1]))
 
             up_name = libName.update(self.node, suffix="cond", append="Up%s" % ("".join(axis).title()))
             up_cond = cmds.createNode("condition", name=up_name)
@@ -1207,42 +1213,45 @@ class Guide(Node):
         for cond in up_conds:
             cmds.connectAttr("%s.aimAt" % self.node, "%s.colorIfTrueR" % cond)
 
-    def __create_aim(self):
+    def __initialise_aim(self):
         """
-        Initial aim creation method
+        Create inital aim logic network. This is where the guides main
+        aim constraint is made and initialised
         """
 
-        # Create local orient
-        self.orient_constraint = cmds.orientConstraint(self.node, self.setup, mo=True)[0]
-        aliases = cmds.orientConstraint(self.orient_constraint, q=True, wal=True)
-        targets = cmds.orientConstraint(self.orient_constraint, q=True, tl=True)
-        index = targets.index(self.node)
-        self.aim_cond = cmds.createNode("condition",
+        # Make main aim_cond
+        self.__condition = cmds.createNode("condition",
                                         name=libName.update(self.node,
                                                             suffix="cond",
                                                             append="local"))
 
-        libAttr.set(self.aim_cond, "secondTerm", index)
-        libAttr.set(self.aim_cond, "colorIfTrueR", 1)
-        libAttr.set(self.aim_cond, "colorIfFalseR", 0)
-        cmds.connectAttr("%s.outColorR" % self.aim_cond, "%s.%s" % (self.orient_constraint, aliases[index]))
+        # Create local orient
+        orient_constraint = cmds.orientConstraint(self.node, self.setup, mo=True)[0]
+        aliases = cmds.orientConstraint(orient_constraint, q=True, wal=True)
+        targets = cmds.orientConstraint(orient_constraint, q=True, tl=True)
+        index = targets.index(self.node)
+
+        libAttr.set(self.__condition, "secondTerm", index)
+        libAttr.set(self.__condition, "colorIfTrueR", 1)
+        libAttr.set(self.__condition, "colorIfFalseR", 0)
+        cmds.connectAttr("%s.outColorR" % self.__condition, "%s.%s" % (orient_constraint, aliases[index]))
 
         # Create main aim constraint
-        self.aim_constraint = cmds.aimConstraint(self.node,
+        self.__constraint = cmds.aimConstraint(self.node,
                                              self.aim,
                                              worldUpObject=self.up.node,
                                              offset=(0, 0, 0),
                                              aimVector=(1, 0, 0),
                                              upVector=(0, 1, 0),
                                              worldUpType='object')[0]
-        aim_aliases = cmds.aimConstraint(self.aim_constraint, q=True, wal=True)
-        cmds.connectAttr('%s.outColorR' % self.aim_cond, '%s.%s' % (self.aim_constraint, aim_aliases[0]))
+        aim_aliases = cmds.aimConstraint(self.__constraint, q=True, wal=True)
+        cmds.connectAttr('%s.outColorR' % self.__condition, '%s.%s' % (self.__constraint, aim_aliases[0]))
 
         # Create custom aim constraint offsets
         aim_offset_pma = cmds.createNode("plusMinusAverage",
                                         name=libName.update(self.node, suffix="pma", append="custom"))
 
-        cmds.connectAttr("%s.output3D" % aim_offset_pma, "%s.offset" % self.aim_constraint)
+        cmds.connectAttr("%s.output3D" % aim_offset_pma, "%s.offset" % self.__constraint)
 
         for pair_index, axis in enumerate(self.AIM_ORIENT.keys()):
 
@@ -1279,9 +1288,8 @@ class Guide(Node):
                                                            (pair_index + 1),
                                                            axis))
 
-        self.__nodes["aim_cond"] = self.aim_cond
-        self.__nodes["aim_constraint"] = self.aim_constraint
-        self.__nodes["orient_constraint"] = self.orient_constraint
+        self.__nodes["__condition"] = self.__condition
+        self.__nodes["__constraint"] = self.__constraint
 
     def __create_shader(self):
         """
@@ -1424,13 +1432,13 @@ class Up(Node):
             else:
                 logger.warning("Cannot flop aim when guide '%s' is set to world space" % self.guide.node)
 
-    def set_position(self, vector3f, local=False):
+    def set_position(self, vector3f, worldspace=False):
         """
         """
 
         if self.exists():
             try:
-                cmds.xform(self.node, ws=not local, t=vector3f)
+                cmds.xform(self.node, ws=worldspace, t=vector3f)
             except Exception:
                 logger.error("Failed to set translates on '%s' with args: '%s'" % (self.node, vector3f))
 
@@ -1644,6 +1652,25 @@ class Connector(Node):
         return self.__child
 
     @property
+    def condition(self):
+        """nodes()
+        Return important nodes from Guide class
+
+        :returns:   Dictionary of important nodes in {"attr": "value"} format
+        :rtype:     dict
+
+        **Example**:
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.nodes
+        # Result: {u'nondag': [u'L_armLocal_0_cond'], "...": "..."} # 
+        """
+
+        if self.exists():
+            return self.nodes["__condition"]
+        return None
+
+    @property
     def nodes(self):
         """nodes()
         Return important nodes from connector object
@@ -1692,8 +1719,8 @@ class Connector(Node):
         """
 
         # Query aliases and target list from parent aim constraint
-        aliases = cmds.aimConstraint(self.parent.aim_constraint, q=True, wal=True)
-        targets = cmds.aimConstraint(self.parent.aim_constraint, q=True, tl=True)
+        aliases = cmds.aimConstraint(self.parent.constraint, q=True, wal=True)
+        targets = cmds.aimConstraint(self.parent.constraint, q=True, tl=True)
         index = targets.index(self.child.aim)
 
         # Query parent joint enum items
@@ -1702,31 +1729,31 @@ class Connector(Node):
 
         # Create condition that turns on aim for child constraint if
         # enum index is set to match childs name
-        self.aim_cond = cmds.createNode("condition",
+        self.__condition = cmds.createNode("condition",
                                    name=libName.update(self.node,
                                                        append=libName.description(self.node),
                                                        suffix="cond"))
 
-        libAttr.set(self.aim_cond, "secondTerm", enum_index)
-        libAttr.set(self.aim_cond, "colorIfTrueR", 1)
-        libAttr.set(self.aim_cond, "colorIfFalseR", 0)
+        libAttr.set(self.__condition, "secondTerm", enum_index)
+        libAttr.set(self.__condition, "colorIfTrueR", 1)
+        libAttr.set(self.__condition, "colorIfFalseR", 0)
 
-        cmds.connectAttr("%s.aimAt" % self.parent.node, "%s.firstTerm" % self.aim_cond)
-        cmds.connectAttr("%s.outColorR" % self.aim_cond, "%s.%s" % (self.parent.aim_constraint, aliases[index]))
+        cmds.connectAttr("%s.aimAt" % self.parent.node, "%s.firstTerm" % self.__condition)
+        cmds.connectAttr("%s.outColorR" % self.__condition, "%s.%s" % (self.parent.constraint, aliases[index]))
 
         # Set enum to match child aim
         libAttr.set(self.parent.node, "aimAt", enum_index)
 
         # Loop through all aliases on and set non-connected attributes to be 0
         for alias in aliases:
-            if not cmds.listConnections('%s.%s' % (self.parent.aim_constraint, alias),
+            if not cmds.listConnections('%s.%s' % (self.parent.constraint, alias),
                                         source=True,
                                         destination=False,
                                         plugs=True):
-                libAttr.set(self.parent.aim_constraint, alias, 0)
+                libAttr.set(self.parent.constraint, alias, 0)
 
         # Store new condition
-        self.__nodes["aim_cond"] = self.aim_cond
+        self.__nodes["__condition"] = self.__condition
 
     def __update_aim_index(self):
         """

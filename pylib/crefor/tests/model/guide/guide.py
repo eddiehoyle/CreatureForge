@@ -101,6 +101,10 @@ class TestGuide(unittest.TestCase):
 
         arm, _ = self.__create()
 
+        # Remove private key
+        arm.nodes.pop("__condition")
+        arm.nodes.pop("__constraint")
+
         for key in arm.nodes:
             self.assertEquals(hasattr(arm, key), True, "Guide object is missing attribute: '%s'" % key)
 
