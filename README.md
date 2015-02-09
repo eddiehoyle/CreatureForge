@@ -17,7 +17,7 @@ My first stretch goal is complete phase 1. This includes a few minor goals:<br>
 ## What about the future?
 *Phase 2* will allow users to install rig parts on top of these guides and their hierarchy. Intelligent primary and secondary rig options will allow for pairing functionality to avoid conflicting control.
 
-*Phase 3* is polish. Templating, complete UI overhaul and the addition supporting plugin architecture.
+*Phase 3* is polish. Templating, complete UI overhaul and the addition of supporting plugin architecture.
 
 ## That's it?
 For now. This project is a slow roasting one, I'll get back to it eventually.
