@@ -43,13 +43,16 @@ class Guide(Node):
     DEFAULT_AIMS = ["world", "custom"]
 
     _RADIUS = 1.0
+    _TRANSPARENCY = 0.6
 
-    AIM_ORIENT = OrderedDict([("xyz", [(0, 0, 0), (0, 180, 0)]),
+    AIM_ORIENT = OrderedDict([
+                             ("xyz", [(0, 0, 0), (0, 180, 0)]),
                              ("xzy", [(-90, 0, 0), (-90, 180, 0)]),
                              ("yxz", [(0, -180, -90), (0, 0, 90)]),
                              ("yzx", [(0, -90, -90), (180, 90, -90)]),
                              ("zxy", [(-90, 180, -90), (90, 180, -90)]),
-                             ("zyx", [(-90, 90, -90), (-90, -90, 90)])])
+                             ("zyx", [(-90, 90, -90), (-90, -90, 90)])
+                             ])
 
     @classmethod
     def validate(cls, node):
@@ -339,12 +342,32 @@ class Guide(Node):
         return {}
 
     @property
+    def short_name(self):
+        """
+        Maya formatted short name of guide node.
+
+        :returns:   Maya formatted short name
+        :rtype:     str, None
+
+        **Example:**
+
+        >>> arm = Guide("L", "arm", 0).create()
+        >>> arm.short_name
+        # Restult: L_arm_0_gde #
+        """
+
+        short_name = None
+        if self.exists():
+            short_name = self.long_name.split("|")[-1]
+        return short_name
+
+    @property
     def long_name(self):
         """
-        Maya formatted ong name of guide node.
+        Maya formatted long name of guide node.
 
         :returns:   Maya formatted long name
-        :rtype:     str
+        :rtype:     str, None
 
         **Example:**
 
@@ -531,7 +554,7 @@ class Guide(Node):
 
             # Get world, local keywords first
             if guide in self.DEFAULT_AIMS:
-                cmds.setAttr("%s.aimAt" % self.node, enums.index(guide))
+                libAttr.set(self.node, "aimAt", enums.index(guide))
                 return
 
             # Try validate guide
@@ -588,7 +611,7 @@ class Guide(Node):
         """
 
         if self.exists():
-            cmds.setAttr("%s.debug" % self.node, bool(debug))
+            libAttr.set(self.node, "debug", bool(debug))
 
     def set_offset(self, x, y, z):
         """
@@ -607,9 +630,8 @@ class Guide(Node):
         """
 
         if self.exists():
-            cmds.setAttr("%s.offsetOrientX" % self.node, float(x))
-            cmds.setAttr("%s.offsetOrientY" % self.node, float(y))
-            cmds.setAttr("%s.offsetOrientZ" % self.node, float(z))
+            for axis, value in zip(["X", "Y", "Z"], [x, y, z]):
+                libAttr.set(self.node, "offsetOrient%s" % axis, float(value))
 
     # ======================================================================== #
     # Getters
@@ -989,7 +1011,7 @@ class Guide(Node):
         # Edit aim attribute on node to include new child
         enums = cmds.attributeQuery('aimAt', node=self.node, listEnum=True)[0].split(':')
         enums.append(guide.node)
-        cmds.addAttr('%s.aimAt' % self.node, e=True, en=':'.join(enums))
+        libAttr.edit_enum(self.node, "aimAt", enums=enums)
 
         # Create connector
         con = Connector(self, guide)
@@ -1026,7 +1048,7 @@ class Guide(Node):
         enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
         enums.remove(guide.node)
         libAttr.edit_enum(self.node, "aimAt", enums)
-        cmds.setAttr("%s.aimAt" % self.node, len(enums) - 1)
+        libAttr.set(self.node, "aimAt", len(enums) - 1)
 
         aliases = cmds.aimConstraint(self.aim_constraint, q=True, wal=True)
         for alias in aliases:
@@ -1034,11 +1056,11 @@ class Guide(Node):
                                         source=True,
                                         destination=False,
                                         plugs=True):
-                cmds.setAttr("%s.%s" % (self.aim_constraint, alias), 0)
+                libAttr.set(self.aim_constraint, alias, 0)
 
         # Default to world
         if len(enums) == 1:
-            cmds.setAttr("%s.aimAt" % self.node, 0)
+            libAttr.set(self.node, "aimAt", 0)
 
         logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.node,
                                                            guide.node,
@@ -1058,12 +1080,11 @@ class Guide(Node):
             enum_index = enums.index(self.__child.node)
 
             # Update index to reflect alias index of child
-            cmds.setAttr("%s.secondTerm" % self.aim_cond, enum_index)
+            libAttr.set(self.aim_cond, "secondTerm", enum_index)
 
             state_conds = json.loads(cmds.getAttr("%s.states" % self.node))
-            for key, node in state_conds.items():
-                cmds.setAttr("%s.secondTerm" % node, enum_index)
-
+            for key, cond in state_conds.items():
+                libAttr.set(self.cond, "secondTerm", enum_index)
 
     def __create_nodes(self):
         """
@@ -1073,32 +1094,36 @@ class Guide(Node):
         # Create node and parent sphere under
         cmds.select(cl=True)
         self.node = cmds.joint(name=self.node)
-        cmds.setAttr("%s.radius" % self.node, cb=False)
-        cmds.setAttr("%s.radius" % self.node, l=True)
+        libAttr.set(self.node, "radius", channelBox=False, l=True)
         cmds.select(cl=True)
 
         # Create attributes
-        libAttr.set_keyable(self.node, "rotateOrder")
-
         libAttr.add_double(self.node, "guideScale", min=0.01, dv=1)
-        libAttr.add_enum(self.node, "aimAt", enums=self.DEFAULT_AIMS)
         libAttr.add_enum(self.node, "aimOrient", enums=self.AIM_ORIENT.keys())
+        libAttr.add_bool(self.node, "aimFlip", dv=False)
+        libAttr.add_enum(self.node, "aimAt", enums=self.DEFAULT_AIMS)
 
         for offset_axis in ["offsetOrientX", "offsetOrientY", "offsetOrientZ"]:
             libAttr.add_double(self.node, offset_axis)
 
-        libAttr.add_bool(self.node, "aimFlip", keyable=False, dv=False)
-        libAttr.add_bool(self.node, "debug", keyable=False, dv=False)
+        libAttr.add_bool(self.node, "debug", dv=False)
 
         for key in ["nodes", "nondag", "shaders"]:
             libAttr.add_string(self.node, key)
 
+        # Set attribute display status
+        for attr in ["rotateOrder", "guideScale", "aimAt", "aimOrient", "aimFlip", "debug"]:
+            libAttr.set(self.node, attr, keyable=False, channelBox=True)
+
+        for attr in ["offsetOrientX", "offsetOrientY", "offsetOrientZ"]:
+            libAttr.set_keyable(self.node, attr)
+
         # Create shapes
         _sphere = cmds.sphere(radius=self._RADIUS, ch=False)[0]
-        _shapes = cmds.listRelatives(_sphere, type='nurbsSurface', children=True)
+        _shapes = cmds.listRelatives(_sphere, type="nurbsSurface", children=True)
         self.shapes = [cmds.rename(_shapes[0], "%sShape" % self.node)]
         cmds.parent(self.shapes, self.node, r=True, s=True)
-        cmds.setAttr('%s.drawStyle' % self.node, 2)
+        libAttr.set(self.node, "drawStyle", 2)
 
         # Setup node
         self.setup = cmds.group(name=libName.update(self.node, suffix="setup"), empty=True)
@@ -1106,34 +1131,35 @@ class Guide(Node):
 
         # Create scale cluster
         _cl, _scale = cmds.cluster(self.shapes)
-        cmds.setAttr("%s.relative" % _cl, True)
+        libAttr.set(_cl, "relative", True)
         self.scale = cmds.rename(_scale, libName.update(self.node, append="scale", suffix="clh"))
         cmds.parent(self.scale, self.setup)
 
-        # Lock down scale
+        # Lock down scale node
         for attr in ["translate", "rotate"]:
             for axis in ["X", "Y", "Z"]:
-                cmds.setAttr("%s.%s%s" % (self.scale, attr, axis), k=False)
-                cmds.setAttr("%s.%s%s" % (self.scale, attr, axis), l=True)
-        cmds.setAttr("%s.visibility" % self.scale, 0)
-        cmds.setAttr("%s.visibility" % self.scale, k=False)
-        cmds.setAttr("%s.visibility" % self.scale, l=True)
+                libAttr.set(self.scale, "%s%s" % (attr, axis), l=True)
+        libAttr.set(self.scale, "visibility", 0, k=False, l=True)
+        libAttr.set(self.node, "visibility", k=False, l=True)
 
         for axis in ["X", "Y", "Z"]:
             cmds.connectAttr("%s.guideScale" % self.node, "%s.scale%s" % (self.scale, axis))
 
-        for axis in ["X", "Y", "Z"]:
-            cmds.setAttr("%s.jointOrient%s" % (self.node, axis), k=False)
-            cmds.setAttr("%s.jointOrient%s" % (self.node, axis), l=True)
+        for attr in ["jointOrient", "rotate", "scale"]:
+            for axis in ["X", "Y", "Z"]:
+                libAttr.set(self.node, "%s%s" % (attr, axis), k=False, l=True)
+            # cmds.setAttr("%s.jointOrient%s" % (self.node, axis), k=False)
+            # cmds.setAttr("%s.jointOrient%s" % (self.node, axis), l=True)
 
-            cmds.setAttr("%s.rotate%s" % (self.node, axis), k=False)
-            cmds.setAttr("%s.rotate%s" % (self.node, axis), l=True)
+            # cmds.setAttr("%s.rotate%s" % (self.node, axis), k=False)
+            # cmds.setAttr("%s.rotate%s" % (self.node, axis), l=True)
 
-            cmds.setAttr("%s.scale%s" % (self.node, axis), k=False)
-            cmds.setAttr("%s.scale%s" % (self.node, axis), l=True)
+            # cmds.setAttr("%s.scale%s" % (self.node, axis), k=False)
+            # cmds.setAttr("%s.scale%s" % (self.node, axis), l=True)
 
-        cmds.setAttr("%s.visibility" % self.node, k=False)
-        cmds.setAttr("%s.visibility" % self.node, l=True)
+
+        # cmds.setAttr("%s.visibility" % self.node, k=False)
+        # cmds.setAttr("%s.visibility" % self.node, l=True)
 
         # Create main aim transform
         self.aim = cmds.group(name=libName.update(self.node, suffix="aim"), empty=True)
@@ -1157,29 +1183,28 @@ class Guide(Node):
 
         self.up = Up(self).create()
 
-        _up_conds = []
+        up_conds = []
         for axis_index, axis in enumerate(self.AIM_ORIENT):
 
-            # Up axis 
-            up = axis[1]
+            up_axis = axis[1]
+            up_pma = libName.update(self.node, suffix="pma", append="upAxis%s" % up_axis.upper())
 
-            up_pma = libName.update(self.node, suffix="pma", append="upAxis%s" % up.upper())
             if not cmds.objExists(up_pma):
                 up_pma = cmds.createNode("plusMinusAverage", name=up_pma)
-                cmds.connectAttr("%s.output1D" % up_pma, "%s.visibility" % self.up.get_shape(up))
+                cmds.connectAttr("%s.output1D" % up_pma, "%s.visibility" % self.up.get_shape(up_axis))
 
             up_name = libName.update(self.node, suffix="cond", append="Up%s" % ("".join(axis).title()))
             up_cond = cmds.createNode("condition", name=up_name)
-            _up_conds.append(up_cond)
+            up_conds.append(up_cond)
 
             cmds.connectAttr("%s.aimOrient" % self.node, "%s.firstTerm" % up_cond)
-            cmds.setAttr("%s.secondTerm" % up_cond, axis_index)
-            cmds.setAttr("%s.colorIfTrueR" % up_cond, 1)
-            cmds.setAttr("%s.colorIfFalseR" % up_cond, 0)
+            libAttr.set(up_cond, "secondTerm", axis_index)
+            libAttr.set(up_cond, "colorIfTrueR", 1)
+            libAttr.set(up_cond, "colorIfFalseR", 0)
 
             cmds.connectAttr("%s.outColorR" % up_cond, "%s.input1D[%s]" % (up_pma, axis_index))
 
-        for cond in _up_conds:
+        for cond in up_conds:
             cmds.connectAttr("%s.aimAt" % self.node, "%s.colorIfTrueR" % cond)
 
     def __create_aim(self):
@@ -1197,9 +1222,9 @@ class Guide(Node):
                                                             suffix="cond",
                                                             append="local"))
 
-        cmds.setAttr("%s.secondTerm" % self.aim_cond, index)
-        cmds.setAttr("%s.colorIfTrueR" % self.aim_cond, 1)
-        cmds.setAttr("%s.colorIfFalseR" % self.aim_cond, 0)
+        libAttr.set(self.aim_cond, "secondTerm", index)
+        libAttr.set(self.aim_cond, "colorIfTrueR", 1)
+        libAttr.set(self.aim_cond, "colorIfFalseR", 0)
         cmds.connectAttr("%s.outColorR" % self.aim_cond, "%s.%s" % (self.orient_constraint, aliases[index]))
 
         # Create main aim constraint
@@ -1230,9 +1255,10 @@ class Guide(Node):
                                                             suffix="cond"))
 
             cmds.connectAttr("%s.aimOrient" % self.node, "%s.firstTerm" % pair_cond)
-            cmds.setAttr("%s.secondTerm" % pair_cond, pair_index)
-            cmds.setAttr("%s.colorIfFalse" % pair_cond, *(0, 0, 0), type="float3")
             cmds.connectAttr("%s.outColor" % pair_cond, "%s.input3D[%s]" % (aim_offset_pma, pair_index))
+
+            libAttr.set(pair_cond, "secondTerm", pair_index)
+            libAttr.set(pair_cond, "colorIfFalse", *(0, 0, 0), type="float3")
 
             # Flip condition
             flip_cond = cmds.createNode("condition",
@@ -1240,11 +1266,11 @@ class Guide(Node):
                                                             append="aim%sFlip" % pair_index,
                                                             suffix="cond"))
             cmds.connectAttr("%s.aimFlip" % self.node, "%s.firstTerm" % flip_cond)
-            cmds.setAttr("%s.secondTerm" % flip_cond, 1)
-
-            cmds.setAttr("%s.colorIfTrue" % flip_cond, *secondary, type="float3")
-            cmds.setAttr("%s.colorIfFalse" % flip_cond, *primary, type="float3")
             cmds.connectAttr("%s.outColor" % flip_cond, "%s.colorIfTrue" % pair_cond)
+
+            libAttr.set(flip_cond, "secondTerm", 1)
+            libAttr.set(flip_cond, "colorIfTrue", *secondary, type="float3")
+            libAttr.set(flip_cond, "colorIfFalse", *primary, type="float3")
 
         # Add custom orient offset
         for attr, axis in zip(["offsetOrientX", "offsetOrientY", "offsetOrientZ"], ["x", "y", "z"]):
@@ -1265,9 +1291,19 @@ class Guide(Node):
         self.shader.add(self.shapes)
 
         rgb = (1, 1, 0)
-        cmds.setAttr('%s.color' % self.shader, *rgb, type='float3')
-        cmds.setAttr('%s.incandescence' % self.shader, *rgb, type='float3')
-        cmds.setAttr('%s.diffuse' % self.shader, 0)
+        libAttr.set(self.shader, "color", *rgb, type="float3")
+        libAttr.set(self.shader, "incandescence", *rgb, type="float3")
+        libAttr.set(self.shader, "diffuse", 0)
+        libAttr.set(self.shader, "transparency",
+                    *[self._TRANSPARENCY, self._TRANSPARENCY, self._TRANSPARENCY],
+                    type="float3")
+
+        # cmds.setAttr("%s.color" % self.shader, *rgb, type="float3")
+        # cmds.setAttr("%s.incandescence" % self.shader, *rgb, type="float3")
+        # cmds.setAttr("%s.diffuse" % self.shader, 0)
+        # cmds.setAttr("%s.transparency" % self.shader,
+        #              *[self._TRANSPARENCY, self._TRANSPARENCY, self._TRANSPARENCY],
+        #              type="float3")
 
     def __post(self):
         """
@@ -1278,12 +1314,12 @@ class Guide(Node):
         cmds.delete(self.__trash)
 
         # Burn in nodes
-        cmds.setAttr("%s.nodes" % self.node, json.dumps(self.__nodes), type="string")
-        cmds.setAttr("%s.nondag" % self.node, json.dumps(self.__nondag), type="string")
+        libAttr.set(self.node, "nodes", json.dumps(self.__nodes), type="string")
+        libAttr.set(self.node, "nondag", json.dumps(self.__nondag), type="string")
 
         # Burn in shader data
         shader_data = {"node": self.shader.node, "type": self.shader.type}
-        cmds.setAttr("%s.shaders" % self.node, json.dumps(shader_data), type="string")
+        libAttr.set(self.node, "shaders", json.dumps(shader_data), type="string")
 
 
 class Up(Node):
@@ -1293,7 +1329,7 @@ class Up(Node):
     SUFFIX = "up"
 
     _DEFAULT_SCALE = 0.4
-    _DEFAULT_TRANSLATES = (0, 3, 0)
+    _DEFAULT_POSITION = (0, 3, 0)
 
     def __init__(self, guide):
 
@@ -1371,8 +1407,8 @@ class Up(Node):
 
             aim_at = cmds.getAttr("%s.aimAt" % self.guide.node)
             if aim_at >= 1:
-                cmds.setAttr("%s.translateX" % self.node,
-                             (cmds.getAttr("%s.translateX" % self.node) * -1))
+                value = cmds.getAttr("%s.translateX" % self.node) * -1
+                libAttr.set(self.node, "translateX", value)
             else:
                 logger.warning("Cannot flip aim when guide '%s' is set to world space" % self.guide.node)
 
@@ -1383,8 +1419,8 @@ class Up(Node):
         if self.exists():
             aim_at = cmds.getAttr("%s.aimAt" % self.guide.node)
             if aim_at >= 1:
-                cmds.setAttr("%s.translateY" % self.node,
-                             (cmds.getAttr("%s.translateY" % self.node) * -1))
+                value = cmds.getAttr("%s.translateY" % self.node) * -1
+                libAttr.set(self.node, "translateY", value)
             else:
                 logger.warning("Cannot flop aim when guide '%s' is set to world space" % self.guide.node)
 
@@ -1405,17 +1441,11 @@ class Up(Node):
         self.node = cmds.group(name=self.node, empty=True)
         self.grp = cmds.group(self.node, name=libName.update(self.node, append="up", suffix="grp"))
 
-        for attr in ["translate", "rotate"]:
-            for axis in ["X", "Y", "Z"]:
-                cmds.setAttr("%s.%s%s" % (self.grp, attr, axis), k=False)
-                cmds.setAttr("%s.%s%s" % (self.grp, attr, axis), l=True)
-
+        # Lock down rotate, scale and visibility
         for attr in ["rotate", "scale"]:
             for axis in ["X", "Y", "Z"]:
-                cmds.setAttr("%s.%s%s" % (self.node, attr, axis), k=False)
-                cmds.setAttr("%s.%s%s" % (self.node, attr, axis), l=True)
-        cmds.setAttr("%s.visibility" % self.node, k=False)
-        cmds.setAttr("%s.visibility" % self.node, l=True)
+                libAttr.set(self.node, "%s%s" % (attr, axis), k=False, l=True)
+        libAttr.set(self.node, "visibility", k=False, l=False)
 
         _x = cmds.sphere(name=libName.update(self.node, append="X", suffix="up"), radius=self._DEFAULT_SCALE)[0]
         _y = cmds.sphere(name=libName.update(self.node, append="Y", suffix="up"), radius=self._DEFAULT_SCALE)[0]
@@ -1442,21 +1472,23 @@ class Up(Node):
         self.__nodes["grp"] = self.grp
 
         # Add attributes
-        cmds.addAttr(self.node, ln="guideScale", at="double", min=0.01, dv=1)
-        cmds.setAttr("%s.guideScale" % self.node, k=False)
-        cmds.setAttr("%s.guideScale" % self.node, cb=True)
+        libAttr.add_double(self.node, "guideScale", min=0.01, dv=1, k=True)
 
         # Create scale cluster
         _cl, _scale = cmds.cluster([self.x, self.y, self.z])
         cmds.setAttr("%s.relative" % _cl, True)
+        libAttr.set(_cl, "relative", True)
         self.scale = cmds.rename(_scale, libName.update(self.node, append="upScale", suffix="clh"))
         cmds.parent(self.scale, self.node)
 
         for axis in ["X", "Y", "Z"]:
             cmds.connectAttr("%s.guideScale" % self.node, "%s.scale%s" % (self.scale, axis))
 
-        # Offset node
-        cmds.setAttr("%s.translate" % self.node, *self._DEFAULT_TRANSLATES, type="float3")
+        # Offset node initial position
+        libAttr.set(self.node,
+                    "translate",
+                    *self._DEFAULT_POSITION,
+                    type="float3")
 
     def __create_shaders(self):
         """
@@ -1470,9 +1502,9 @@ class Up(Node):
 
             shader = Shader("N", "guide%s" % axis.title(), 0).create()
 
-            cmds.setAttr("%s.color" % shader.node, *rgb, type="float3")
-            cmds.setAttr("%s.incandescence" % shader.node, *rgb, type="float3")
-            cmds.setAttr("%s.diffuse" % shader.node, 0)
+            libAttr.set(shader.node, "color", *rgb, type="float3")
+            libAttr.set(shader.node, "incandescence", *rgb, type="float3")
+            libAttr.set(shader.node, "diffuse", 0)
 
             shader.add(self.get_shape(axis))
 
@@ -1485,17 +1517,14 @@ class Up(Node):
 
         # Burn in nodes
         for key in ["nodes", "shaders"]:
-            cmds.addAttr(self.node, ln=key, dt='string')
-            cmds.setAttr('%s.%s' % (self.node, key), k=False)
+            libAttr.add_string(self.node, key)
 
-        cmds.setAttr("%s.nodes" % self.node, json.dumps(self.__nodes), type="string")
-        cmds.setAttr("%s.shaders" % self.node, json.dumps(self.__shaders), type="string")
+        libAttr.set(self.node, "nodes", json.dumps(self.__nodes), type="string")
+        libAttr.set(self.node, "shaders", json.dumps(self.__shaders), type="string")
 
         # Lock down cluster
-        cmds.setAttr("%s.visibility" % self.scale, False)
-        libAttr.lock_translates(self.scale)
-        libAttr.lock_rotates(self.scale)
-        libAttr.lock_vis(self.scale)
+        libAttr.set(self.scale, "visibility", False)
+        libAttr.lock_all(self.scale)
 
     def create(self):
         """
@@ -1641,21 +1670,19 @@ class Connector(Node):
 
         # Create annotation
         self.node = cmds.createNode("annotationShape", name=self.node)
-        cmds.setAttr("%s.overrideEnabled" % self.node, True)
-        cmds.setAttr("%s.overrideColor" % self.node, 18)
-        cmds.setAttr("%s.displayArrow" % self.node, False)
+        libAttr.set(self.node, "overrideEnabled", True)
+        libAttr.set(self.node, "overrideColor", 18)
+        libAttr.set(self.node, "displayArrow", False)
 
         # Attributes for reinit
-        for key in ["nodes", "geo", "nondag", "states", "shaders"]:
-            cmds.addAttr(self.node, ln=key, dt='string')
-            cmds.setAttr('%s.%s' % (self.node, key), k=False)
+        libAttr.add_string(self.node, "nodes")
 
         transform = cmds.listRelatives(self.node, parent=True)[0]
 
         cmds.parent(self.node, self.parent.node, shape=True, relative=True)
         cmds.delete(transform)
 
-        cmds.setAttr("%s.displayArrow" % self.node, True)
+        libAttr.set(self.node, "displayArrow", True)
         cmds.connectAttr("%s.worldMatrix[0]" % self.child.shapes[0],
                          "%s.dagObjectMatrix[0]" % self.node,
                          force=True)
@@ -1680,14 +1707,15 @@ class Connector(Node):
                                                        append=libName.description(self.node),
                                                        suffix="cond"))
 
-        cmds.setAttr("%s.secondTerm" % self.aim_cond, enum_index)
-        cmds.setAttr("%s.colorIfTrueR" % self.aim_cond, 1)
-        cmds.setAttr("%s.colorIfFalseR" % self.aim_cond, 0)
+        libAttr.set(self.aim_cond, "secondTerm", enum_index)
+        libAttr.set(self.aim_cond, "colorIfTrueR", 1)
+        libAttr.set(self.aim_cond, "colorIfFalseR", 0)
+
         cmds.connectAttr("%s.aimAt" % self.parent.node, "%s.firstTerm" % self.aim_cond)
         cmds.connectAttr("%s.outColorR" % self.aim_cond, "%s.%s" % (self.parent.aim_constraint, aliases[index]))
 
         # Set enum to match child aim
-        cmds.setAttr("%s.aimAt" % self.parent.node, enum_index)
+        libAttr.set(self.parent.node, "aimAt", enum_index)
 
         # Loop through all aliases on and set non-connected attributes to be 0
         for alias in aliases:
@@ -1695,7 +1723,7 @@ class Connector(Node):
                                         source=True,
                                         destination=False,
                                         plugs=True):
-                cmds.setAttr('%s.%s' % (self.parent.aim_constraint, alias), 0)
+                libAttr.set(self.parent.aim_constraint, alias, 0)
 
         # Store new condition
         self.__nodes["aim_cond"] = self.aim_cond
@@ -1712,18 +1740,18 @@ class Connector(Node):
             enum_index = enums.index(self.__child.node)
 
             # Update index to reflect alias index of child
-            cmds.setAttr("%s.secondTerm" % self.parent.aim_cond, enum_index)
+            libAttr.set(self.parent.aim_cond, "secondTerm", enum_index)
 
     def __post(self):
         """
         """
 
         # Burn in nodes
-        cmds.setAttr("%s.nodes" % self.node, json.dumps(self.__nodes), type="string")
+        libAttr.set(self.node, "nodes", json.dumps(self.__nodes), type="string")
 
         # Remove selection access
-        cmds.setAttr("%s.overrideEnabled" % self.node, 1)
-        cmds.setAttr("%s.overrideDisplayType" % self.node, 1)
+        libAttr.set(self.node, "overrideEnabled", 1)
+        libAttr.set(self.node, "overrideDisplayType", 1)
 
     def create(self):
         """create()

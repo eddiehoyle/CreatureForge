@@ -14,12 +14,13 @@ class MayaAttribute(object):
 
     DEFAULT = {}
 
-    def __init__(self, node, name, **kwargs):
+    def __init__(self, node, name, *args, **kwargs):
 
         self.node = node
         self.name = name
         self.path = "%s.%s" % (self.node, self.name)
 
+        self.args = args
         self.kwargs = deepcopy(kwargs)
         self.kwargs.update(self.DEFAULT)
 
@@ -28,318 +29,64 @@ class MayaAttribute(object):
 
     def add(self):
         if not self.has():
-            cmds.addAttr(self.node, ln=self.name, **self.kwargs)
+            cmds.addAttr(self.node, ln=self.name, *self.args, **self.kwargs)
 
     def set(self):
         if self.has():
-            cmds.setAttr(self.path, **self.kwargs)
+            cmds.setAttr(self.path, *self.args, **self.kwargs)
 
     def edit(self):
         if self.has():
-            cmds.addAttr(self.path, edit=True, **self.kwargs)
+            cmds.addAttr(self.path, edit=True, *self.args, **self.kwargs)
 
-def add_double(node, name, **kwargs):
-    MayaAttribute(node, name, at="double", **kwargs).add()
-    MayaAttribute(node,
-                  name,
-                  keyable=kwargs.get("keyable", True),
-                  channelBox=kwargs.get("channelBox", True)).set()
+def add_double(node, name, *args, **kwargs):
+    MayaAttribute(node, name, at="double", *args, **kwargs).add()
 
-def add_long(node, name, **kwargs):
-    MayaAttribute(node, name, at="long", **kwargs).add()
-    MayaAttribute(node,
-                  name,
-                  keyable=kwargs.get("keyable", True),
-                  channelBox=kwargs.get("channelBox", True)).set()
+def add_long(node, name, *args, **kwargs):
+    MayaAttribute(node, name, at="long", *args, **kwargs).add()
 
-def add_bool(node, name, **kwargs):
-    MayaAttribute(node, name, at="bool", **kwargs).add()
-    MayaAttribute(node,
-                  name,
-                  keyable=kwargs.get("keyable", True),
-                  channelBox=kwargs.get("channelBox", True)).set()
+def add_bool(node, name, *args, **kwargs):
+    MayaAttribute(node, name, at="bool", *args, **kwargs).add()
 
-def add_string(node, name, **kwargs):
-    MayaAttribute(node, name, dt="string", **kwargs).add()
+def add_string(node, name, *args, **kwargs):
+    MayaAttribute(node, name, dt="string", *args, **kwargs).add()
 
-def add_enum(node, name, enums=[], **kwargs):
-    MayaAttribute(node, name, at="enum", enumName=":".join(enums), **kwargs).add()
-    MayaAttribute(node,
-                  name,
-                  keyable=kwargs.get("keyable", True),
-                  channelBox=kwargs.get("channelBox", True)).set()
+def add_enum(node, name, enums=[], *args, **kwargs):
+    MayaAttribute(node, name, at="enum", enumName=":".join(enums), *args, **kwargs).add()
 
-def edit_enum(node, name, enums=[], **kwargs):
-    MayaAttribute(node, name, edit=True, at="enum", enumName=":".join(enums), **kwargs).edit()
+def edit_enum(node, name, enums=[], *args, **kwargs):
+    MayaAttribute(node, name, at="enum", enumName=":".join(enums), *args, **kwargs).edit()
 
-def lock_translates(node, keyable=False, channelBox=False, **kwargs):
+def lock_translates(node, keyable=False, channelBox=False, *args, **kwargs):
     for axis in ["X", "Y", "Z"]:
-        MayaAttribute(node, "translate%s" % axis, **kwargs).set()
+        MayaAttribute(node, "translate%s" % axis, *args, **kwargs).set()
 
-def lock_rotates(node, keyable=False, channelBox=False, **kwargs):
+def lock_rotates(node, keyable=False, channelBox=False, *args, **kwargs):
     for axis in ["X", "Y", "Z"]:
-        MayaAttribute(node, "rotate%s" % axis, **kwargs).set()
+        MayaAttribute(node, "rotate%s" % axis, *args, **kwargs).set()
 
-def lock_scales(node, keyable=False, channelBox=False, **kwargs):
+def lock_scales(node, keyable=False, channelBox=False, *args, **kwargs):
     for axis in ["X", "Y", "Z"]:
-        MayaAttribute(node, "scale%s" % axis, **kwargs).set()
+        MayaAttribute(node, "scale%s" % axis, *args, **kwargs).set()
 
-def lock_vis(node, keyable=False, channelBox=False, **kwargs):
-    MayaAttribute(node, "visibility", **kwargs).set()
+def lock_vis(node, keyable=False, channelBox=False, *args, **kwargs):
+    MayaAttribute(node, "visibility", *args, **kwargs).set()
+
+def lock_all(node, *args, **kwargs):
+    lock_translates(node, *args, **kwargs)
+    lock_rotates(node, *args, **kwargs)
+    lock_scales(node, *args, **kwargs)
+    lock_vis(node, *args, **kwargs)
 
 def set_keyable(node, name, **kwargs):
-    MayaAttribute(node, name, keyable=True, channelBox=True, **kwargs).set()
+    MayaAttribute(node, name, channelBox=True, **kwargs).set()
+    MayaAttribute(node, name, keyable=True, **kwargs).set()
 
+def set(node, name, *args, **kwargs):
+    MayaAttribute(node, name, *args, **kwargs).set()
 
+def add(node, name, *args, **kwargs):
+    MayaAttribute(node, name, *args, **kwargs).add()
 
-
-    # cmds.addAttr(node, ln=name, at="double")
-    # set_keyable(node, name, keyable, channelBox)
-
-# def set_keyable(node, name, keyable=True, channelBox=True):
-#     """
-#     """
-
-#     cmds.setAttr("%s.%s" % (node, name), cb=channelBox)
-#     cmds.setAttr("%s.%s" % (node, name), k=keyable)
-
-# def add_double(node, name, keyable=True, channelBox=True):
-#     """
-#     """
-
-#     cmds.addAttr(node, ln=name, at="double")
-#     set_keyable(node, name, keyable, channelBox)
-
-# def add_long(node, name, keyable=True, channelBox=True):
-#     """
-#     """
-
-#     cmds.addAttr(node, ln=name, at="long")
-#     set_keyable(node, name, keyable, channelBox)
-
-# def add_enum(node, name, enums, keyable=True, channelBox=True):
-#     """
-#     """
-
-#     cmds.addAttr(node, ln=name, at="enum", en=":".join(enums))
-#     set_keyable(node, name, keyable, channelBox)
-
-# def edit_enum(node, name, enums, keyable=True, channelBox=True):
-#     """
-#     """
-
-#     cmds.addAttr(node, ln=name, e=True, en=":".join(enums))
-#     set_keyable(node, name, keyable, channelBox)
-
-# def lock_translates(node):
-#     """
-#     Lock translates
-#     """
-
-#     for axis in ["X", "Y", "Z"]:
-#         cmds.setAttr("%s.translate%s" % (node, axis), l=True)
-#         set_keyable(node, "translate%s" % axis, False, False)
-
-# def lock_rotates(node):
-#     """
-#     Lock rotates
-#     """
-
-#     for axis in ["X", "Y", "Z"]:
-#         cmds.setAttr("%s.rotate%s" % (node, axis), l=True)
-#         set_keyable(node, "rotate%s" % axis, False, False)
-
-# def lock_scales(node):
-#     """
-#     Lock scales
-#     """
-
-#     for axis in ["X", "Y", "Z"]:
-#         cmds.setAttr("%s.scale%s" % (node, axis), l=True)
-#         set_keyable(node, "scale%s" % axis, False, False)
-
-# def lock_vis(node):
-#     """
-#     """
-
-#     cmds.setAttr("%s.visibility" % node, l=True)
-#     set_keyable(node, "visibility", False, False)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def add_separator(node, name):
-#     'Add a separator attr'
-#     add_enum(node, name, ['attributes'], False, True)
-
-
-# def add_long(node, name, keyable=True, channelBox=True):
-#     'Long attribute'
-#     attr = None
-#     if _safe_attr(node, name):
-#         attr = '%s.%s' % (node, name)
-#         cmds.addAttr(node, ln=name, at='long')
-#         cmds.setAttr(attr, cb=channelBox)
-#         cmds.setAttr(attr, k=keyable)
-#     return attr
-
-
-# def add_double(node, name, keyable=True, channelBox=True):
-#     attr = None
-#     if _safe_attr(node, name):
-#         attr = '%s.%s' % (node, name)
-#         cmds.addAttr(node, ln=name, at='double')
-#         cmds.setAttr(attr, cb=channelBox)
-#         cmds.setAttr(attr, k=keyable)
-#     return attr
-
-# def add_string(node, name, data=None, keyable=True, channelBox=True):
-#     'String attribute'
-#     attr = None
-#     if _safe_attr(node, name):
-#         attr = '%s.%s' % (node, name)
-#         cmds.addAttr(node, ln=name, dt='string')
-#         cmds.setAttr(attr, cb=channelBox)
-#         cmds.setAttr(attr, k=keyable)
-
-#         if data:
-#             cmds.setAttr(attr, data, type='string')
-
-#     return attr
-
-# def add_enum(node, name, enumNames=[], keyable=True, channelBox=True):
-#     'Enum attribute'
-#     attr = None
-#     if _safe_attr(node, name):
-#         attr = '%s.%s' % (node, name)
-#         cmds.addAttr(node, ln=name, at='enum', en=':'.join(enumNames))
-#         cmds.setAttr(attr, cb=channelBox)
-#         cmds.setAttr(attr, k=keyable)
-#     return attr
-
-
-# def hide_attr(node, attr):
-#     'Hides attr, still usable'
-#     cmds.setAttr('%s.%s' % (node, attr), k=False)
-#     cmds.setAttr('%s.%s' % (node, attr), cb=False)
-
-# def lock_attr(node, attr):
-#     'Lock attr, still visible'
-#     cmds.setAttr('%s.%s' % (node, attr), lock=True)
-
-# def unlock_attr(node, attr):
-#     '''Lock attr, still visible'''
-#     cmds.setAttr('%s.%s' % (node, attr), lock=False)
-
-# def nonkeyable_attr(node, attr):
-
-#     cmds.setAttr('%s.%s' % (node, attr), k=False)
-#     cmds.setAttr('%s.%s' % (node, attr), cb=True)
-
-# def hide_translates(node):
-#     for axis in ['X', 'Y', 'Z']:
-#         hide_attr(node, 'translate%s' % axis)
-
-# def hide_rotates(node):
-#     for axis in ['X', 'Y', 'Z']:
-#         hide_attr(node, 'rotate%s' % axis)
-
-# def hide_scales(node):
-#     for axis in ['X', 'Y', 'Z']:
-#         hide_attr(node, 'scale%s' % axis)
-
-# def lock_translates(node, hide=False):
-#     'Lock translate individual attrs'
-#     for axis in ['X', 'Y', 'Z']:
-#         lock_attr(node, 'translate%s' % axis)
-#         if hide:
-#             hide_attr(node, 'translate%s' % axis)
-
-# def lock_rotates(node, hide=False):
-#     'Lock rotate individual attrs'
-#     for axis in ['X', 'Y', 'Z']:
-#         lock_attr(node, 'rotate%s' % axis)
-#         if hide:
-#             hide_attr(node, 'rotate%s' % axis)
-
-# def lock_scales(node, hide=False):
-#     'Lock scale individual attrs'
-#     for axis in ['X', 'Y', 'Z']:
-#         lock_attr(node, 'scale%s' % axis)
-#         if hide:
-#             hide_attr(node, 'scale%s' % axis)
-
-# def unlock_translates(node, hide=False):
-#     for axis in ['X', 'Y', 'Z']:
-#         unlock_attr(node, 'translate%s' % axis)
-#         if hide:
-#             hide_attr(node, 'translate%s' % axis)
-
-# def unlock_rotates(node, hide=False):
-#     for axis in ['X', 'Y', 'Z']:
-#         unlock_attr(node, 'rotate%s' % axis)
-#         if hide:
-#             hide_attr(node, 'rotate%s' % axis)
-
-# def unlock_scales(node, hide=False):
-#     for axis in ['X', 'Y', 'Z']:
-#         unlock_attr(node, 'scale%s' % axis)
-#         if hide:
-#             hide_attr(node, 'scale%s' % axis)
-
-# def lock_vis(node, hide=False):
-#     'Lock visibility'
-#     lock_attr(node, 'visibility')
-#     if hide:
-#         hide_vis(node)
-
-# def hide_vis(node):
-#     'Hide visibility'
-#     hide_attr(node, 'visibility')
-
-# def nonkeyable_translates(node, hide=False):
-#     for axis in ['X', 'Y', 'Z']:
-#         nonkeyable_attr(node, 'translate%s' % axis)
-#         if hide:
-#             hide_attr(node, 'translate%s' % axis)
-
-# def nonkeyable_rotates(node, hide=False):
-#     for axis in ['X', 'Y', 'Z']:
-#         nonkeyable_attr(node, 'rotate%s' % axis)
-#         if hide:
-#             hide_attr(node, 'rotate%s' % axis)
-
-# def nonkeyable_scales(node, hide=False):
-#     for axis in ['X', 'Y', 'Z']:
-#         nonkeyable_attr(node, 'scale%s' % axis)
-#         if hide:
-#             hide_attr(node, 'scale%s' % axis)
-
-# def lock_all(node, hide=False):
-#     'Common lock all attrs'
-#     lock_translates(node, hide=hide)
-#     lock_rotates(node, hide=hide)
-#     lock_scales(node, hide=hide)
-#     hide_vis(node)
-
-# def _safe_attr(node, name):
-#     '''Raise error if attr already exists'''
-#     if _has_attr(node, name):
-#         raise MayaAttributeError('%s.%s attribute path already exists!' % (node, name))
-#     return True
-
-# def _has_attr(node, name):
-#     '''Check if input node has attribute'''
-#     return cmds.listAttr(node).count(name)
+def edit(node, name, *args, **kwargs):
+    MayaAttribute(node, name, *args, **kwargs).edit()
