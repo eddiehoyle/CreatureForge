@@ -24,8 +24,10 @@ PATTERN_SUFFIX = "^([a-zA-Z]+)$"
 
 # ------------------------------------------------------------------------------
 
+
 class InvalidNameException(Exception):
     pass
+
 
 def validate(func):
     def wraps(*args, **kwargs):
@@ -35,11 +37,6 @@ def validate(func):
         return func(*args, **kwargs)
     return wraps
 
-
-def p_decorate(func):
-   def func_wrapper(*args, **kwargs):
-       return "<p>{0}</p>".format(func(*args, **kwargs))
-   return func_wrapper
 
 class NameHandler(object):
 
@@ -57,11 +54,12 @@ class NameHandler(object):
 
     def compile(self):
         return ("{sep}".format(sep=NameHandler.SEP)).join([self.position,
-                                                    self.description,
-                                                    str(self.index),
-                                                    self.suffix])
+                                                           self.description,
+                                                           str(self.index),
+                                                           self.suffix])
 
-    def rename(self, position=None, description=None, index=None, suffix=None, append=None, **kwargs):
+    def rename(self, position=None, description=None, index=None, suffix=None,
+               append=None, **kwargs):
         if position is not None:
             self.position = position
         if description is not None:
@@ -122,39 +120,41 @@ class NameHandler(object):
     suffix = property(fget=__get_suffix, fset=__set_suffix)
     tokens = property(fget=__get_tokens)
 
+
 def create(position, description, index, suffix):
     return str(NameHandler(position, description, index, suffix))
+
 
 def generate(position, description, index, suffix):
     pass
     # return str(NameHandler(position, description, index, suffix))
 
+
 @validate
 def decompile(name):
     return NameHandler(*name.split(NameHandler.SEP)).tokens
+
 
 @validate
 def rename(name, **kwargs):
     return NameHandler(*decompile(name)).rename(**kwargs)
 
+
 @validate
 def position(name):
     return NameHandler(*decompile(name)).position
+
 
 @validate
 def description(name):
     return NameHandler(*decompile(name)).description
 
+
 @validate
 def index(name):
     return NameHandler(*decompile(name)).index
 
+
 @validate
 def suffix(name):
     return NameHandler(*decompile(name)).suffix
-
-# print rename("l_arm_0_ctl", position="r")
-# print rename("L_arm_0_ctl", description="spine")
-# print rename("L_arm_0_ctl", index="123")
-# print rename("L_arm_0_ctl", suffix="grp")
-# print rename("L_arm_0_ctl", append="fk")

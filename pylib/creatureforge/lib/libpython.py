@@ -3,10 +3,11 @@
 import gc
 import sys
 
+
 def flush():
     """
-    Flushes all loaded modules from sys.modules which causes them to be reloaded
-    when next imported.
+    Flushes all loaded modules from sys.modules which causes them to be
+    reloaded when next imported.
     """
 
     flush_keys = []
