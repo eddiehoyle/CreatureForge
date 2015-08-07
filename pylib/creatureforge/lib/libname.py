@@ -8,6 +8,9 @@ position_description(subType)_index_type
 
 import re
 import logging
+from copy import deepcopy
+
+from maya import cmds
 
 logging.basicConfig()
 logger = logging.getLogger("__name__")
@@ -72,6 +75,15 @@ class NameHandler(object):
             self.description = self.__append_description(append)
         return self.compile()
 
+    def __copy(self):
+        return deepcopy(self)
+
+    def generate(self):
+        new = self.__copy()
+        while cmds.objExists(new.compile()):
+            new.index += 1
+        return new.compile()
+
     def __append_description(self, string):
         return "{description}{append}".format(
             description=self.description, append=string.title())
@@ -125,9 +137,9 @@ def create(position, description, index, suffix):
     return str(NameHandler(position, description, index, suffix))
 
 
-def generate(position, description, index, suffix):
-    pass
-    # return str(NameHandler(position, description, index, suffix))
+@validate
+def generate(name):
+    return NameHandler(*decompile(name)).generate()
 
 
 @validate

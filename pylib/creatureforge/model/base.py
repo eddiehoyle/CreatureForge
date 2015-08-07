@@ -3,11 +3,16 @@
 """
 """
 
+import json
 import logging
+from copy import deepcopy
 
 from maya import cmds
 
 from creatureforge.lib.libname import NameHandler
+from creatureforge.lib import libattr
+from creatureforge.lib import libutil
+
 
 # ------------------------------------------------------------------------------
 
@@ -30,6 +35,58 @@ class Node(object):
                                   index=index,
                                   suffix=self.SUFFIX)
         self.__node = self.__name.compile()
+
+        self._dag = {}
+        self._nondag = {}
+
+    def _record(self, key, value, dag=True, append=False):
+        if dag:
+            self.__record(self._dag, key, value, append=append)
+        else:
+            self.__record(self._nondag, key, value, append=append)
+
+    def __record(self, _dict, key, value, **kwargs):
+        if kwargs.get("append"):
+            if key not in _dict:
+                _dict[key] = []
+            if isinstance(value, (list, tuple, set)):
+                _dict[key].extend(value)
+            else:
+                _dict[key].append(value)
+        else:
+            _dict[key] = value
+
+    @property
+    def dag(self):
+        return self._dag
+
+    @property
+    def nondag(self):
+        return self._nondag
+
+    def create(self):
+        self._create()
+        self._post()
+
+    def _create(self):
+        raise NotImplementedError()
+
+    def _post(self):
+        if not libattr.has(self.node, "dag"):
+            libattr.add_string(self.node, "dag")
+        if not libattr.has(self.node, "nondag"):
+            libattr.add_string(self.node, "nondag")
+            _dag = libutil.stringify(deepcopy(self._dag))
+            _nondag = libutil.stringify(deepcopy(self._nondag))
+        libattr.set(self.node, "dag", json.dumps(_dag), type="string")
+        libattr.set(self.node, "nondag", json.dumps(_nondag), type="string")
+
+        libattr.lock(self.node, "dag")
+        libattr.lock(self.node, "nondag")
+
+    @property
+    def tokens(self):
+        return (self.position, self.description, self.index)
 
     @property
     def exists(self):
@@ -54,6 +111,10 @@ class Node(object):
     @property
     def suffix(self):
         return self.__name.suffix
+
+    @property
+    def snapshot(self):
+        raise NotImplementedError()
 
     def __str__(self):
         return self.node

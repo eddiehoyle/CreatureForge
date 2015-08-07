@@ -5,28 +5,18 @@ A component has a top, setup and control node
 """
 
 from creatureforge.lib import libname
-# from creatureforge.decorators import exists
 from creatureforge.model.base import Node
 
 from maya import cmds
 
 
-def variable_tester(target):
-    def deco(function):
-        def inner(self, *args, **kwargs):
-            if getattr(self, target) is not None:
-                return function(self, *args, **kwargs)
-        return inner
-    return deco
-
-
 class Component(Node):
 
-    @staticmethod
-    def validate(node):
-        if not cmds.objExists(node):
-            raise Exception("Node doesn't exist: {node}".format(node=node))
-        return node
+    # @staticmethod
+    # def validate(node):
+    #     if not cmds.objExists(node):
+    #         raise Exception("Node doesn't exist: {node}".format(node=node))
+    #     return node
 
     SUFFIX = "cmp"
 
@@ -49,14 +39,12 @@ class Component(Node):
     def control(self):
         return self.__control
 
-    def __create_top(self):
+    def __create_nodes(self):
         self.__top = cmds.createNode("transform", name=self.node)
 
-    def __create_setup(self):
         name = libname.rename(self.node, suffix="setup")
         self.__setup = cmds.createNode("transform", name=name)
 
-    def __create_control(self):
         name = libname.rename(self.node, suffix="control")
         self.__control = cmds.createNode("transform", name=name)
 
@@ -64,7 +52,5 @@ class Component(Node):
         cmds.parent([self.setup, self.control], self.top)
 
     def create(self):
-        self.__create_top()
-        self.__create_setup()
-        self.__create_control()
+        self.__create_nodes()
         self.__create_hierarchy()
