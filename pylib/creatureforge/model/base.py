@@ -39,54 +39,32 @@ class Module(object):
         self._dag = {}
         self._nondag = {}
 
-        self.store("node", self.node)
+    def __eq__(self, other):
+        return str(self.node) == str(other)
 
-    def store(self, key, value, dag=True, append=False):
-        if dag:
-            self.__record(self._dag, key, value, append=append)
-        else:
-            self.__record(self._nondag, key, value, append=append)
+    def __str__(self):
+        return self.node
 
-    def __record(self, _dict, key, value, **kwargs):
-        if kwargs.get("append"):
-            if key not in _dict:
-                _dict[key] = []
-            if isinstance(value, (list, tuple, set)):
-                _dict[key].extend(value)
-            else:
-                _dict[key].append(value)
-        else:
-            _dict[key] = value
+    def __repr__(self):
+        return "<%s '%s'>" % (self.__class__.__name__, self.node)
+
+    def __hash__(self):
+        return hash(self.node)
+
+    def __getitem__(self, index):
+        return self.node[index]
 
     @property
     def dag(self):
+        if not self._dag:
+            self._dag = json.loads(libattr.get(self.node, "dag"))
         return self._dag
 
     @property
     def nondag(self):
+        if not self._nondag:
+            self._nondag = json.loads(libattr.get(self.node, "nondag"))
         return self._nondag
-
-    def create(self):
-        self._create()
-        self._post()
-
-    def _create(self):
-        raise NotImplementedError()
-
-    def _post(self):
-        if not libattr.has(self.node, "dag"):
-            libattr.add_string(self.node, "dag")
-        if not libattr.has(self.node, "nondag"):
-            libattr.add_string(self.node, "nondag")
-
-        _dag = libutil.stringify(deepcopy(self._dag))
-        _nondag = libutil.stringify(deepcopy(self._nondag))
-
-        libattr.set(self.node, "dag", json.dumps(_dag), type="string")
-        libattr.set(self.node, "nondag", json.dumps(_nondag), type="string")
-
-        libattr.lock(self.node, "dag")
-        libattr.lock(self.node, "nondag")
 
     @property
     def tokens(self):
@@ -120,14 +98,48 @@ class Module(object):
     def snapshot(self):
         raise NotImplementedError()
 
-    def __str__(self):
-        return self.node
+    def reinit(self):
+        raise NotImplementedError()
 
-    def __repr__(self):
-        return "<%s '%s'>" % (self.__class__.__name__, self.node)
+    def create(self):
+        self._pre()
+        self._create()
+        self._post()
 
-    def __hash__(self):
-        return hash(self.node)
+    def _pre(self):
+        self.store("node", self.node)
 
-    def __getitem__(self, index):
-        return self.node[index]
+    def _create(self):
+        raise NotImplementedError()
+
+    def _post(self):
+        if not libattr.has(self.node, "dag"):
+            libattr.add_string(self.node, "dag")
+        if not libattr.has(self.node, "nondag"):
+            libattr.add_string(self.node, "nondag")
+
+        _dag = libutil.stringify(deepcopy(self._dag))
+        _nondag = libutil.stringify(deepcopy(self._nondag))
+
+        libattr.set(self.node, "dag", json.dumps(_dag), type="string")
+        libattr.set(self.node, "nondag", json.dumps(_nondag), type="string")
+
+        libattr.lock(self.node, "dag")
+        libattr.lock(self.node, "nondag")
+
+    def store(self, key, value, dag=True, append=False):
+        if dag:
+            self.__record(self._dag, key, value, append=append)
+        else:
+            self.__record(self._nondag, key, value, append=append)
+
+    def __record(self, _dict, key, value, **kwargs):
+        if kwargs.get("append"):
+            if key not in _dict:
+                _dict[key] = []
+            if isinstance(value, (list, tuple, set)):
+                _dict[key].extend(value)
+            else:
+                _dict[key].append(value)
+        else:
+            _dict[key] = value

@@ -10,3 +10,9 @@ class InvalidNameError(Exception):
 
 class DuplicateNameError(Exception):
     pass
+
+class InvalidGuideError(Exception):
+    pass
+
+class GuideDoesNotExistError(Exception):
+    pass

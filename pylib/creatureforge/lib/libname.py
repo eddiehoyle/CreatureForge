@@ -171,3 +171,12 @@ def index(name):
 @validate
 def suffix(name):
     return NameHandler(*decompile(name)).suffix
+
+@validate
+def tokens(name):
+    return NameHandler(*decompile(name)).tokens[:3]
+
+
+@validate
+def is_valid(name):
+    return True

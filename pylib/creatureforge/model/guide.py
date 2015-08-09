@@ -9,11 +9,24 @@ from maya import cmds
 
 from creatureforge.lib import libname
 from creatureforge.lib import libattr
+from creatureforge.lib import libutil
 from creatureforge.lib import libconstraint
 from creatureforge.model.base import Module
 from creatureforge.exceptions import DuplicateNameError
+from creatureforge.exceptions import InvalidNameError
+from creatureforge.exceptions import InvalidGuideError
+from creatureforge.exceptions import GuideDoesNotExistError
 
 AXIS = ["X", "Y", "Z"]
+
+
+def exists(func):
+    def wraps(*args, **kwargs):
+        node = args[0].node
+        if libname.is_valid(node):
+            return cmds.objExists(str(Guide(*libname.tokens(node))))
+        return func(*args, **kwargs)
+    return wraps
 
 class Guide(Module):
 
@@ -28,6 +41,15 @@ class Guide(Module):
                           ("zyx", [(-90, 90, -90), (-90, -90, 90)])])
 
     DEFAULT = ["world", "custom"]
+
+    @classmethod
+    def validate(cls, node):
+        try:
+            if libname.is_valid(node):
+                return Guide(*libname.tokens(str(node)))
+        except InvalidNameError:
+            err = "Node is node a valid guide: {node}".format(node=node)
+            raise InvalidGuideError(err)
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
@@ -52,13 +74,38 @@ class Guide(Module):
 
     @property
     def constraint(self):
-        return self._nondag.get("constraint")
+        return self._nondag.get("aim_constraint")
 
     def __create_setup(self):
         name = libname.rename(self.node, suffix="setup")
         setup = cmds.createNode("transform", name=name)
         cmds.pointConstraint(self.node, setup, mo=False)
         self.store("setup", setup)
+
+    @property
+    def parent(self):
+        parent = cmds.listRelatives(self.node, parent=True, type="joint")
+        if parent:
+            return Guide.validate(parent[0])
+        return None
+
+    @property
+    def children(self):
+        if self.exists:
+            children = cmds.listRelatives(self.node, children=True, type="joint") or []
+            if children:
+                return map(Guide.validate, children)
+        return []
+
+    def has_parent(self, guide):
+        if self.exists:
+            return Guide.validate(guide) == self.parent
+        return False
+
+    def has_child(self, guide):
+        if self.exists:
+            Guide.validate(guide) in self.children
+        return False
 
     def __create_node(self):
 
@@ -80,15 +127,18 @@ class Guide(Module):
 
         # Add attributes
         libattr.add_double(self.node, "guideScale", min=0.01, dv=1)
-        libattr.add_enum(self.node, "guideAimOrient", enums=Guide.ORIENT.keys())
-        libattr.add_bool(self.node, "guideAimFlip")
         libattr.add_enum(self.node, "guideAimAt", enums=Guide.DEFAULT)
 
+        libattr.add_bool(self.node, "guideAimFlip")
+        libattr.add_enum(self.node, "guideAimOrient", enums=Guide.ORIENT.keys())
         libattr.add_double(self.node, "guideOffsetOrientX")
         libattr.add_double(self.node, "guideOffsetOrientY")
         libattr.add_double(self.node, "guideOffsetOrientZ")
+        libattr.add_bool(self.node, "guideDebug", dv=1)
 
-        for attr in ["guideScale", "guideAimOrient", "guideAimFlip", "guideAimAt"]:
+        for attr in ["guideScale", "guideAimOrient", "guideAimFlip", "guideAimAt",
+                     "guideOffsetOrientX", "guideOffsetOrientY", "guideOffsetOrientZ",
+                     "guideDebug"]:
             libattr.set(self.node, attr, keyable=False, channelBox=True)
 
     def __create_aim(self):
@@ -118,23 +168,50 @@ class Guide(Module):
 
     def __setup_network(self):
 
-        # Create main aim constraint
-        constraint = cmds.aimConstraint(self.node,
-                                        self.aim,
-                                        worldUpObject=self.up.node,
-                                        offset=(0, 0, 0),
-                                        aimVector=(1, 0, 0),
-                                        upVector=(0, 1, 0),
-                                        worldUpType='object')[0]
+        cmds.connectAttr("{node}.guideDebug".format(node=self.node),
+                         "{aim}.displayLocalAxis".format(aim=self.aim))
 
-        self.__constraints["aim"] = libconstraint.get_handler(constraint)
+        # Create main aim constraint
+        aim_constraint = cmds.aimConstraint(self.node,
+                                            self.aim,
+                                            worldUpObject=self.up.node,
+                                            offset=(0, 0, 0),
+                                            aimVector=(1, 0, 0),
+                                            upVector=(0, 1, 0),
+                                            worldUpType='object')[0]
+
+        aim_handler = libconstraint.get_handler(aim_constraint)
+
+        # Make main aim_cond
+        condition = cmds.createNode("condition", name=libname.rename(self.node, suffix="cond", append="local"))
+
+        # Create local orient
+        orient_constraint = cmds.orientConstraint(self.node, self.setup, mo=True)[0]
+        orient_aliases = aim_handler.aliases
+        orient_targets = aim_handler.targets
+        orient_index = orient_targets.index(self.node)
+
+        aim_aliases = aim_handler.aliases
+        aim_targets = aim_handler.targets
+        aim_index = orient_targets.index(self.node)
+
+        # Create 'custom' condition
+        libattr.set(condition, "secondTerm", Guide.DEFAULT.index("custom"))
+        libattr.set(condition, "colorIfTrueR", 1)
+        libattr.set(condition, "colorIfFalseR", 0)
+        libattr.set(condition, "operation", 0)
+        cmds.connectAttr("%s.guideAimAt" % self.node, "%s.firstTerm" % condition)
+        cmds.connectAttr("%s.outColorR" % condition, "%s.%s" % (orient_constraint, orient_aliases[orient_index]))
+        cmds.connectAttr("%s.outColorR" % condition, "%s.%s" % (aim_constraint, aim_aliases[aim_index]))
+
+        self.__constraints["aim"] = libconstraint.get_handler(aim_constraint)
 
         # Create custom aim constraint offsets
         offset_pma = cmds.createNode("plusMinusAverage",
                                      name=libname.rename(self.node, suffix="pma", append="custom"))
 
         cmds.connectAttr("{pma}.output3D".format(pma=offset_pma),
-                         "{constraint}.offset".format(constraint=constraint))
+                         "{constraint}.offset".format(constraint=aim_constraint))
 
         for pair_index, axises in enumerate(Guide.ORIENT):
 
@@ -159,13 +236,20 @@ class Guide(Module):
             libattr.set(flip_cond, "colorIfFalse", *primary, type="float3")
 
         # Add custom orient offset
-        for attr, axis in zip(["guideOffsetOrientX", "guideOffsetOrientY", "guideOffsetOrientZ"], ["x", "y", "z"]):
-            cmds.connectAttr("%s.%s" % (self.node, attr),
+        local_condition = cmds.createNode("condition")
+        cmds.connectAttr("%s.guideAimAt" % self.node, "%s.firstTerm" % local_condition)
+        libattr.set(local_condition, "secondTerm", Guide.DEFAULT.index("custom"))
+        libattr.set(local_condition, "operation", 0)
+        for attr, axis, rgb in zip(["guideOffsetOrientX", "guideOffsetOrientY", "guideOffsetOrientZ"], AXIS, ["R", "G", "B"]):
+            libattr.set(local_condition, "colorIfFalse%s" % rgb, 0)
+            cmds.connectAttr("%s.%s" % (self.node, attr), "%s.colorIfTrue%s" % (local_condition, rgb))
+            cmds.connectAttr("%s.outColorR" % local_condition,
                              "%s.input3D[%s].input3D%s" % (offset_pma,
                                                            (pair_index + 1),
-                                                           axis))
+                                                           axis.lower()))
 
-        self.store("constraint", constraint, dag=False)
+        self.store("aim_constraint", aim_constraint, dag=False)
+        self.store("orient_constraint", orient_constraint, dag=False)
 
     def _create(self):
 
@@ -180,6 +264,23 @@ class Guide(Module):
         self.__create_scale()
 
         self.__setup_network()
+
+        # Lock up some attributes
+        libattr.lock_rotate(self.node)
+        libattr.lock_scale(self.node)
+        libattr.lock_visibility(self.node)
+
+    def remove(self):
+
+        if not self.exists:
+            err = "Guide does not exist: {node}".format(node=self.node)
+            raise GuideDoesNotExistError(err)
+
+        nodes = []
+        nodes.extend(list(libutil.flatten(self.dag.values())))
+        nodes.extend(list(libutil.flatten(self.nondag.values())))
+
+        cmds.delete(nodes)
 
 
 class Up(Module):

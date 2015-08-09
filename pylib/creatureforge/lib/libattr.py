@@ -35,6 +35,10 @@ class MayaAttribute(object):
         if self.has():
             cmds.setAttr(self.path, *self.args, **self.kwargs)
 
+    def get(self):
+        if self.has():
+            return cmds.getAttr(self.path, *self.args, **self.kwargs)
+
     def edit(self):
         if self.has():
             cmds.addAttr(self.path, edit=True, *self.args, **self.kwargs)
@@ -66,20 +70,28 @@ def add_enum(node, name, enums=[], *args, **kwargs):
 def edit_enum(node, name, enums=[], *args, **kwargs):
     MayaAttribute(node, name, at="enum", enumName=":".join(enums), *args, **kwargs).edit()
 
-def lock_translates(node, keyable=False, channelBox=False, *args, **kwargs):
+def lock_translate(node, keyable=False, channelBox=False, *args, **kwargs):
     for axis in ["X", "Y", "Z"]:
-        MayaAttribute(node, "translate%s" % axis, *args, **kwargs).set()
+        MayaAttribute(node, "translate%s" % axis, lock=True).set()
+        MayaAttribute(node, "translate%s" % axis, keyable=keyable).set()
+        MayaAttribute(node, "translate%s" % axis, channelBox=channelBox).set()
 
-def lock_rotates(node, keyable=False, channelBox=False, *args, **kwargs):
+def lock_rotate(node, keyable=False, channelBox=False, *args, **kwargs):
     for axis in ["X", "Y", "Z"]:
-        MayaAttribute(node, "rotate%s" % axis, *args, **kwargs).set()
+        MayaAttribute(node, "rotate%s" % axis, lock=True).set()
+        MayaAttribute(node, "rotate%s" % axis, keyable=keyable).set()
+        MayaAttribute(node, "rotate%s" % axis, channelBox=channelBox).set()
 
-def lock_scales(node, keyable=False, channelBox=False, *args, **kwargs):
+def lock_scale(node, keyable=False, channelBox=False, *args, **kwargs):
     for axis in ["X", "Y", "Z"]:
-        MayaAttribute(node, "scale%s" % axis, *args, **kwargs).set()
+        MayaAttribute(node, "scale%s" % axis, lock=True).set()
+        MayaAttribute(node, "scale%s" % axis, keyable=keyable).set()
+        MayaAttribute(node, "scale%s" % axis, channelBox=channelBox).set()
 
-def lock_vis(node, keyable=False, channelBox=False, *args, **kwargs):
+def lock_visibility(node, keyable=False, channelBox=False, *args, **kwargs):
     MayaAttribute(node, "visibility", *args, **kwargs).set()
+    MayaAttribute(node, "visibility", keyable=keyable).set()
+    MayaAttribute(node, "visibility", channelBox=channelBox).set()
 
 def lock_all(node, *args, **kwargs):
     lock_translates(node, *args, **kwargs)
@@ -93,6 +105,9 @@ def set_keyable(node, name):
 
 def set(node, name, *args, **kwargs):
     MayaAttribute(node, name, *args, **kwargs).set()
+
+def get(node, name, *args, **kwargs):
+    return MayaAttribute(node, name, *args, **kwargs).get()
 
 def add(node, name, *args, **kwargs):
     MayaAttribute(node, name, *args, **kwargs).add()

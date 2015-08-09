@@ -3,6 +3,9 @@
 """
 """
 
+import ast
+import itertools
+import collections
 
 def stringify(dictionary):
     for key, value in dictionary.iteritems():
@@ -15,3 +18,12 @@ def stringify(dictionary):
         else:
             dictionary[key] = str(value)
     return dictionary
+
+
+def flatten(l):
+    for el in l:
+        if isinstance(el, collections.Iterable) and not isinstance(el, basestring):
+            for sub in flatten(el):
+                yield sub
+        else:
+            yield el
