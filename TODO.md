@@ -1,0 +1,1 @@
+[ ] Add simple 'aimAt' attribute to guide and setup it's defaults

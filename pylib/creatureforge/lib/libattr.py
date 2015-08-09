@@ -44,19 +44,24 @@ class MayaAttribute(object):
             cmds.setAttr(self.path, lock=True)
 
 def add_double(node, name, *args, **kwargs):
-    MayaAttribute(node, name, at="double", *args, **kwargs).add()
+    add(node, name, at="double", *args, **kwargs)
+    # MayaAttribute(node, name, at="double", *args, **kwargs).add()
 
 def add_long(node, name, *args, **kwargs):
-    MayaAttribute(node, name, at="long", *args, **kwargs).add()
+    add(node, name, at="long", *args, **kwargs)
+    # MayaAttribute(node, name, at="long", *args, **kwargs).add()
 
 def add_bool(node, name, *args, **kwargs):
-    MayaAttribute(node, name, at="bool", *args, **kwargs).add()
+    add(node, name, at="bool", *args, **kwargs)
+    # MayaAttribute(node, name, at="bool", *args, **kwargs).add()
 
 def add_string(node, name, *args, **kwargs):
-    MayaAttribute(node, name, dt="string", *args, **kwargs).add()
+    add(node, name, dt="string", *args, **kwargs)
+    # MayaAttribute(node, name, dt="string", *args, **kwargs).add()
 
 def add_enum(node, name, enums=[], *args, **kwargs):
-    MayaAttribute(node, name, at="enum", enumName=":".join(enums), *args, **kwargs).add()
+    add(node, name, at="enum", enumName=":".join(enums), *args, **kwargs)
+    # MayaAttribute(node, name, at="enum", enumName=":".join(enums), *args, **kwargs).add()
 
 def edit_enum(node, name, enums=[], *args, **kwargs):
     MayaAttribute(node, name, at="enum", enumName=":".join(enums), *args, **kwargs).edit()
@@ -82,9 +87,9 @@ def lock_all(node, *args, **kwargs):
     lock_scales(node, *args, **kwargs)
     lock_vis(node, *args, **kwargs)
 
-def set_keyable(node, name, **kwargs):
-    MayaAttribute(node, name, channelBox=True, **kwargs).set()
-    MayaAttribute(node, name, keyable=True, **kwargs).set()
+def set_keyable(node, name):
+    MayaAttribute(node, name, channelBox=True).set()
+    MayaAttribute(node, name, keyable=True).set()
 
 def set(node, name, *args, **kwargs):
     MayaAttribute(node, name, *args, **kwargs).set()

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class Node(object):
+class Module(object):
     """
     Base Maya node.
     """
@@ -39,7 +39,9 @@ class Node(object):
         self._dag = {}
         self._nondag = {}
 
-    def _record(self, key, value, dag=True, append=False):
+        self.store("node", self.node)
+
+    def store(self, key, value, dag=True, append=False):
         if dag:
             self.__record(self._dag, key, value, append=append)
         else:
@@ -76,8 +78,10 @@ class Node(object):
             libattr.add_string(self.node, "dag")
         if not libattr.has(self.node, "nondag"):
             libattr.add_string(self.node, "nondag")
-            _dag = libutil.stringify(deepcopy(self._dag))
-            _nondag = libutil.stringify(deepcopy(self._nondag))
+
+        _dag = libutil.stringify(deepcopy(self._dag))
+        _nondag = libutil.stringify(deepcopy(self._nondag))
+
         libattr.set(self.node, "dag", json.dumps(_dag), type="string")
         libattr.set(self.node, "nondag", json.dumps(_nondag), type="string")
 

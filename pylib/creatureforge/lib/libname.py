@@ -10,6 +10,8 @@ import re
 import logging
 from copy import deepcopy
 
+from creatureforge.exceptions import InvalidNameError
+
 from maya import cmds
 
 logging.basicConfig()
@@ -28,15 +30,11 @@ PATTERN_SUFFIX = "^([a-zA-Z]+)$"
 # ------------------------------------------------------------------------------
 
 
-class InvalidNameException(Exception):
-    pass
-
-
 def validate(func):
     def wraps(*args, **kwargs):
         if not len(str(args[0]).split(NameHandler.SEP)) == MAX:
             err = "Invalid name: {name}".format(name=args[0])
-            raise InvalidNameException(err)
+            raise InvalidNameError(err)
         return func(*args, **kwargs)
     return wraps
 
@@ -62,7 +60,7 @@ class NameHandler(object):
                                                            self.suffix])
 
     def rename(self, position=None, description=None, index=None, suffix=None,
-               append=None, **kwargs):
+               **kwargs):
         if position is not None:
             self.position = position
         if description is not None:
@@ -71,8 +69,10 @@ class NameHandler(object):
             self.index = index
         if suffix is not None:
             self.suffix = suffix
-        if append is not None:
-            self.description = self.__append_description(append)
+        if kwargs.get("append"):
+            self.description = self.__append_description(kwargs.get("append"))
+        if kwargs.get("shape"):
+            self.suffix = "{sfx}Shape".format(sfx=self.suffix)
         return self.compile()
 
     def __copy(self):
@@ -85,14 +85,15 @@ class NameHandler(object):
         return new.compile()
 
     def __append_description(self, string):
+        append = "{0}{1}".format(string[0].upper(), string[1:])
         return "{description}{append}".format(
-            description=self.description, append=string.title())
+            description=self.description, append=append)
 
     def __match(self, pattern, value, err):
         try:
             return re.match(pattern, value).group(0)
         except (AttributeError, TypeError):
-            raise InvalidNameException(err)
+            raise InvalidNameError(err)
 
     def __set_position(self, val):
         err = "Invalid position: '{val}'".format(val=val)
