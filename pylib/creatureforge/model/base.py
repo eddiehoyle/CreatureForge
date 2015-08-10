@@ -54,6 +54,17 @@ class Module(object):
     def __getitem__(self, index):
         return self.node[index]
 
+    def reinit(self):
+        self._dag = json.loads(libattr.get(self.node, "dag"))
+        self._nondag = json.loads(libattr.get(self.node, "nondag"))
+        return self
+
+    @property
+    def long(self):
+        if self.exists:
+            return cmds.ls(self.node, long=True)[0]
+        return None
+
     @property
     def dag(self):
         if not self._dag:
@@ -96,9 +107,6 @@ class Module(object):
 
     @property
     def snapshot(self):
-        raise NotImplementedError()
-
-    def reinit(self):
         raise NotImplementedError()
 
     def create(self):
