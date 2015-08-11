@@ -51,11 +51,25 @@ class Guide(Module):
     @classmethod
     def validate(cls, node):
         try:
-            if libname.is_valid(node):
+
+            if not str(node).endswith(cls.SUFFIX):
+                raise NameError()
+
+            if isinstance(node, cls):
+                return node
+            else:
                 return Guide(*libname.tokens(str(node))).reinit()
-        except InvalidNameError:
-            err = "Node is node a valid guide: {node}".format(node=node)
-            raise InvalidGuideError(err)
+
+        except Exception:
+            msg = "'%s' is not a valid guide." % node
+            logger.error(msg)
+            raise TypeError(msg)
+        # try:
+        #     if libname.is_valid(node):
+        #         return Guide(*libname.tokens(str(node))).reinit()
+        # except InvalidNameError:
+        #     err = "Node is node a valid guide: {node}".format(node=node)
+        #     raise InvalidGuideError(err)
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
@@ -155,7 +169,38 @@ class Guide(Module):
     def remove_parent(self):
         if self.exists:
             if self.parent:
-                self.parent.remove_aim(self)
+                self.parent.__remove_aim(self)
+
+    def add_child(self, guide):
+
+        t = time.time()
+
+        guide = Guide.validate(guide)
+
+        # Try to parent to itself
+        if self.node == guide.node:
+            logger.warning("Cannot add '%s' to itself as child" % self.node)
+            return None
+
+        # Guide is already a child of self
+        if self.has_child(guide):
+            logger.info("'%s' is already a child of '%s'" % (guide.node, self.node))
+            return self.children.index(guide.node)
+
+        # If guide has any parent already
+        if guide.parent:
+            guide.remove_parent()
+
+        # Is guide above self in hierarchy
+        print "%s has parent: %s" % (self, self.has_parent(guide))
+        if self.has_parent(guide):
+            self.remove_parent()
+
+        self.__add_aim(guide)
+        logger.info("'%s' successfully added child: '%s' (%0.3fs)" % (self.node,
+                                                                      guide.node,
+                                                                      time.time()-t))
+        return guide
 
     def set_parent(self, guide):
 
@@ -195,7 +240,6 @@ class Guide(Module):
         an aim enum value to the 'aimAt' attribute.
         """
 
-        print "Parenting %s --> %s" % (self.node, guide.node)
         cmds.aimConstraint(guide.aim, self.aim,
                            worldUpObject=self.up.node,
                            worldUpType="object",
@@ -212,6 +256,9 @@ class Guide(Module):
         con = Tendon(guide, self)
         con.create()
 
+        self.__connectors.append(con)
+        print self.__connectors
+
         # Parent new guide under self
         cmds.parent(guide.node, self.node, a=True)
 
@@ -219,12 +266,18 @@ class Guide(Module):
 
     def __remove_aim(self, guide):
 
+        t = time.time()
+
         if not self.has_child(guide):
             raise ValueError("Guide '%s' is not a child of '%s'" % (guide.node, self.node))
 
+        print 'removing %s as parent from %s' % (self, guide)
+
         # Remove connector
         connectors = self.connectors
+        print connectors
         for con in connectors:
+            print con.parent, self
             if con.parent == self:
                 con.remove()
                 connectors.remove(con)
@@ -234,10 +287,10 @@ class Guide(Module):
         cmds.parent(guide.node, world=True)
 
         # Remove enum name
-        enums = cmds.attributeQuery("aimAt", node=self.node, listEnum=True)[0].split(":")
+        enums = cmds.attributeQuery("guideAimAt", node=self.node, listEnum=True)[0].split(":")
         enums.remove(guide.node)
-        libattr.edit_enum(self.node, "aimAt", enums)
-        libattr.set(self.node, "aimAt", len(enums) - 1)
+        libattr.edit_enum(self.node, "guideAimAt", enums)
+        libattr.set(self.node, "guideAimAt", len(enums) - 1)
 
         aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
         for alias in aliases:
@@ -245,15 +298,15 @@ class Guide(Module):
                                         source=True,
                                         destination=False,
                                         plugs=True):
-                libAttr.set(self.constraint, alias, 0)
+                libattr.set(self.constraint, alias, 0)
 
         # Default to world if no aim objects are attached
-        if len(enums) == len(self.DEFAULT_AIMS):
-            libAttr.set(self.node, "aimAt", 0)
+        if len(enums) == len(Guide.DEFAULT):
+            libattr.set(self.node, "guideAimAt", 0)
 
         logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.node,
                                                            guide.node,
-                                                           time.time()-t))
+                                                           time.time() - t))
 
     def __create_setup(self):
         name = libname.rename(self.node, suffix="setup")
@@ -524,6 +577,9 @@ class Tendon(Module):
     def parent(self):
         return self.__parent
 
+    def remove(self):
+        1/0
+
     def __create_annotation(self):
         shape = cmds.createNode("annotationShape", name=self.node)
         transform = cmds.listRelatives(shape, parent=True)[0]
@@ -545,8 +601,6 @@ class Tendon(Module):
         aim_handler = libconstraint.get_handler(self.parent.constraint)
         aliases = aim_handler.aliases
         targets = aim_handler.targets
-        print "%s --> %s" % (self.parent, self.child)
-        print "Looking for %s in %s" % (self.child.aim, targets)
         index = targets.index(self.child.aim)
 
         # aliases = cmds.aimConstraint(self.parent.constraint, q=True, wal=True)
