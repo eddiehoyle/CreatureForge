@@ -70,7 +70,6 @@ def add_enum(node, name, enums=[], *args, **kwargs):
 def add_vector(node, name, *args, **kwargs):
     MayaAttribute(node, name, at="double3", *args, **kwargs).add()
     for axis in ["X", "Y", "Z"]:
-        print name
         add_double(node, "{name}{axis}".format(name=name, axis=axis), parent=name)
 
 def edit_enum(node, name, enums=[], *args, **kwargs):

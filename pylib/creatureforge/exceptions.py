@@ -16,3 +16,6 @@ class InvalidGuideError(Exception):
 
 class GuideDoesNotExistError(Exception):
     pass
+
+class GuideHierarchyError(Exception):
+    pass

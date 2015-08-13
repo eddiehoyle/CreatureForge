@@ -9,6 +9,7 @@ from collections import OrderedDict
 
 from maya import cmds
 
+from creatureforge import decorators
 from creatureforge.lib import libname
 from creatureforge.lib import libattr
 from creatureforge.lib import libutil
@@ -18,6 +19,7 @@ from creatureforge.exceptions import DuplicateNameError
 from creatureforge.exceptions import InvalidNameError
 from creatureforge.exceptions import InvalidGuideError
 from creatureforge.exceptions import GuideDoesNotExistError
+from creatureforge.exceptions import GuideHierarchyError
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -33,6 +35,7 @@ def exists(func):
             return cmds.objExists(str(Guide(*libname.tokens(node))))
         return func(*args, **kwargs)
     return wraps
+
 
 class Guide(Module):
 
@@ -51,7 +54,6 @@ class Guide(Module):
     @classmethod
     def validate(cls, node):
         try:
-
             if not str(node).endswith(cls.SUFFIX):
                 raise NameError()
 
@@ -64,18 +66,12 @@ class Guide(Module):
             msg = "'%s' is not a valid guide." % node
             logger.error(msg)
             raise TypeError(msg)
-        # try:
-        #     if libname.is_valid(node):
-        #         return Guide(*libname.tokens(str(node))).reinit()
-        # except InvalidNameError:
-        #     err = "Node is node a valid guide: {node}".format(node=node)
-        #     raise InvalidGuideError(err)
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
 
         self.__constraints = {}
-        self.__connectors = []
+        self.__tendons = []
 
     def reinit(self):
         super(Guide, self).reinit()
@@ -85,8 +81,11 @@ class Guide(Module):
         return self
 
     @property
-    def connectors(self):
-        return self.__connectors
+    def tendons(self):
+        tendons = []
+        for child in self.children:
+            tendons.append(Tendon(child, self))
+        return tendons
 
     @property
     def aim(self):
@@ -150,7 +149,9 @@ class Guide(Module):
 
     def copy(self):
         name = libname.generate(self.node)
-        return Guide(*libname.tokens(name)).create()
+        guide = Guide(*libname.tokens(name))
+        guide.create()
+        return guide
 
     def has_parent(self, guide):
         guide = Guide.validate(guide)
@@ -165,42 +166,6 @@ class Guide(Module):
         if self.exists:
             return Guide.validate(guide) in self.children
         return False
-
-    def remove_parent(self):
-        if self.exists:
-            if self.parent:
-                self.parent.__remove_aim(self)
-
-    def add_child(self, guide):
-
-        t = time.time()
-
-        guide = Guide.validate(guide)
-
-        # Try to parent to itself
-        if self.node == guide.node:
-            logger.warning("Cannot add '%s' to itself as child" % self.node)
-            return None
-
-        # Guide is already a child of self
-        if self.has_child(guide):
-            logger.info("'%s' is already a child of '%s'" % (guide.node, self.node))
-            return self.children.index(guide.node)
-
-        # If guide has any parent already
-        if guide.parent:
-            guide.remove_parent()
-
-        # Is guide above self in hierarchy
-        print "%s has parent: %s" % (self, self.has_parent(guide))
-        if self.has_parent(guide):
-            self.remove_parent()
-
-        self.__add_aim(guide)
-        logger.info("'%s' successfully added child: '%s' (%0.3fs)" % (self.node,
-                                                                      guide.node,
-                                                                      time.time()-t))
-        return guide
 
     def set_parent(self, guide):
 
@@ -233,6 +198,44 @@ class Guide(Module):
 
         return guide
 
+    def add_child(self, guide):
+
+        t = time.time()
+
+        guide = Guide.validate(guide)
+
+        # Try to parent to itself
+        if self.node == guide.node:
+            logger.warning("Cannot add '%s' to itself as child" % self.node)
+            return None
+
+        # Guide is already a child of self
+        if self.has_child(guide):
+            logger.info("'%s' is already a child of '%s'" % (guide.node, self.node))
+            return self.children.index(guide.node)
+
+        # If guide has any parent already
+        if guide.parent:
+            guide.remove_parent()
+
+        # Is guide above self in hierarchy
+        print "%s has parent: %s" % (self, self.has_parent(guide))
+        if self.has_parent(guide):
+            self.remove_parent()
+
+        self.__add_aim(guide)
+        logger.info("'%s' successfully added child: '%s' (%0.3fs)" % (self.node,
+                                                                      guide.node,
+                                                                      time.time() - t))
+        return guide
+
+    def remove_parent(self):
+        if self.parent:
+            self.parent.remove_child(self)
+
+    def remove_child(self, guide):
+        self.__remove_aim(guide)
+
     def __add_aim(self, guide):
         """
         Private aim creation method. Add the input guide as a child
@@ -256,8 +259,7 @@ class Guide(Module):
         con = Tendon(guide, self)
         con.create()
 
-        self.__connectors.append(con)
-        print self.__connectors
+        self.__tendons.append(con)
 
         # Parent new guide under self
         cmds.parent(guide.node, self.node, a=True)
@@ -268,19 +270,17 @@ class Guide(Module):
 
         t = time.time()
 
-        if not self.has_child(guide):
-            raise ValueError("Guide '%s' is not a child of '%s'" % (guide.node, self.node))
-
-        print 'removing %s as parent from %s' % (self, guide)
+        if guide not in self.children:
+            error = "'{child}' is not a child of '{parent}'.".format(
+                child=guide, parent=self)
+            raise GuideHierarchyError(error)
 
         # Remove connector
-        connectors = self.connectors
-        print connectors
-        for con in connectors:
-            print con.parent, self
+        tendons = self.tendons
+        for con in tendons:
             if con.parent == self:
                 con.remove()
-                connectors.remove(con)
+                tendons.remove(con)
                 break
 
         # Parent guide to world
@@ -578,7 +578,9 @@ class Tendon(Module):
         return self.__parent
 
     def remove(self):
-        1/0
+        if self.exists:
+            cmds.delete(self.nondag.values())
+            cmds.delete(self.dag.values())
 
     def __create_annotation(self):
         shape = cmds.createNode("annotationShape", name=self.node)
