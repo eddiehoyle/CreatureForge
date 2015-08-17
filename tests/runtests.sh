@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 
-script_dir=`dirname $0`
-source $script_dir/../.env/bin/activate
-export CREATUREFORGE_ROOT="/Users/eddiehoyle/Code/python/creatureforge/"
-exec $script_dir/test_pylib/runtests.py --verbose
-# exec nosetests -v
+realpath() {
+    [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+}
+
+root=$(realpath $(dirname $(pwd)))
+
+export CREATUREFORGE_ROOT=$root
+export PYTHONPATH=$root/pylib
+source $root/.env/bin/activate
+
+exec $root/tests/test_pylib/runtests.py --verbose

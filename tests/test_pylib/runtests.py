@@ -1,11 +1,20 @@
 #!/usr/bin/env /Applications/Autodesk/maya2016/Maya.app/Contents/bin/mayapy
 
+import os
 import sys
 import maya.standalone
 
+from creatureforge.constants import CREATUREFORGE_ROOT
+
 
 def inject_nose():
-    path = "/Users/eddiehoyle/Code/python/creatureforge/.env/lib/python2.7/site-packages"
+    """
+    Inject nose for import
+    """
+
+    root = os.getenv(CREATUREFORGE_ROOT)
+    site_packages = ".env/lib/python2.7/site-packages"
+    path = os.path.join(root, site_packages)
     sys.path.insert(0, path)
 
 
