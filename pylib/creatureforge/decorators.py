@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
-# from maya importmemoize cmds
+from maya import cmds
 
+import collections
+import functools
 
 def exists(func):
     def wraps(*args, **kwargs):
@@ -10,38 +12,6 @@ def exists(func):
         return func(*args, **kwargs)
     return wraps
 
-
-class Decorator(object):
-    pass
-
-
-class Cache(object):
-    def __init__(self, func):
-        self.func = func
-        for name in set(dir(func)) - set(dir(self)):
-            setattr(self, name, getattr(func, name))
-
-    def __call__(self, *args):
-        return self.func(*args)
-
-
-def memoize(f):
-    """
-    Memoization decorator for functions taking one or more arguments.
-    """
-
-    class Memodict(dict):
-        def __init__(self, f):
-            self.f = f
-
-        def __call__(self, *args):
-            return self[args]
-
-        def __missing__(self, key):
-            ret = self[key] = self.f(*key)
-            return ret
-
-    return Memodict(f)
 
 import time
 
@@ -73,10 +43,45 @@ def fib(n, **kwargs):
     return n if n < 2 else fib(n-1) + fib(n-2)
 
 
+def memoize(func):
+    class Memoized(object):
+        """Decorator. Caches a function's return value each time it is called.
+        If called later with the same arguments, the cached value is returned
+        (not reevaluated).
+        """
 
-# fib(4, a=123, b=None, c=[])
+        def __init__(self, func, update=False):
+            self.__func = func
+            self.__cache = {}
+            self.__update = update
 
-# import timeit
-# from functools import partial
-# times = timeit.Timer(partial(fib, 3)).repeat(3, 1000000)
-# print min(times), max(times)
+        def __call__(self, *args):
+            if cmds.objExists(args[0].node):
+                if not isinstance(args, collections.Hashable):
+                    return self.__func(*args)
+                node = args[0].node
+                if node in self.__cache:
+                    if self.__update:
+                        return self.update(*args)
+                    return self.__cache[args]
+                else:
+                    value = self.__func(*args)
+                    self.__cache[node] = value
+                    return value
+            else:
+                err = "Node '{node}' does not exist!".format(
+                    node=args[0].node)
+                raise RuntimeError(err)
+
+        def update(self, *args):
+            return self.__func(*args)
+
+        def __repr__(self):
+            '''Return the function's docstring.'''
+            return self.__func.__doc__
+
+        def __get__(self, obj, objtype):
+            '''Support instance methods.'''
+            return functools.partial(self.__call__, obj)
+
+    return Memoized(func, **kwargs)

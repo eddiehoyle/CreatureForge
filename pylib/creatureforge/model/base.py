@@ -28,6 +28,8 @@ class Module(object):
 
     SUFFIX = "nde"
 
+    __name__ = "Module"
+
     def __init__(self, position, description, index=0):
 
         self.__name = NameHandler(position,
@@ -50,9 +52,6 @@ class Module(object):
 
     def __hash__(self):
         return hash(self.node)
-
-    def __getitem__(self, index):
-        return self.node[index]
 
     def reinit(self):
         self._dag = json.loads(libattr.get(self.node, "dag"))

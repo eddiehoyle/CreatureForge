@@ -9,21 +9,17 @@ from collections import OrderedDict
 
 from maya import cmds
 
-from creatureforge import decorators
 from creatureforge.lib import libname
 from creatureforge.lib import libattr
 from creatureforge.lib import libutil
 from creatureforge.lib import libconstraint
+from creatureforge.decorators import memoize
 from creatureforge.model.base import Module
 from creatureforge.exceptions import DuplicateNameError
-from creatureforge.exceptions import InvalidNameError
-from creatureforge.exceptions import InvalidGuideError
 from creatureforge.exceptions import GuideDoesNotExistError
 from creatureforge.exceptions import GuideHierarchyError
 
-logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 AXIS = ["X", "Y", "Z"]
 
@@ -63,15 +59,12 @@ class Guide(Module):
                 return Guide(*libname.tokens(str(node))).reinit()
 
         except Exception:
-            msg = "'%s' is not a valid guide." % node
+            msg = "'{node}' is not a valid guide.".format(node=node)
             logger.error(msg)
             raise TypeError(msg)
 
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
-
-        self.__constraints = {}
-        self.__tendons = []
 
     def reinit(self):
         super(Guide, self).reinit()
@@ -81,37 +74,42 @@ class Guide(Module):
         return self
 
     @property
+    @memoize
     def tendons(self):
-        tendons = []
-        for child in self.children:
-            tendons.append(Tendon(child, self))
-        return tendons
+        return tuple(map(lambda g: Tendon(g, self), self.children))
 
     @property
+    @memoize
     def aim(self):
         return self._dag.get("aim")
 
     @property
+    @memoize
     def up(self):
         return self._dag.get("up")
 
     @property
+    @memoize
     def setup(self):
         return self._dag.get("setup")
 
     @property
+    @memoize
     def shapes(self):
-        return self._dag.get("shapes")
+        return self._dag.get("shapes", tuple())
 
     @property
+    @memoize
     def constraint(self):
         return self._nondag.get("aim_constraint")
 
     @property
+    @memoize
     def condition(self):
         return self._nondag.get("aim_condition")
 
     @property
+    @memoize(update=True)
     def parent(self):
         parent = cmds.listRelatives(self.node, parent=True, type="joint")
         if parent:
@@ -119,40 +117,42 @@ class Guide(Module):
         return None
 
     @property
+    @memoize
     def children(self):
-        if self.exists:
-            children = cmds.listRelatives(self.node, children=True, type="joint") or []
-            if children:
-                return map(Guide.validate, children)
-        return []
+        children = cmds.listRelatives(
+            self.node, children=True, type="joint") or tuple()
+        return tuple(map(Guide.validate, children))
 
     @property
+    @memoize
     def primary(self):
-        if self.exists:
-            order = Guide.ORIENT.keys()
-            axis = order[cmds.getAttr("{node}.guideAimOrient".format(node=self.node))][0]
-            return axis.upper()
-        return None
+        order = Guide.ORIENT.keys()
+        axis = order[cmds.getAttr("{node}.guideAimOrient".format(
+            node=self.node))][0]
+        return axis.upper()
 
     @property
+    @memoize
     def secondary(self):
-        if self.exists:
-            order = Guide.ORIENT.keys()
-            axis = order[cmds.getAttr("{node}.guideAimOrient".format(node=self.node))][1]
-            return axis.upper()
-        return None
+        order = Guide.ORIENT.keys()
+        axis = order[cmds.getAttr("{node}.guideAimOrient".format(
+            node=self.node))][1]
+        return axis.upper()
 
+    @memoize
     def set_position(self, x, y, z, worldspace=False):
-        if self.exists:
-            logger.debug("Setting '%s' position: %s" % (self.node, [x, y, z]))
-            cmds.xform(self.node, ws=worldspace, t=[x, y, z])
+        logger.debug("Setting {node} position: ({x}, {y}, {z})".format(
+            node=self.node, x=x, y=y, z=z))
+        cmds.xform(self.node, ws=worldspace, t=[x, y, z])
 
+    @memoize
     def copy(self):
         name = libname.generate(self.node)
         guide = Guide(*libname.tokens(name))
         guide.create()
         return guide
 
+    @memoize
     def has_parent(self, guide):
         guide = Guide.validate(guide)
         parent = self.parent
@@ -162,10 +162,9 @@ class Guide(Module):
             parent = parent.parent
         return False
 
+    @memoize
     def has_child(self, guide):
-        if self.exists:
-            return Guide.validate(guide) in self.children
-        return False
+        return guide in self.children
 
     def set_parent(self, guide):
 
@@ -259,8 +258,6 @@ class Guide(Module):
         con = Tendon(guide, self)
         con.create()
 
-        self.__tendons.append(con)
-
         # Parent new guide under self
         cmds.parent(guide.node, self.node, a=True)
 
@@ -330,7 +327,7 @@ class Guide(Module):
         cmds.parent(shape, self.node, r=True, s=True)
         cmds.delete(transform)
 
-        self.store("shapes", shape, append=True)
+        self.store("shapes", tuple([shape]), append=True)
 
         # Add attributes
         libattr.add_double(self.node, "guideScale", min=0.01, dv=1)
@@ -397,7 +394,6 @@ class Guide(Module):
         orient_index = orient_targets.index(self.node)
 
         aim_aliases = aim_handler.aliases
-        aim_targets = aim_handler.targets
         aim_index = orient_targets.index(self.node)
 
         # Create 'custom' condition
@@ -409,7 +405,7 @@ class Guide(Module):
         cmds.connectAttr("%s.outColorR" % aim_condition, "%s.%s" % (orient_constraint, orient_aliases[orient_index]))
         cmds.connectAttr("%s.outColorR" % aim_condition, "%s.%s" % (aim_constraint, aim_aliases[aim_index]))
 
-        self.__constraints["aim"] = libconstraint.get_handler(aim_constraint)
+        # self.__constraints["aim"] = libconstraint.get_handler(aim_constraint)
 
         # Create custom aim constraint offsets
         offset_pma = cmds.createNode("plusMinusAverage",

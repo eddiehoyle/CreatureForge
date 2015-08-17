@@ -5,6 +5,15 @@ import sys
 import maya.standalone
 
 from creatureforge.constants import CREATUREFORGE_ROOT
+import logging
+
+
+class DisableLogger():
+    def __enter__(self):
+        logging.disable(logging.CRITICAL)
+
+    def __exit__(self, a, b, c):
+        logging.disable(logging.NOTSET)
 
 
 def inject_nose():
@@ -20,7 +29,9 @@ def inject_nose():
 
 def main():
     import nose
-    nose.run()
+
+    with DisableLogger():
+        nose.run()
 
 if __name__ == "__main__":
     maya.standalone.initialize(name="python")
