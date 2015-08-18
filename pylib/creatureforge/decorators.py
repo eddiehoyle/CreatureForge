@@ -43,45 +43,38 @@ def fib(n, **kwargs):
     return n if n < 2 else fib(n-1) + fib(n-2)
 
 
-def memoize(func):
-    class Memoized(object):
-        """Decorator. Caches a function's return value each time it is called.
-        If called later with the same arguments, the cached value is returned
-        (not reevaluated).
-        """
+class Memoized(object):
+    '''Decorator. Caches a function's return value each time it is called.
+    If called later with the same arguments, the cached value is returned
+    (not reevaluated).
+    '''
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
 
-        def __init__(self, func, update=False):
-            self.__func = func
-            self.__cache = {}
-            self.__update = update
-
-        def __call__(self, *args):
-            if cmds.objExists(args[0].node):
-                if not isinstance(args, collections.Hashable):
-                    return self.__func(*args)
-                node = args[0].node
-                if node in self.__cache:
-                    if self.__update:
-                        return self.update(*args)
-                    return self.__cache[args]
-                else:
-                    value = self.__func(*args)
-                    self.__cache[node] = value
-                    return value
+    def __call__(self, *args):
+        node = args[0]
+        if cmds.objExists(node):
+            if not isinstance(args, collections.Hashable):
+                return self.func(*args)
+            if args in self.cache:
+                return self.cache[args]
             else:
-                err = "Node '{node}' does not exist!".format(
-                    node=args[0].node)
-                raise RuntimeError(err)
+                value = self.func(*args)
+                self.cache[args] = value
+                return value
+        return None
 
-        def update(self, *args):
-            return self.__func(*args)
+    def __repr__(self):
+        '''Return the function's docstring.'''
+        return self.func.__doc__
 
-        def __repr__(self):
-            '''Return the function's docstring.'''
-            return self.__func.__doc__
+    def __get__(self, obj, objtype):
+        '''Support instance methods.'''
+        return functools.partial(self.__call__, obj)
 
-        def __get__(self, obj, objtype):
-            '''Support instance methods.'''
-            return functools.partial(self.__call__, obj)
+    def update(self):
+        pass
 
-    return Memoized(func, **kwargs)
+    def remove(self):
+        pass

@@ -108,6 +108,26 @@ class Module(object):
     def snapshot(self):
         raise NotImplementedError()
 
+    def remove(self):
+
+        if not self.exists:
+            err = "{obj} does not exist: {node}".format(
+                obj=self.__class__.__name__, node=self.node)
+            raise RuntimeError(err)
+
+        dags = list(libutil.flatten(self.dag.values()))
+        nondags = list(libutil.flatten(self.nondag.values()))
+
+        nodes = []
+        nodes.extend(map(str, dags))
+        nodes.extend(map(str, nondags))
+
+        for i in nodes:
+            if not cmds.objExists(i):
+                print "broke:", i
+
+        cmds.delete(nodes)
+
     def create(self):
         self._pre()
         self._create()

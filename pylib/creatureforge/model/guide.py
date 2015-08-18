@@ -13,11 +13,14 @@ from creatureforge.lib import libname
 from creatureforge.lib import libattr
 from creatureforge.lib import libutil
 from creatureforge.lib import libconstraint
-from creatureforge.decorators import memoize
+from creatureforge.decorators import Memoized
 from creatureforge.model.base import Module
 from creatureforge.exceptions import DuplicateNameError
 from creatureforge.exceptions import GuideDoesNotExistError
 from creatureforge.exceptions import GuideHierarchyError
+
+class GuideError(Exception):
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -74,143 +77,212 @@ class Guide(Module):
         return self
 
     @property
-    @memoize
     def tendons(self):
         return tuple(map(lambda g: Tendon(g, self), self.children))
 
     @property
-    @memoize
     def aim(self):
         return self._dag.get("aim")
 
     @property
-    @memoize
     def up(self):
-        return self._dag.get("up")
+        return Up(self)
 
     @property
-    @memoize
     def setup(self):
         return self._dag.get("setup")
 
     @property
-    @memoize
     def shapes(self):
         return self._dag.get("shapes", tuple())
 
     @property
-    @memoize
     def constraint(self):
         return self._nondag.get("aim_constraint")
 
     @property
-    @memoize
     def condition(self):
         return self._nondag.get("aim_condition")
 
     @property
-    @memoize(update=True)
     def parent(self):
-        parent = cmds.listRelatives(self.node, parent=True, type="joint")
-        if parent:
-            return Guide.validate(parent[0])
+        if self.exists:
+            parent = cmds.listRelatives(self.node, parent=True, type="joint")
+            if parent:
+                return Guide.validate(parent[0])
         return None
 
     @property
-    @memoize
     def children(self):
-        children = cmds.listRelatives(
-            self.node, children=True, type="joint") or tuple()
-        return tuple(map(Guide.validate, children))
+        if self.exists:
+            children = cmds.listRelatives(
+                self.node, children=True, type="joint") or tuple()
+            return tuple(map(Guide.validate, children))
+        return tuple()
 
-    @property
-    @memoize
-    def primary(self):
-        order = Guide.ORIENT.keys()
-        axis = order[cmds.getAttr("{node}.guideAimOrient".format(
-            node=self.node))][0]
-        return axis.upper()
+    # @property
+    # def primary(self):
+    #     if self.exists:
+    #         return self.get_aim_orient()[0]
+    #     return None
 
-    @property
-    @memoize
-    def secondary(self):
-        order = Guide.ORIENT.keys()
-        axis = order[cmds.getAttr("{node}.guideAimOrient".format(
-            node=self.node))][1]
-        return axis.upper()
+    # @property
+    # def secondary(self):
+    #     if self.exists:
+    #         return self.get_aim_orient()[1]
+    #     return None
 
-    @memoize
+    def compile(self):
+
+        if not self.exists:
+            err = "Cannot compile '{node}' as it does not exist.".format(
+                node=self.node)
+            raise GuideDoesNotExistError(err)
+
+        cmds.select(cl=True)
+
+        # Get some joint creation args
+        orientation = cmds.xform(self.aim, q=1, ws=1, ro=1)
+        rotation_order = Guide.ORIENT.keys()[cmds.getAttr("%s.guideAimOrient" % self.node)]
+
+        # Create joint
+        joint = cmds.joint(name=libname.rename(self.node, suffix="jnt"),
+                           orientation=orientation,
+                           position=self.get_position(worldspace=True),
+                           rotationOrder=rotation_order)
+
+        cmds.select(cl=True)
+
+        msg = "Compiled '{node}'.".format(node=self.node)
+        logger.info(msg)
+
+        return joint
+
+    def get_aim_at(self):
+
+        if self.exists:
+            enums = cmds.attributeQuery("guideAimAt", node=self.node, listEnum=True)[0].split(":")
+            target = enums[cmds.getAttr("{node}.guideAimAt".format(node=self.node))]
+
+            # Create guide object if valid
+            if target not in self.DEFAULT:
+                return Guide(*libname.tokens(target))
+
+        return None
+
+    def get_aim_orient(self):
+
+        orient = []
+        if self.exists:
+            order = Guide.ORIENT.keys()
+            orient = order[cmds.getAttr("{node}.guideAimOrient".format(
+                node=self.node))]
+        return tuple(orient)
+
+    def get_offset_orient(self):
+
+        values = []
+        if self.exists:
+            paths = []
+            for axis in AXIS:
+                paths.append("{node}.guideOffsetOrient{axis}".format(
+                    node=self.node, axis=axis))
+            values = map(cmds.getAttr, paths)
+        return tuple(values)
+
+    def get_position(self, worldspace=True):
+        position = []
+        if self.exists:
+            position = cmds.xform(self.node, q=True, ws=worldspace, t=True)
+        return tuple(position)
+
     def set_position(self, x, y, z, worldspace=False):
-        logger.debug("Setting {node} position: ({x}, {y}, {z})".format(
-            node=self.node, x=x, y=y, z=z))
-        cmds.xform(self.node, ws=worldspace, t=[x, y, z])
+        if self.exists:
+            logger.debug("Setting {node} position: ({x}, {y}, {z})".format(
+                node=self.node, x=x, y=y, z=z))
+            cmds.xform(self.node, ws=worldspace, t=[x, y, z])
 
-    @memoize
     def copy(self):
+        if not self.exists:
+            err = "{node} does not exist, cannot copy.".format(node=self.node)
+            raise GuideDoesNotExistError(err)
+
         name = libname.generate(self.node)
         guide = Guide(*libname.tokens(name))
         guide.create()
         return guide
 
-    @memoize
     def has_parent(self, guide):
-        guide = Guide.validate(guide)
-        parent = self.parent
-        while parent:
-            if guide.node == parent.node:
-                return True
-            parent = parent.parent
+        if self.exists:
+            parent = self.parent
+            while parent:
+                if guide.node == parent.node:
+                    return True
+                parent = parent.parent
         return False
 
-    @memoize
     def has_child(self, guide):
-        return guide in self.children
+        if self.exists:
+            return guide in self.children
+        return False
 
     def set_parent(self, guide):
 
-        guide = Guide.validate(guide)
+        if not self.exists:
+            err = ("Cannot parent '{guide}' -> '{node}' as '{node}' does not "
+                   "exist.").format(guide=guide, node=self.node)
+            raise GuideDoesNotExistError(err)
 
         t = time.time()
 
         # Try to parent to itself
         if self == guide:
-            logger.warning("Cannot parent '%s' to itself" % self.node)
-            return None
+            err = "Cannot parent '{node}' to itself.".format(node=self.node)
+            raise GuideError(err)
 
         # Is guide already parent
         if self.parent == guide:
-            logger.debug("'%s' is already a parent of '%s'" % (guide.node, self.node))
+            err = "'{guide}' is already a parent of '{node}'".format(
+                guide=guide, node=self.node)
             return self.parent
 
         # Is guide below self in hierarchy
         if guide.has_parent(self):
             guide.remove_parent()
 
-        # If self has any parent already
+        # If a parent already exists
         if self.parent:
             self.remove_parent()
 
         guide.__add_aim(self)
-        logger.info("'%s' successfully set parent: '%s' (%0.3fs)" % (self.node,
-                                                                     guide.node,
-                                                                     time.time()-t))
+        msg = ("Set parent: '{guide}' -> '{node}' "
+               "({time:0.3f}s)").format(guide=guide,
+                                        node=self.node,
+                                        time=(time.time() - t))
+        logger.info(msg)
 
         return guide
 
     def add_child(self, guide):
 
-        t = time.time()
+        if not self.exists:
+            err = ("Cannot add child '{node}' <- '{guide}' as '{node}' "
+                   "does not exist.").format(guide=guide, node=self.node)
+            raise GuideDoesNotExistError(err)
 
-        guide = Guide.validate(guide)
+        t = time.time()
 
         # Try to parent to itself
         if self.node == guide.node:
-            logger.warning("Cannot add '%s' to itself as child" % self.node)
-            return None
+            err = "Cannot add '{node}' to itself as child.".format(
+                node=self.node)
+            raise GuideError(err)
 
         # Guide is already a child of self
         if self.has_child(guide):
-            logger.info("'%s' is already a child of '%s'" % (guide.node, self.node))
+            err = "'{guide}' is already a child of '{node}'.".format(
+                guide=guide, node=self.node)
+            logger.warn(err)
             return self.children.index(guide.node)
 
         # If guide has any parent already
@@ -218,15 +290,28 @@ class Guide(Module):
             guide.remove_parent()
 
         # Is guide above self in hierarchy
-        print "%s has parent: %s" % (self, self.has_parent(guide))
         if self.has_parent(guide):
             self.remove_parent()
 
         self.__add_aim(guide)
-        logger.info("'%s' successfully added child: '%s' (%0.3fs)" % (self.node,
-                                                                      guide.node,
-                                                                      time.time() - t))
+        msg = ("Added child '{node}' <- '{guide}' "
+               "({time:0.3f}s)").format(guide=guide,
+                                        node=self.node,
+                                        time=(time.time() - t))
+        logger.info(msg)
+
         return guide
+
+    def remove(self):
+        self.remove_parent()
+        for child in self.children:
+            self.remove_child(child)
+
+        self.up.remove()
+        super(Guide, self).remove()
+
+        msg = "Removed '{node}'".format(node=self.node)
+        logger.info(msg)
 
     def remove_parent(self):
         if self.parent:
@@ -234,6 +319,22 @@ class Guide(Module):
 
     def remove_child(self, guide):
         self.__remove_aim(guide)
+
+    def get_snapshot(self):
+
+        if not self.exists:
+            raise GuideError("'{node}' does not exist!".format(
+                node=self.node))
+
+        return dict(node=self.node,
+                    parent=self.parent.node if self.parent else None,
+                    children=self.children,
+                    offset_orient=self.get_offset_orient(),
+                    aim_orient=self.get_aim_orient(),
+                    aim_at=self.get_aim_at(),
+                    aim_flip=bool(cmds.getAttr("%s.guideAimFlip" % self.node)),
+                    position=self.get_position(worldspace=True),
+                    up_position=self.up.get_position(worldspace=True))
 
     def __add_aim(self, guide):
         """
@@ -277,7 +378,6 @@ class Guide(Module):
         for con in tendons:
             if con.parent == self:
                 con.remove()
-                tendons.remove(con)
                 break
 
         # Parent guide to world
@@ -353,7 +453,6 @@ class Guide(Module):
     def __create_up(self):
         up = Up(self)
         up.create()
-        self.store("up", up)
         cmds.parent(up.grp, self.setup)
 
     def __create_scale(self):
@@ -472,18 +571,6 @@ class Guide(Module):
         libattr.lock_scale(self.node)
         libattr.lock_visibility(self.node)
 
-    def remove(self):
-
-        if not self.exists:
-            err = "Guide does not exist: {node}".format(node=self.node)
-            raise GuideDoesNotExistError(err)
-
-        nodes = []
-        nodes.extend(list(libutil.flatten(self.dag.values())))
-        nodes.extend(list(libutil.flatten(self.nondag.values())))
-
-        cmds.delete(nodes)
-
 
 class Up(Module):
 
@@ -495,6 +582,12 @@ class Up(Module):
         self.__guide = guide
 
         super(Up, self).__init__(*guide.tokens)
+
+    def get_position(self, worldspace=True):
+        position = []
+        if self.exists:
+            position = cmds.xform(self.node, q=True, ws=worldspace, t=True)
+        return tuple(position)
 
     @property
     def guide(self):
@@ -572,11 +665,6 @@ class Tendon(Module):
     @property
     def parent(self):
         return self.__parent
-
-    def remove(self):
-        if self.exists:
-            cmds.delete(self.nondag.values())
-            cmds.delete(self.dag.values())
 
     def __create_annotation(self):
         shape = cmds.createNode("annotationShape", name=self.node)
