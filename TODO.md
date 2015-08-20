@@ -17,7 +17,32 @@
 # Tendon
 - [x] Add remove functionality
 
+# Shader
+- [ ] Add shader model
+
 # Unittests
 - [ ] Update Guide
 - [ ] Write Up tests
 - [ ] Write Tendon tests
+
+# Control
+- [x] Add create
+- [x] Add get_hierarchy
+- [x] Add duplicate
+- [ ] Add set_parent
+- [ ] Add add_child
+- [ ] Add has_parent
+- [ ] Add has_child
+- [ ] Add is_parent
+- [ ] Add remove
+- [ ] Add remove_parent
+- [ ] Add compile
+- [ ] Add decompile
+- [ ] Add get_guides
+- [ ] Add exists
+- [ ] Add set_axis
+- [ ] Add set_debug
+- [ ] Add write
+- [ ] Add read
+- [ ] Add rebuild
+- [ ] Add validate

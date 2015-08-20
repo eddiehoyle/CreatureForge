@@ -40,63 +40,34 @@ def get_hierarchy(guide):
     recur(guide, data)
     return data
 
+
 def duplicate(guide, hierarchy=True):
+
+    # Define containers
     guide = validate(guide)
+    guides = get_hierarchy(guide)
+    copy_guides = {}
+    duplicates = []
 
-    data = get_hierarchy(guide)
-    duplicate_data = {}
-    other = defaultdict(list)
-
-    # Store duplicate guides
-    for parent in data:
+    # Copy guides and store correlation
+    for parent in guides:
         dup_parent = parent.copy()
-        duplicate_data[dup_parent] = parent
+        copy_guides[parent] = dup_parent
+        duplicates.append(dup_parent)
 
-    for dup_parent in duplicate_data:
-        parent = duplicate_data[dup_parent]
-        other[dup_parent] = []
-        for child in data[parent]:
-            other[dup_parent].append(dup_child)
+    # Set hierarchy and positions
+    for parent in guides:
+        translates = parent.get_position(worldspace=True)
+        dup_parent = copy_guides[parent]
+        dup_parent.set_position(*translates, worldspace=True)
+        for child in guides[parent]:
+            dup_child = copy_guides[child]
+            dup_parent.add_child(dup_child)
 
-    for parent in other:
-        for child in other[parent]:
-            parent.add_child(child)
+    # Select top of duplicate guides
+    cmds.select(duplicates[0], replace=True)
 
-    return other
-
-    # dup_data = {}
-
-    # # Create duplicate guides
-    # for parent in data:
-    #     dup_parent = parent.copy()
-    #     dup_data[parent] = dup_parent
-
-    # # Create duplicate hierarchy
-    # for parent in data:
-    #     libxform.match_translates(dup_data[parent].node, parent.node)
-    #     for child in data[parent]:
-    #         dup_data[parent].add_child(dup_data[child])
-
-    # # Select top guide
-    # print "dup_data", dup_data
-    # top_guide = dup_data.values().pop(0).node
-    # while cmds.listRelatives(top_guide, parent=True):
-    #     top_guide = cmds.listRelatives(top_guide, parent=True)[0]
-
-    # # Return duplicate nodes in list format
-    # # First index in list is top of hierarchy
-    # dup_guides = dup_data.values()
-    # dup_guides.insert(0, dup_guides.pop(dup_guides.index(Guide(*libName.decompile(top_guide, 3)))))
-
-    # cmds.select(dup_guides[0].node, r=True)
-
-    # logger.info("Duplicate guides created: %s" % [g.node for g in dup_guides])
-    # return dup_guides
-
-
-def reinit(guide):
-    guide = validate(guide)
-    return guide.reinit()
+    return duplicates
 
 
 def set_parent(child, parent):

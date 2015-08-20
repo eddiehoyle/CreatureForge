@@ -86,7 +86,9 @@ class Guide(Module):
 
     @property
     def up(self):
-        return Up(self)
+        if self.exists:
+            return Up(self)
+        return None
 
     @property
     def setup(self):
@@ -190,13 +192,13 @@ class Guide(Module):
             values = map(cmds.getAttr, paths)
         return tuple(values)
 
-    def get_position(self, worldspace=True):
+    def get_translates(self, worldspace=True):
         position = []
         if self.exists:
             position = cmds.xform(self.node, q=True, ws=worldspace, t=True)
         return tuple(position)
 
-    def set_position(self, x, y, z, worldspace=False):
+    def set_translates(self, x, y, z, worldspace=False):
         if self.exists:
             logger.debug("Setting {node} position: ({x}, {y}, {z})".format(
                 node=self.node, x=x, y=y, z=z))
@@ -641,6 +643,13 @@ class Up(Module):
         self.__create_scale()
 
         libattr.set(self.node, "translateY", 3)
+
+    def _post(self):
+
+        # Lock up some attributes
+        libattr.lock_rotate(self.node)
+        libattr.lock_scale(self.node)
+        libattr.lock_visibility(self.node)
 
 
 class Tendon(Module):
