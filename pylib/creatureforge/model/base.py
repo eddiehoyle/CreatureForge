@@ -21,6 +21,16 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
+def cache(func):
+    def wraps(*args, **kwargs):
+        node = args[0].node
+        if not cmds.objExists(node):
+            err = "Guide does not exist: '{node}'".format(node=node)
+            raise RuntimeError(err)
+        return func(*args, **kwargs)
+    return wraps
+
+
 class Module(object):
     """
     Base Maya node.
@@ -42,47 +52,67 @@ class Module(object):
         self._nondag = {}
 
     def __eq__(self, other):
-        return str(self.node) == str(other)
+        return str(self.get_node()) == str(other)
 
     def __str__(self):
-        return self.node
+        return self.get_node()
 
     def __repr__(self):
-        return "<%s '%s'>" % (self.__class__.__name__, self.node)
+        return "<%s '%s'>" % (self.__class__.__name__, self.get_node())
 
     def __hash__(self):
-        return hash(self.node)
+        return hash(self.get_node())
+
+    def get_name(self):
+        return self.__name
+
+    @cache
+    def get_node(self):
+        return self.__node
+
+    @cache
+    def get_dag(self):
+        if not self._dag:
+            self._dag = json.loads(libattr.get(self.get_node(), "dag"))
+        return self._dag
+
+    @cache
+    def get_nondag(self):
+        if not self._nondag:
+            self._nondag = json.loads(libattr.get(self.get_node(), "nondag"))
+        return self._nondag
 
     def reinit(self):
-        self._dag = json.loads(libattr.get(self.node, "dag"))
-        self._nondag = json.loads(libattr.get(self.node, "nondag"))
+        self._dag = json.loads(libattr.get(self.get_node(), "dag"))
+        self._nondag = json.loads(libattr.get(self.get_node(), "nondag"))
         return self
 
     @property
     def long(self):
         if self.exists:
-            return cmds.ls(self.node, long=True)[0]
+            return cmds.ls(self.get_node(), long=True)[0]
         return None
 
-    @property
-    def dag(self):
-        if not self._dag:
-            self._dag = json.loads(libattr.get(self.node, "dag"))
-        return self._dag
+    def exists(self):
+        return cmds.objExists(self.get_name().compile())
 
-    @property
-    def nondag(self):
-        if not self._nondag:
-            self._nondag = json.loads(libattr.get(self.node, "nondag"))
-        return self._nondag
+    # @property
+    # def dag(self):
+    #     raise RuntimeError
+    #     if not self._dag:
+    #         self._dag = json.loads(libattr.get(self.get_node(), "dag"))
+    #     return self._dag
+
+    # @property
+    # def nondag(self):
+    #     raise RuntimeError
+    #     if not self._nondag:
+    #         self._nondag = json.loads(libattr.get(self.get_node(), "nondag"))
+    #     return self._nondag
 
     @property
     def tokens(self):
         return (self.position, self.description, self.index)
-
-    @property
-    def exists(self):
-        return cmds.objExists(self.node)
 
     @property
     def node(self):
@@ -104,27 +134,16 @@ class Module(object):
     def suffix(self):
         return self.__name.suffix
 
-    @property
-    def snapshot(self):
-        raise NotImplementedError()
-
+    @cache
     def remove(self):
-
-        if not self.exists:
-            err = "{obj} does not exist: {node}".format(
-                obj=self.__class__.__name__, node=self.node)
-            raise RuntimeError(err)
-
-        dags = list(libutil.flatten(self.dag.values()))
-        nondags = list(libutil.flatten(self.nondag.values()))
+        dags = list(libutil.flatten(self.get_dag().values()))
+        nondags = list(libutil.flatten(self.get_nondag().values()))
 
         nodes = []
         nodes.extend(map(str, dags))
         nodes.extend(map(str, nondags))
 
-        for i in nodes:
-            if not cmds.objExists(i):
-                print "broke:", i
+        print "Checking nodes:", nodes
 
         cmds.delete(nodes)
 
@@ -134,25 +153,25 @@ class Module(object):
         self._post()
 
     def _pre(self):
-        self.store("node", self.node)
+        self.store("node", self.get_name())
 
     def _create(self):
         raise NotImplementedError()
 
     def _post(self):
-        if not libattr.has(self.node, "dag"):
-            libattr.add_string(self.node, "dag")
-        if not libattr.has(self.node, "nondag"):
-            libattr.add_string(self.node, "nondag")
+        if not libattr.has(self.get_node(), "dag"):
+            libattr.add_string(self.get_node(), "dag")
+        if not libattr.has(self.get_node(), "nondag"):
+            libattr.add_string(self.get_node(), "nondag")
 
         _dag = libutil.stringify(deepcopy(self._dag))
         _nondag = libutil.stringify(deepcopy(self._nondag))
 
-        libattr.set(self.node, "dag", json.dumps(_dag), type="string")
-        libattr.set(self.node, "nondag", json.dumps(_nondag), type="string")
+        libattr.set(self.get_node(), "dag", json.dumps(_dag), type="string")
+        libattr.set(self.get_node(), "nondag", json.dumps(_nondag), type="string")
 
-        libattr.lock(self.node, "dag")
-        libattr.lock(self.node, "nondag")
+        libattr.lock(self.get_node(), "dag")
+        libattr.lock(self.get_node(), "nondag")
 
     def store(self, key, value, dag=True, append=False):
         if dag:

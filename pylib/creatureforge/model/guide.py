@@ -27,11 +27,12 @@ logger = logging.getLogger(__name__)
 AXIS = ["X", "Y", "Z"]
 
 
-def exists(func):
+def cache(func):
     def wraps(*args, **kwargs):
         node = args[0].node
-        if libname.is_valid(node):
-            return cmds.objExists(str(Guide(*libname.tokens(node))))
+        if not cmds.objExists(node):
+            err = "Guide does not exist: '{node}'".format(node=node)
+            raise RuntimeError(err)
         return func(*args, **kwargs)
     return wraps
 
@@ -55,12 +56,10 @@ class Guide(Module):
         try:
             if not str(node).endswith(cls.SUFFIX):
                 raise NameError()
-
             if isinstance(node, cls):
                 return node
             else:
                 return Guide(*libname.tokens(str(node))).reinit()
-
         except Exception:
             msg = "'{node}' is not a valid guide.".format(node=node)
             logger.error(msg)
@@ -71,219 +70,191 @@ class Guide(Module):
 
     def reinit(self):
         super(Guide, self).reinit()
-
         self.store("up", Up(self))
-
         return self
 
-    @property
-    def tendons(self):
+    @cache
+    def get_tendons(self):
         return tuple(map(lambda g: Tendon(g, self), self.children))
 
-    @property
-    def aim(self):
+    @cache
+    def get_aim(self):
         return self._dag.get("aim")
 
-    @property
-    def up(self):
-        if self.exists:
-            return Up(self)
-        return None
+    @cache
+    def get_up(self):
+        return Up(self)
 
-    @property
-    def setup(self):
+    @cache
+    def get_setup(self):
         return self._dag.get("setup")
 
-    @property
-    def shapes(self):
+    @cache
+    def get_shapes(self):
         return self._dag.get("shapes", tuple())
 
-    @property
-    def constraint(self):
+    @cache
+    def get_constraint(self):
         return self._nondag.get("aim_constraint")
 
-    @property
-    def condition(self):
+    @cache
+    def get_condition(self):
         return self._nondag.get("aim_condition")
 
-    @property
-    def parent(self):
-        if self.exists:
-            parent = cmds.listRelatives(self.node, parent=True, type="joint")
-            if parent:
-                return Guide.validate(parent[0])
+    @cache
+    def get_parent(self):
+        parent = cmds.listRelatives(self.get_node(), parent=True, type="joint")
+        if parent:
+            return Guide.validate(parent[0])
         return None
 
-    @property
-    def children(self):
-        if self.exists:
-            children = cmds.listRelatives(
-                self.node, children=True, type="joint") or tuple()
-            return tuple(map(Guide.validate, children))
-        return tuple()
+    @cache
+    def get_children(self):
+        children = cmds.listRelatives(
+            self.get_node(), children=True, type="joint") or tuple()
+        return tuple(map(Guide.validate, children))
 
-    # @property
-    # def primary(self):
-    #     if self.exists:
-    #         return self.get_aim_orient()[0]
-    #     return None
+    @cache
+    def get_snapshot(self):
+        parent = self.get_parent()
+        return dict(node=self.get_node(),
+                    parent=self.get_parent().get_node(),
+                    children=self.get_children(),
+                    offset_orient=self.get_offset_orient(),
+                    aim_orient=self.get_aim_orient(),
+                    aim_at=self.get_aim_at(),
+                    aim_flip=bool(cmds.getAttr("%s.guideAimFlip" % self.get_node())),
+                    position=self.get_position(worldspace=True),
+                    up_position=self.get_up().get_position(worldspace=True))
 
-    # @property
-    # def secondary(self):
-    #     if self.exists:
-    #         return self.get_aim_orient()[1]
-    #     return None
-
+    @cache
     def compile(self):
-
-        if not self.exists:
-            err = "Cannot compile '{node}' as it does not exist.".format(
-                node=self.node)
-            raise GuideDoesNotExistError(err)
 
         cmds.select(cl=True)
 
         # Get some joint creation args
-        orientation = cmds.xform(self.aim, q=1, ws=1, ro=1)
-        rotation_order = Guide.ORIENT.keys()[cmds.getAttr("%s.guideAimOrient" % self.node)]
+        aim = self.get_aim()
+        orientation = cmds.xform(aim, q=1, ws=1, ro=1)
+        rotation_order = Guide.ORIENT.keys()[cmds.getAttr("%s.guideAimOrient" % self.get_node())]
 
         # Create joint
-        joint = cmds.joint(name=libname.rename(self.node, suffix="jnt"),
+        joint = cmds.joint(name=libname.rename(self.get_name().compile(), suffix="jnt"),
                            orientation=orientation,
                            position=self.get_position(worldspace=True),
                            rotationOrder=rotation_order)
 
         cmds.select(cl=True)
 
-        msg = "Compiled '{node}'.".format(node=self.node)
+        msg = "Compiled '{node}'.".format(node=self.get_node())
         logger.info(msg)
 
         return joint
 
+    @cache
     def get_aim_at(self):
+        enums = cmds.attributeQuery("guideAimAt", node=self.get_node(), listEnum=True)[0].split(":")
+        target = enums[cmds.getAttr("{node}.guideAimAt".format(node=self.get_node()))]
 
-        if self.exists:
-            enums = cmds.attributeQuery("guideAimAt", node=self.node, listEnum=True)[0].split(":")
-            target = enums[cmds.getAttr("{node}.guideAimAt".format(node=self.node))]
-
-            # Create guide object if valid
-            if target not in self.DEFAULT:
-                return Guide(*libname.tokens(target))
+        # Create guide object if valid
+        if target not in self.DEFAULT:
+            return Guide(*libname.tokens(target))
 
         return None
 
+    @cache
     def get_aim_orient(self):
-
-        orient = []
-        if self.exists:
-            order = Guide.ORIENT.keys()
-            orient = order[cmds.getAttr("{node}.guideAimOrient".format(
-                node=self.node))]
+        order = Guide.ORIENT.keys()
+        orient = order[cmds.getAttr("{node}.guideAimOrient".format(
+            node=self.get_node()))]
         return tuple(orient)
 
+    @cache
     def get_offset_orient(self):
+        paths = []
+        for axis in AXIS:
+            paths.append("{node}.guideOffsetOrient{axis}".format(
+                node=self.get_node(), axis=axis))
+        return tuple(map(cmds.getAttr, paths))
 
-        values = []
-        if self.exists:
-            paths = []
-            for axis in AXIS:
-                paths.append("{node}.guideOffsetOrient{axis}".format(
-                    node=self.node, axis=axis))
-            values = map(cmds.getAttr, paths)
-        return tuple(values)
-
+    @cache
     def get_translates(self, worldspace=True):
-        position = []
-        if self.exists:
-            position = cmds.xform(self.node, q=True, ws=worldspace, t=True)
-        return tuple(position)
+        return tuple(cmds.xform(self.get_node(), q=True, ws=worldspace, t=True))
 
+    @cache
     def set_translates(self, x, y, z, worldspace=False):
-        if self.exists:
-            logger.debug("Setting {node} position: ({x}, {y}, {z})".format(
-                node=self.node, x=x, y=y, z=z))
-            cmds.xform(self.node, ws=worldspace, t=[x, y, z])
+        logger.debug("Setting {node} position: ({x}, {y}, {z})".format(
+            node=self.get_node(), x=x, y=y, z=z))
+        cmds.xform(self.get_node(), ws=worldspace, t=[x, y, z])
 
+    @cache
     def copy(self):
-        if not self.exists:
-            err = "{node} does not exist, cannot copy.".format(node=self.node)
-            raise GuideDoesNotExistError(err)
-
-        name = libname.generate(self.node)
+        name = libname.generate(self.get_node())
         guide = Guide(*libname.tokens(name))
         guide.create()
         return guide
 
+    @cache
     def has_parent(self, guide):
-        if self.exists:
-            parent = self.parent
-            while parent:
-                if guide.node == parent.node:
-                    return True
-                parent = parent.parent
-        return False
+        parent = self.get_parent()
+        while parent:
+            if guide.node == parent.node:
+                return True
+            parent = parent.get_parent()
+        return parent
 
+    @cache
     def has_child(self, guide):
-        if self.exists:
-            return guide in self.children
-        return False
+        return guide in self.children
 
+    @cache
     def set_parent(self, guide):
-
-        if not self.exists:
-            err = ("Cannot parent '{guide}' -> '{node}' as '{node}' does not "
-                   "exist.").format(guide=guide, node=self.node)
-            raise GuideDoesNotExistError(err)
 
         t = time.time()
 
         # Try to parent to itself
         if self == guide:
-            err = "Cannot parent '{node}' to itself.".format(node=self.node)
+            err = "Cannot parent '{node}' to itself.".format(node=self.get_node())
             raise GuideError(err)
 
         # Is guide already parent
-        if self.parent == guide:
+        parent = self.get_parent()
+        if parent == guide:
             err = "'{guide}' is already a parent of '{node}'".format(
-                guide=guide, node=self.node)
-            return self.parent
+                guide=guide, node=self.get_node())
+            return parent
 
         # Is guide below self in hierarchy
         if guide.has_parent(self):
             guide.remove_parent()
 
         # If a parent already exists
-        if self.parent:
+        if parent:
             self.remove_parent()
 
         guide.__add_aim(self)
         msg = ("Set parent: '{guide}' -> '{node}' "
                "({time:0.3f}s)").format(guide=guide,
-                                        node=self.node,
+                                        node=self.get_node(),
                                         time=(time.time() - t))
         logger.info(msg)
 
         return guide
 
+    @cache
     def add_child(self, guide):
-
-        if not self.exists:
-            err = ("Cannot add child '{node}' <- '{guide}' as '{node}' "
-                   "does not exist.").format(guide=guide, node=self.node)
-            raise GuideDoesNotExistError(err)
 
         t = time.time()
 
         # Try to parent to itself
-        if self.node == guide.node:
+        if self.get_node() == guide.node:
             err = "Cannot add '{node}' to itself as child.".format(
-                node=self.node)
+                node=self.get_node())
             raise GuideError(err)
 
         # Guide is already a child of self
         if self.has_child(guide):
             err = "'{guide}' is already a child of '{node}'.".format(
-                guide=guide, node=self.node)
+                guide=guide, node=self.get_node())
             logger.warn(err)
             return self.children.index(guide.node)
 
@@ -298,45 +269,30 @@ class Guide(Module):
         self.__add_aim(guide)
         msg = ("Added child '{node}' <- '{guide}' "
                "({time:0.3f}s)").format(guide=guide,
-                                        node=self.node,
+                                        node=self.get_node(),
                                         time=(time.time() - t))
         logger.info(msg)
 
         return guide
 
+    @cache
     def remove(self):
         self.remove_parent()
-        for child in self.children:
+        for child in self.get_children():
             self.remove_child(child)
-
-        self.up.remove()
+        self.get_up().remove()
         super(Guide, self).remove()
+        logger.info("Removed '{node}'".format(node=self.get_name().compile()))
 
-        msg = "Removed '{node}'".format(node=self.node)
-        logger.info(msg)
-
+    @cache
     def remove_parent(self):
-        if self.parent:
-            self.parent.remove_child(self)
+        parent = self.get_parent()
+        if parent:
+            parent.remove_child(self)
 
+    @cache
     def remove_child(self, guide):
         self.__remove_aim(guide)
-
-    def get_snapshot(self):
-
-        if not self.exists:
-            raise GuideError("'{node}' does not exist!".format(
-                node=self.node))
-
-        return dict(node=self.node,
-                    parent=self.parent.node if self.parent else None,
-                    children=self.children,
-                    offset_orient=self.get_offset_orient(),
-                    aim_orient=self.get_aim_orient(),
-                    aim_at=self.get_aim_at(),
-                    aim_flip=bool(cmds.getAttr("%s.guideAimFlip" % self.node)),
-                    position=self.get_position(worldspace=True),
-                    up_position=self.up.get_position(worldspace=True))
 
     def __add_aim(self, guide):
         """
@@ -345,24 +301,25 @@ class Guide(Module):
         an aim enum value to the 'aimAt' attribute.
         """
 
-        cmds.aimConstraint(guide.aim, self.aim,
-                           worldUpObject=self.up.node,
+        aim_constraint = self.get_aim()
+        cmds.aimConstraint(guide.aim, aim_constraint,
+                           worldUpObject=self.get_up().node,
                            worldUpType="object",
                            aimVector=(1, 0, 0),
                            upVector=(0, 1, 0),
                            mo=False)
 
         # Edit aim attribute on node to include new child
-        enums = cmds.attributeQuery("guideAimAt", node=self.node, listEnum=True)[0].split(":")
+        enums = cmds.attributeQuery("guideAimAt", node=self.get_node(), listEnum=True)[0].split(":")
         enums.append(guide.node)
-        libattr.edit_enum(self.node, "guideAimAt", enums=enums)
+        libattr.edit_enum(self.get_node(), "guideAimAt", enums=enums)
 
         # Create connector
         con = Tendon(guide, self)
         con.create()
 
         # Parent new guide under self
-        cmds.parent(guide.node, self.node, a=True)
+        cmds.parent(guide.node, self.get_node(), a=True)
 
         return guide
 
@@ -376,7 +333,7 @@ class Guide(Module):
             raise GuideHierarchyError(error)
 
         # Remove connector
-        tendons = self.tendons
+        tendons = self.get_tendons()
         for con in tendons:
             if con.parent == self:
                 con.remove()
@@ -386,98 +343,104 @@ class Guide(Module):
         cmds.parent(guide.node, world=True)
 
         # Remove enum name
-        enums = cmds.attributeQuery("guideAimAt", node=self.node, listEnum=True)[0].split(":")
+        enums = cmds.attributeQuery("guideAimAt", node=self.get_node(), listEnum=True)[0].split(":")
         enums.remove(guide.node)
-        libattr.edit_enum(self.node, "guideAimAt", enums)
-        libattr.set(self.node, "guideAimAt", len(enums) - 1)
+        libattr.edit_enum(self.get_node(), "guideAimAt", enums)
+        libattr.set(self.get_node(), "guideAimAt", len(enums) - 1)
 
-        aliases = cmds.aimConstraint(self.constraint, q=True, wal=True)
+        aim_constraint = self.get_constraint()
+        aliases = cmds.aimConstraint(aim_constraint, q=True, wal=True)
         for alias in aliases:
-            if not cmds.listConnections("%s.%s" % (self.constraint, alias),
+            if not cmds.listConnections("%s.%s" % (aim_constraint, alias),
                                         source=True,
                                         destination=False,
                                         plugs=True):
-                libattr.set(self.constraint, alias, 0)
+                libattr.set(aim_constraint, alias, 0)
 
         # Default to world if no aim objects are attached
         if len(enums) == len(Guide.DEFAULT):
-            libattr.set(self.node, "guideAimAt", 0)
+            libattr.set(self.get_node(), "guideAimAt", 0)
 
-        logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.node,
+        logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.get_node(),
                                                            guide.node,
                                                            time.time() - t))
 
     def __create_setup(self):
-        name = libname.rename(self.node, suffix="setup")
+        name = libname.rename(self.get_node(), suffix="setup")
         setup = cmds.createNode("transform", name=name)
-        cmds.pointConstraint(self.node, setup, mo=False)
+        cmds.pointConstraint(self.get_node(), setup, mo=False)
         self.store("setup", setup)
 
     def __create_node(self):
 
         # Create joint
         cmds.select(cl=True)
-        cmds.joint(name=self.node)
-        libattr.set(self.node, "radius", channelBox=False, l=True)
+        cmds.joint(name=self.get_name().compile())
+        libattr.set(self.get_node(), "radius", channelBox=False, l=True)
         cmds.select(cl=True)
-        libattr.set(self.node, "drawStyle", 2)
+        libattr.set(self.get_node(), "drawStyle", 2)
 
         # Create shapes
         transform = cmds.sphere(radius=Guide.RADIUS, ch=False)[0]
         shape = cmds.listRelatives(transform, type="nurbsSurface", children=True)[0]
-        shape = cmds.rename(shape, libname.rename(self.node, shape=True))
-        cmds.parent(shape, self.node, r=True, s=True)
+        shape = cmds.rename(shape, libname.rename(self.get_node(), shape=True))
+        cmds.parent(shape, self.get_node(), r=True, s=True)
         cmds.delete(transform)
 
         self.store("shapes", tuple([shape]), append=True)
 
         # Add attributes
-        libattr.add_double(self.node, "guideScale", min=0.01, dv=1)
-        libattr.add_enum(self.node, "guideAimAt", enums=Guide.DEFAULT)
+        libattr.add_double(self.get_node(), "guideScale", min=0.01, dv=1)
+        libattr.add_enum(self.get_node(), "guideAimAt", enums=Guide.DEFAULT)
 
-        libattr.add_bool(self.node, "guideAimFlip")
-        libattr.add_enum(self.node, "guideAimOrient", enums=Guide.ORIENT.keys())
-        libattr.add_bool(self.node, "guideDebug", dv=1)
-        libattr.add_vector(self.node, "guideOffsetOrient")
+        libattr.add_bool(self.get_node(), "guideAimFlip")
+        libattr.add_enum(self.get_node(), "guideAimOrient", enums=Guide.ORIENT.keys())
+        libattr.add_bool(self.get_node(), "guideDebug", dv=1)
+        libattr.add_vector(self.get_node(), "guideOffsetOrient")
 
         for attr in ["guideScale", "guideAimOrient", "guideAimFlip", "guideAimAt",
                      "guideOffsetOrientX", "guideOffsetOrientY", "guideOffsetOrientZ",
                      "guideDebug"]:
-            libattr.set(self.node, attr, keyable=False, channelBox=True)
+            libattr.set(self.get_node(), attr, keyable=False, channelBox=True)
 
     def __create_aim(self):
-        name = libname.rename(self.node, suffix="aim")
+        name = libname.rename(self.get_node(), suffix="aim")
         aim = cmds.createNode("transform", name=name)
         libattr.set(aim, "translateZ", -0.00000001)
-        cmds.parent(aim, self.setup)
+        setup_node = self.get_setup()
+        cmds.parent(aim, setup_node)
         self.store("aim", aim)
 
     def __create_up(self):
         up = Up(self)
         up.create()
-        cmds.parent(up.grp, self.setup)
+        setup_node = self.get_setup()
+        cmds.parent(up.get_group(), setup_node)
 
     def __create_scale(self):
-        cl, cl_handle = cmds.cluster(self.shapes)
+        shapes = self.get_shapes()
+        cl, cl_handle = cmds.cluster(shapes)
         libattr.set(cl, "relative", True)
-        cl_handle = cmds.rename(cl_handle, libname.rename(self.node, append="scale", suffix="clh"))
+        cl_handle = cmds.rename(cl_handle, libname.rename(self.get_node(), append="scale", suffix="clh"))
         self.store("scale", cl_handle)
 
         for axis in AXIS:
-            cmds.connectAttr("{node}.guideScale".format(node=self.node),
+            cmds.connectAttr("{node}.guideScale".format(node=self.get_node()),
                              "{handle}.scale{axis}".format(handle=cl_handle, axis=axis))
 
-        cmds.parent(cl_handle, self.setup)
+        setup_node = self.get_setup()
+        cmds.parent(cl_handle, setup_node)
 
     def __setup_network(self):
 
-        cmds.connectAttr("{node}.guideDebug".format(node=self.node),
-                         "{aim}.displayLocalAxis".format(aim=self.aim))
+        aim = self.get_aim()
+        cmds.connectAttr("{node}.guideDebug".format(node=self.get_node()),
+                         "{aim}.displayLocalAxis".format(aim=aim))
 
         # Create main aim constraint
-        aim_constraint = cmds.aimConstraint(self.node,
-                                            self.aim,
-                                            worldUpObject=self.up.node,
+        aim_constraint = cmds.aimConstraint(self.get_node(),
+                                            aim,
+                                            worldUpObject=self.get_up().node,
                                             offset=(0, 0, 0),
                                             aimVector=(1, 0, 0),
                                             upVector=(0, 1, 0),
@@ -486,23 +449,24 @@ class Guide(Module):
         aim_handler = libconstraint.get_handler(aim_constraint)
 
         # Make main aim_cond
-        aim_condition = cmds.createNode("condition", name=libname.rename(self.node, suffix="cond", append="aim"))
+        aim_condition = cmds.createNode("condition", name=libname.rename(self.get_node(), suffix="cond", append="aim"))
 
         # Create local orient
-        orient_constraint = cmds.orientConstraint(self.node, self.setup, mo=True)[0]
+        setup_node = self.get_setup()
+        orient_constraint = cmds.orientConstraint(self.get_node(), setup_node, mo=True)[0]
         orient_aliases = aim_handler.aliases
         orient_targets = aim_handler.targets
-        orient_index = orient_targets.index(self.node)
+        orient_index = orient_targets.index(self.get_node())
 
         aim_aliases = aim_handler.aliases
-        aim_index = orient_targets.index(self.node)
+        aim_index = orient_targets.index(self.get_node())
 
         # Create 'custom' condition
         libattr.set(aim_condition, "secondTerm", Guide.DEFAULT.index("custom"))
         libattr.set(aim_condition, "colorIfTrueR", 1)
         libattr.set(aim_condition, "colorIfFalseR", 0)
         libattr.set(aim_condition, "operation", 5)
-        cmds.connectAttr("%s.guideAimAt" % self.node, "%s.firstTerm" % aim_condition)
+        cmds.connectAttr("%s.guideAimAt" % self.get_node(), "%s.firstTerm" % aim_condition)
         cmds.connectAttr("%s.outColorR" % aim_condition, "%s.%s" % (orient_constraint, orient_aliases[orient_index]))
         cmds.connectAttr("%s.outColorR" % aim_condition, "%s.%s" % (aim_constraint, aim_aliases[aim_index]))
 
@@ -510,7 +474,7 @@ class Guide(Module):
 
         # Create custom aim constraint offsets
         offset_pma = cmds.createNode("plusMinusAverage",
-                                     name=libname.rename(self.node, suffix="pma", append="custom"))
+                                     name=libname.rename(self.get_node(), suffix="pma", append="custom"))
 
         cmds.connectAttr("{pma}.output3D".format(pma=offset_pma),
                          "{constraint}.offset".format(constraint=aim_constraint))
@@ -520,17 +484,17 @@ class Guide(Module):
             primary, secondary = self.ORIENT[axises]
 
             # Axis condition
-            pair_cond = cmds.createNode("condition", name=libname.rename(self.node, append="aim%s" % pair_index, suffix="cond"))
+            pair_cond = cmds.createNode("condition", name=libname.rename(self.get_node(), append="aim%s" % pair_index, suffix="cond"))
 
-            cmds.connectAttr("%s.guideAimOrient" % self.node, "%s.firstTerm" % pair_cond)
+            cmds.connectAttr("%s.guideAimOrient" % self.get_node(), "%s.firstTerm" % pair_cond)
             cmds.connectAttr("%s.outColor" % pair_cond, "%s.input3D[%s]" % (offset_pma, pair_index))
 
             libattr.set(pair_cond, "secondTerm", pair_index)
             libattr.set(pair_cond, "colorIfFalse", *(0, 0, 0), type="float3")
 
             # Flip condition
-            flip_cond = cmds.createNode("condition", name=libname.rename(self.node, append="aim%sFlip" % pair_index, suffix="cond"))
-            cmds.connectAttr("%s.guideAimFlip" % self.node, "%s.firstTerm" % flip_cond)
+            flip_cond = cmds.createNode("condition", name=libname.rename(self.get_node(), append="aim%sFlip" % pair_index, suffix="cond"))
+            cmds.connectAttr("%s.guideAimFlip" % self.get_node(), "%s.firstTerm" % flip_cond)
             cmds.connectAttr("%s.outColor" % flip_cond, "%s.colorIfTrue" % pair_cond)
 
             libattr.set(flip_cond, "secondTerm", 1)
@@ -539,12 +503,12 @@ class Guide(Module):
 
         # Add custom orient offset
         local_condition = cmds.createNode("condition")
-        cmds.connectAttr("%s.guideAimAt" % self.node, "%s.firstTerm" % local_condition)
+        cmds.connectAttr("%s.guideAimAt" % self.get_node(), "%s.firstTerm" % local_condition)
         libattr.set(local_condition, "secondTerm", Guide.DEFAULT.index("custom"))
         libattr.set(local_condition, "operation", 0)
         for attr, axis, rgb in zip(["guideOffsetOrientX", "guideOffsetOrientY", "guideOffsetOrientZ"], AXIS, ["R", "G", "B"]):
             libattr.set(local_condition, "colorIfFalse%s" % rgb, 0)
-            cmds.connectAttr("%s.%s" % (self.node, attr), "%s.colorIfTrue%s" % (local_condition, rgb))
+            cmds.connectAttr("%s.%s" % (self.get_node(), attr), "%s.colorIfTrue%s" % (local_condition, rgb))
             cmds.connectAttr("%s.outColorR" % local_condition,
                              "%s.input3D[%s].input3D%s" % (offset_pma,
                                                            (pair_index + 1),
@@ -556,10 +520,6 @@ class Guide(Module):
 
     def _create(self):
 
-        if self.exists:
-            err = "Cannot create node as it already exists: {node}".format(node=self.node)
-            raise DuplicateNameError(err)
-
         self.__create_node()
         self.__create_setup()
         self.__create_aim()
@@ -569,9 +529,9 @@ class Guide(Module):
         self.__setup_network()
 
         # Lock up some attributes
-        libattr.lock_rotate(self.node)
-        libattr.lock_scale(self.node)
-        libattr.lock_visibility(self.node)
+        libattr.lock_rotate(self.get_node())
+        libattr.lock_scale(self.get_node())
+        libattr.lock_visibility(self.get_node())
 
 
 class Up(Module):
@@ -588,68 +548,69 @@ class Up(Module):
     def get_position(self, worldspace=True):
         position = []
         if self.exists:
-            position = cmds.xform(self.node, q=True, ws=worldspace, t=True)
+            position = cmds.xform(self.get_node(), q=True, ws=worldspace, t=True)
         return tuple(position)
 
-    @property
-    def guide(self):
+    def get_guide(self):
         return self.__guide
 
-    @property
-    def grp(self):
+    def get_group(self):
         return self._dag.get("grp")
 
-    @property
-    def shapes(self):
+    def get_shapes(self):
         return self._dag.get("shapes")
 
     def __create_node(self):
-        grp_name = libname.rename(self.node, append="Up", suffix="grp")
+        grp_name = libname.rename(self.get_name().compile(), append="Up", suffix="grp")
         grp = cmds.createNode("transform", name=grp_name)
         self.store("grp", grp)
 
-        sphere = cmds.sphere(name=self.node, radius=Up.RAIDUS)[0]
+        sphere = cmds.sphere(name=self.get_name().compile(), radius=Up.RAIDUS)[0]
         shapes = cmds.listRelatives(sphere, shapes=True)
 
         cmds.parent(sphere, grp)
 
         # Add attributes
-        libattr.add_double(self.node, "guideScale", min=0.01, dv=1)
+        libattr.add_double(self.get_node(), "guideScale", min=0.01, dv=1)
 
         for attr in ["guideScale"]:
-            libattr.set(self.node, attr, keyable=False, channelBox=True)
+            libattr.set(self.get_node(), attr, keyable=False, channelBox=True)
 
+        guide = self.get_guide()
         for axis in AXIS:
-            cmds.connectAttr("{node}.guideScale".format(node=self.guide.node),
+            cmds.connectAttr("{node}.guideScale".format(node=guide.node),
                              "{grp}.scale{axis}".format(grp=grp, axis=axis))
 
         self.store("node", sphere)
         self.store("shapes", shapes, append=shapes)
 
     def __create_scale(self):
-        cl, cl_handle = cmds.cluster(self.shapes)
+        shapes = self.get_shapes()
+        cl, cl_handle = cmds.cluster(shapes)
         libattr.set(cl, "relative", True)
-        cl_handle = cmds.rename(cl_handle, libname.rename(self.node, append="upScale", suffix="clh"))
+        cl_handle = cmds.rename(cl_handle, libname.rename(self.get_node(), append="upScale", suffix="clh"))
         self.store("scale", cl_handle)
 
         for axis in AXIS:
-            cmds.connectAttr("{node}.guideScale".format(node=self.node),
+            cmds.connectAttr("{node}.guideScale".format(node=self.get_node()),
                              "{handle}.scale{axis}".format(handle=cl_handle, axis=axis))
 
-        cmds.parent(cl_handle, self.grp)
+        group = self.get_group()
+        cmds.parent(cl_handle, group)
 
     def _create(self):
         self.__create_node()
         self.__create_scale()
 
-        libattr.set(self.node, "translateY", 3)
+        libattr.set(self.get_node(), "translateY", 3)
 
     def _post(self):
+        super(Up, self)._post()
 
         # Lock up some attributes
-        libattr.lock_rotate(self.node)
-        libattr.lock_scale(self.node)
-        libattr.lock_visibility(self.node)
+        libattr.lock_rotate(self.get_node())
+        libattr.lock_scale(self.get_node())
+        libattr.lock_visibility(self.get_node())
 
 
 class Tendon(Module):
@@ -676,57 +637,56 @@ class Tendon(Module):
         return self.__parent
 
     def __create_annotation(self):
-        shape = cmds.createNode("annotationShape", name=self.node)
+        shape = cmds.createNode("annotationShape", name=self.get_node())
         transform = cmds.listRelatives(shape, parent=True)[0]
 
-        cmds.parent(self.node, self.parent.node, shape=True, relative=True)
+        parent = self.get_parent()
+        cmds.parent(self.get_node(), parent.node, shape=True, relative=True)
         cmds.delete(transform)
 
-        libattr.set(self.node, "overrideEnabled", True)
-        libattr.set(self.node, "overrideColor", 18)
-        libattr.set(self.node, "displayArrow", False)
-        libattr.set(self.node, "displayArrow", True)
+        libattr.set(self.get_node(), "overrideEnabled", True)
+        libattr.set(self.get_node(), "overrideColor", 18)
+        libattr.set(self.get_node(), "displayArrow", False)
+        libattr.set(self.get_node(), "displayArrow", True)
         cmds.connectAttr("{src}.worldMatrix[0]".format(src=self.child.shapes[0]),
-                         "{dst}.dagObjectMatrix[0]".format(dst=self.node),
+                         "{dst}.dagObjectMatrix[0]".format(dst=self.get_node()),
                          force=True)
 
     def __create_aim(self):
 
+        parent = self.get_parent()
+
         # Query aliases and target list from parent aim constraint
-        aim_handler = libconstraint.get_handler(self.parent.constraint)
+        aim_handler = libconstraint.get_handler(parent.constraint)
         aliases = aim_handler.aliases
         targets = aim_handler.targets
         index = targets.index(self.child.aim)
 
-        # aliases = cmds.aimConstraint(self.parent.constraint, q=True, wal=True)
-        # targets = cmds.aimConstraint(self.parent.constraint, q=True, tl=True)
-        # index = targets.index(self.child.aim)
-
         # Query parent joint enum items
-        enums = cmds.attributeQuery("guideAimAt", node=self.parent.node, listEnum=True)[0].split(":")
+        enums = cmds.attributeQuery("guideAimAt", node=parent.node, listEnum=True)[0].split(":")
         enum_index = enums.index(self.child.node)
 
         # Create condition that turns on aim for child constraint if
         # enum index is set to match childs name
-        condition = cmds.createNode("condition", name=libname.rename(self.node, append=self.description, suffix="cond"))
+        condition = cmds.createNode("condition", name=libname.rename(self.get_node(), append=self.description, suffix="cond"))
 
         libattr.set(condition, "secondTerm", enum_index)
         libattr.set(condition, "colorIfTrueR", 1)
         libattr.set(condition, "colorIfFalseR", 0)
 
-        cmds.connectAttr("%s.guideAimAt" % self.parent.node, "%s.firstTerm" % condition)
-        cmds.connectAttr("%s.outColorR" % condition, "%s.%s" % (self.parent.constraint, aliases[index]))
+        cmds.connectAttr("%s.guideAimAt" % parent.node, "%s.firstTerm" % condition)
+        cmds.connectAttr("%s.outColorR" % condition, "%s.%s" % (parent.get_constraint(), aliases[index]))
 
         # Set enum to match child aim
-        libattr.set(self.parent.node, "guideAimAt", enum_index)
+        libattr.set(parent.node, "guideAimAt", enum_index)
 
         # Loop through all aliases on and set non-connected attributes to be 0
         for alias in aliases:
-            if not cmds.listConnections('%s.%s' % (self.parent.constraint, alias),
+            if not cmds.listConnections('%s.%s' % (parent.get_constraint(), alias),
                                         source=True,
                                         destination=False,
                                         plugs=True):
-                libattr.set(self.parent.constraint, alias, 0)
+                libattr.set(parent.get_constraint(), alias, 0)
 
         # Store new condition
         self.store("condition", condition, dag=False)
@@ -739,7 +699,8 @@ class Tendon(Module):
             enum_index = enums.index(self.__child.node)
 
             # Update index to reflect alias index of child
-            libattr.set(self.parent.aim_cond, "secondTerm", enum_index)
+            parent = self.get_parent()
+            libattr.set(parent.get_condition(), "secondTerm", enum_index)
 
     def _create(self):
         self.__create_annotation()
