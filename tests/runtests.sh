@@ -10,4 +10,4 @@ export CREATUREFORGE_ROOT=$root
 export PYTHONPATH=$root/pylib
 source $root/.env/bin/activate
 
-exec $root/tests/test_pylib/runtests.py --verbose
+exec $root/tests/test_pylib/runtests.py $@ --verbose

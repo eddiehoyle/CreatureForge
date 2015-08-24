@@ -19,6 +19,7 @@ from creatureforge.exceptions import DuplicateNameError
 from creatureforge.exceptions import GuideDoesNotExistError
 from creatureforge.exceptions import GuideHierarchyError
 
+
 class GuideError(Exception):
     pass
 
@@ -115,17 +116,20 @@ class Guide(Module):
         return tuple(map(Guide.validate, children))
 
     @cache
+    def get_aim_flip(self):
+        return bool(cmds.getAttr("{node}.guideAimFlip".format(node=self.get_node())))
+
+    @cache
     def get_snapshot(self):
-        parent = self.get_parent()
         return dict(node=self.get_node(),
-                    parent=self.get_parent().get_node(),
+                    parent=self.get_parent(),
                     children=self.get_children(),
-                    offset_orient=self.get_offset_orient(),
                     aim_orient=self.get_aim_orient(),
+                    offset_orient=self.get_offset_orient(),
                     aim_at=self.get_aim_at(),
-                    aim_flip=bool(cmds.getAttr("%s.guideAimFlip" % self.get_node())),
-                    position=self.get_position(worldspace=True),
-                    up_position=self.get_up().get_position(worldspace=True))
+                    aim_flip=self.get_aim_flip(),
+                    translates=self.get_translates(worldspace=True),
+                    up_translates=self.get_up().get_translates(worldspace=True))
 
     @cache
     def compile(self):
@@ -140,7 +144,7 @@ class Guide(Module):
         # Create joint
         joint = cmds.joint(name=libname.rename(self.get_name().compile(), suffix="jnt"),
                            orientation=orientation,
-                           position=self.get_position(worldspace=True),
+                           position=self.get_translates(worldspace=True),
                            rotationOrder=rotation_order)
 
         cmds.select(cl=True)
@@ -301,16 +305,18 @@ class Guide(Module):
         an aim enum value to the 'aimAt' attribute.
         """
 
-        aim_constraint = self.get_aim()
-        cmds.aimConstraint(guide.aim, aim_constraint,
-                           worldUpObject=self.get_up().node,
+        aim = self.get_aim()
+        cmds.aimConstraint(guide.get_aim(), aim,
+                           worldUpObject=self.get_up().get_node(),
                            worldUpType="object",
                            aimVector=(1, 0, 0),
                            upVector=(0, 1, 0),
                            mo=False)
 
         # Edit aim attribute on node to include new child
-        enums = cmds.attributeQuery("guideAimAt", node=self.get_node(), listEnum=True)[0].split(":")
+        enums = cmds.attributeQuery("guideAimAt",
+                                    node=self.get_node(),
+                                    listEnum=True)[0].split(":")
         enums.append(guide.node)
         libattr.edit_enum(self.get_node(), "guideAimAt", enums=enums)
 
@@ -545,18 +551,19 @@ class Up(Module):
 
         super(Up, self).__init__(*guide.tokens)
 
-    def get_position(self, worldspace=True):
-        position = []
-        if self.exists:
-            position = cmds.xform(self.get_node(), q=True, ws=worldspace, t=True)
-        return tuple(position)
+    @cache
+    def get_translates(self, worldspace=True):
+        return tuple(cmds.xform(self.get_node(), q=True, ws=worldspace, t=True))
 
+    @cache
     def get_guide(self):
         return self.__guide
 
+    @cache
     def get_group(self):
         return self._dag.get("grp")
 
+    @cache
     def get_shapes(self):
         return self._dag.get("shapes")
 
@@ -624,20 +631,20 @@ class Tendon(Module):
 
         super(Tendon, self).__init__(*child.tokens)
 
-    @property
-    def condition(self):
+    @cache
+    def get_condition(self):
         return self._nondag.get("condition")
 
-    @property
-    def child(self):
+    @cache
+    def get_child(self):
         return self.__child
 
-    @property
-    def parent(self):
+    @cache
+    def get_parent(self):
         return self.__parent
 
     def __create_annotation(self):
-        shape = cmds.createNode("annotationShape", name=self.get_node())
+        shape = cmds.createNode("annotationShape", name=self.get_name())
         transform = cmds.listRelatives(shape, parent=True)[0]
 
         parent = self.get_parent()
@@ -648,27 +655,33 @@ class Tendon(Module):
         libattr.set(self.get_node(), "overrideColor", 18)
         libattr.set(self.get_node(), "displayArrow", False)
         libattr.set(self.get_node(), "displayArrow", True)
-        cmds.connectAttr("{src}.worldMatrix[0]".format(src=self.child.shapes[0]),
+        cmds.connectAttr("{src}.worldMatrix[0]".format(src=self.get_child().get_shapes()[0]),
                          "{dst}.dagObjectMatrix[0]".format(dst=self.get_node()),
                          force=True)
 
     def __create_aim(self):
 
         parent = self.get_parent()
+        child = self.get_child()
 
         # Query aliases and target list from parent aim constraint
-        aim_handler = libconstraint.get_handler(parent.constraint)
+        aim_handler = libconstraint.get_handler(parent.get_constraint())
         aliases = aim_handler.aliases
         targets = aim_handler.targets
-        index = targets.index(self.child.aim)
+        index = targets.index(self.get_child().get_aim())
 
         # Query parent joint enum items
-        enums = cmds.attributeQuery("guideAimAt", node=parent.node, listEnum=True)[0].split(":")
-        enum_index = enums.index(self.child.node)
+        enums = cmds.attributeQuery("guideAimAt", node=parent.get_node(), listEnum=True)[0].split(":")
+        enum_index = enums.index(child.get_node())
 
         # Create condition that turns on aim for child constraint if
         # enum index is set to match childs name
-        condition = cmds.createNode("condition", name=libname.rename(self.get_node(), append=self.description, suffix="cond"))
+        condition = cmds.createNode(
+            "condition",
+            name=libname.rename(
+                self.get_node(),
+                append=self.description,
+                suffix="cond"))
 
         libattr.set(condition, "secondTerm", enum_index)
         libattr.set(condition, "colorIfTrueR", 1)

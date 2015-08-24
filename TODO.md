@@ -34,7 +34,7 @@
 - [ ] Add has_parent
 - [ ] Add has_child
 - [ ] Add is_parent
-- [ ] Add remove
+- [x] Add remove
 - [ ] Add remove_parent
 - [ ] Add compile
 - [ ] Add decompile
