@@ -4,9 +4,8 @@ import unittest
 
 from maya import cmds
 
-from creatureforge.model.guide import Up
+from creatureforge.model.up import Up
 from creatureforge.model.guide import Guide
-from creatureforge.model.guide import Tendon
 
 # ------------------------------------------------------------------------------
 
@@ -28,291 +27,296 @@ def create_wrist():
 
 # ------------------------------------------------------------------------------
 
-# class TestModelGuide(unittest.TestCase):
+class TestModelGuide(unittest.TestCase):
 
-#     def setUp(self):
-#         cmds.file(new=True, force=True)
+    def setUp(self):
+        cmds.file(new=True, force=True)
 
-#     def tearDown(self):
-#         pass
+    def tearDown(self):
+        pass
 
-#     def test_create(self):
-#         """[model.guide.Guide.create]
-#         Create guide and check exists in Maya context
-#         """
+    def test_create(self):
+        """[model.guide.Guide.create]
+        Create guide and check exists in Maya context
+        """
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#         with self.assertRaises(Exception):
-#             arm.get_node()
+        with self.assertRaises(Exception):
+            arm.get_node()
 
-#         self.assertEquals(arm.exists(), False)
+        self.assertEquals(arm.exists(), False)
 
-#         arm.create()
-#         node = arm.get_node()
-#         self.assertEquals(cmds.objExists(node), True)
+        arm.create()
 
-#         self.assertEquals(arm.exists(), True)
+        # Can't create twice
+        with self.assertRaises(Exception):
+            arm.create()
 
-#     def test_get_aim(self):
-#         """[model.guide.Guide.get_aim]
-#         Aim transform exists
-#         """
+        node = arm.get_node()
+        self.assertEquals(cmds.objExists(node), True)
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        self.assertEquals(arm.exists(), True)
 
-#         with self.assertRaises(Exception):
-#             arm.get_aim()
+    def test_get_aim(self):
+        """[model.guide.Guide.get_aim]
+        Aim transform exists
+        """
 
-#         arm.create()
-#         aim = arm.get_aim()
-#         self.assertEquals(cmds.objExists(aim), True)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#     def test_get_up(self):
-#         """[model.guide.Guide.get_up]
-#         Up node exists
-#         """
+        with self.assertRaises(Exception):
+            arm.get_aim()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
+        aim = arm.get_aim()
+        self.assertEquals(cmds.objExists(aim), True)
 
-#         with self.assertRaises(Exception):
-#             arm.get_up()
+    def test_get_up(self):
+        """[model.guide.Guide.get_up]
+        Up node exists
+        """
 
-#         arm.create()
-#         up = arm.get_up()
-#         self.assertEquals(cmds.objExists(up.get_node()), True)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#     def test_get_setup(self):
-#         """[model.guide.Guide.get_setup]
-#         Setup transform exists
-#         """
+        with self.assertRaises(Exception):
+            arm.get_up()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
+        up = arm.get_up()
+        self.assertEquals(cmds.objExists(up.get_node()), True)
 
-#         with self.assertRaises(Exception):
-#             arm.get_setup()
+    def test_get_setup(self):
+        """[model.guide.Guide.get_setup]
+        Setup transform exists
+        """
 
-#         arm.create()
-#         setup = arm.get_setup()
-#         self.assertEquals(cmds.objExists(setup), True)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#     def test_get_shapes(self):
-#         """[model.guide.Guide.get_shapes]
-#         Shapes exists under guide
-#         """
+        with self.assertRaises(Exception):
+            arm.get_setup()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
+        setup = arm.get_setup()
+        self.assertEquals(cmds.objExists(setup), True)
 
-#         with self.assertRaises(Exception):
-#             arm.get_shapes()
+    def test_get_shapes(self):
+        """[model.guide.Guide.get_shapes]
+        Shapes exists under guide
+        """
 
-#         arm.create()
-#         shapes = arm.get_shapes()
-#         for shape in shapes:
-#             self.assertEquals(cmds.objExists(shape), True)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#     def test_get_constraint(self):
-#         """[model.guide.Guide.get_constraint]
-#         Aim constraint node exists
-#         """
+        with self.assertRaises(Exception):
+            arm.get_shapes()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
+        shapes = arm.get_shapes()
+        for shape in shapes:
+            self.assertEquals(cmds.objExists(shape), True)
 
-#         with self.assertRaises(Exception):
-#             arm.get_constraint()
+    def test_get_constraint(self):
+        """[model.guide.Guide.get_constraint]
+        Aim constraint node exists
+        """
 
-#         arm.create()
-#         constraint = arm.get_constraint()
-#         self.assertEquals(cmds.objExists(constraint), True)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#     def test_get_condition(self):
-#         """[model.guide.Guide.get_condition]
-#         Aim condition node exists
-#         """
+        with self.assertRaises(Exception):
+            arm.get_constraint()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
+        constraint = arm.get_constraint()
+        self.assertEquals(cmds.objExists(constraint), True)
 
-#         with self.assertRaises(Exception):
-#             arm.get_condition()
+    def test_get_condition(self):
+        """[model.guide.Guide.get_condition]
+        Aim condition node exists
+        """
 
-#         arm.create()
-#         condition = arm.get_condition()
-#         self.assertEquals(cmds.objExists(condition), True)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#     def test_get_parent(self):
-#         """[model.guide.Guide.get_parent]
-#         Get Guide parent
-#         """
+        with self.assertRaises(Exception):
+            arm.get_condition()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
+        condition = arm.get_condition()
+        self.assertEquals(cmds.objExists(condition), True)
 
-#         with self.assertRaises(Exception):
-#             arm.get_parent()
+    def test_get_parent(self):
+        """[model.guide.Guide.get_parent]
+        Get Guide parent
+        """
 
-#         arm.create()
-#         parent = arm.get_parent()
-#         self.assertIsNone(parent)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#     def test_get_children(self):
-#         """[model.guide.Guide.get_children]
-#         Guide has children
-#         """
+        with self.assertRaises(Exception):
+            arm.get_parent()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
+        parent = arm.get_parent()
+        self.assertIsNone(parent)
 
-#         with self.assertRaises(Exception):
-#             arm.get_children()
+    def test_get_children(self):
+        """[model.guide.Guide.get_children]
+        Guide has children
+        """
 
-#         arm.create()
-#         children = arm.get_children()
-#         self.assertIsInstance(children, tuple)
-#         self.assertEquals(len(children), 0)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#     def test_get_aim_at(self):
-#         """[model.guide.Guide.get_aim_at]
-#         Get which guide parent guide is aiming at
-#         """
+        with self.assertRaises(Exception):
+            arm.get_children()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
+        children = arm.get_children()
+        self.assertIsInstance(children, tuple)
+        self.assertEquals(len(children), 0)
 
-#         with self.assertRaises(Exception):
-#             arm.get_aim_at()
+    def test_get_aim_at(self):
+        """[model.guide.Guide.get_aim_at]
+        Get which guide parent guide is aiming at
+        """
 
-#         arm.create()
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#         aim_at = arm.get_aim_at()
-#         self.assertIsNone(aim_at)
+        with self.assertRaises(Exception):
+            arm.get_aim_at()
 
-#     def test_get_aim_orient(self):
-#         """[model.guide.Guide.get_aim_orient]
-#         Get guide aim orient
-#         """
+        arm.create()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        aim_at = arm.get_aim_at()
+        self.assertIsNone(aim_at)
 
-#         with self.assertRaises(Exception):
-#             arm.get_aim_orient()
+    def test_get_aim_orient(self):
+        """[model.guide.Guide.get_aim_orient]
+        Get guide aim orient
+        """
 
-#         arm.create()
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#         aim_orient = arm.get_aim_orient()
-#         self.assertIsInstance(aim_orient, tuple)
-#         self.assertEquals(len(aim_orient), 3)
+        with self.assertRaises(Exception):
+            arm.get_aim_orient()
 
-#     def test_get_offset_orient(self):
-#         """[model.guide.Guide.get_offset_orient]
-#         Get guide offset orient """
+        arm.create()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        aim_orient = arm.get_aim_orient()
+        self.assertIsInstance(aim_orient, tuple)
+        self.assertEquals(len(aim_orient), 3)
 
-#         with self.assertRaises(Exception):
-#             arm.get_offset_orient()
+    def test_get_offset_orient(self):
+        """[model.guide.Guide.get_offset_orient]
+        Get guide offset orient """
 
-#         arm.create()
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#         offset_orient = arm.get_offset_orient()
-#         self.assertIsInstance(offset_orient, tuple)
-#         self.assertEquals(len(offset_orient), 3)
+        with self.assertRaises(Exception):
+            arm.get_offset_orient()
 
-#     def test_get_translates(self):
-#         """[model.guide.Guide.get_translates]
-#         Get translates
-#         """
+        arm.create()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        offset_orient = arm.get_offset_orient()
+        self.assertIsInstance(offset_orient, tuple)
+        self.assertEquals(len(offset_orient), 3)
 
-#         with self.assertRaises(Exception):
-#             arm.get_translates()
+    def test_get_translates(self):
+        """[model.guide.Guide.get_translates]
+        Get translates
+        """
 
-#         arm.create()
-#         self.assertEquals(arm.get_translates(), (0, 0, 0))
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#         translates = (0, 3, 0)
-#         arm.set_translates(*translates)
-#         self.assertEquals(arm.get_translates(), translates)
+        with self.assertRaises(Exception):
+            arm.get_translates()
 
-#     def test_set_translates(self):
-#         """[model.guide.Guide.set_translates]
-#         """
+        arm.create()
+        self.assertEquals(arm.get_translates(), (0, 0, 0))
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
-#         arm.create()
+        translates = (0, 3, 0)
+        arm.set_translates(*translates)
+        self.assertEquals(arm.get_translates(), translates)
 
-#         translates = (0, 3, 0)
-#         arm.set_translates(*translates)
-#         self.assertEquals(arm.get_translates(), translates)
+    def test_set_translates(self):
+        """[model.guide.Guide.set_translates]
+        """
 
-#     def test_copy(self):
-#         """[model.guide.Guide.copy]
-#         """
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
-#         arm.create()
+        translates = (0, 3, 0)
+        arm.set_translates(*translates)
+        self.assertEquals(arm.get_translates(), translates)
 
-#         new = arm.copy()
+    def test_copy(self):
+        """[model.guide.Guide.copy]
+        """
 
-#         index = new.get_name().index
-#         self.assertEquals(index - 1, INDEX)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm.create()
 
-#     def test_remove(self):
-#         """[model.guide.Guide.remove]
-#         """
+        new = arm.copy()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        index = new.get_name().index
+        self.assertEquals(index - 1, INDEX)
 
-#         with self.assertRaises(Exception):
-#             arm.remove()
+    def test_remove(self):
+        """[model.guide.Guide.remove]
+        """
 
-#         arm.create()
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#         dag = arm.get_dag()
-#         nondag = arm.get_nondag()
-#         arm.remove()
+        with self.assertRaises(Exception):
+            arm.remove()
 
-#         for data in [dag, nondag]:
-#             for key, value in dag.iteritems():
-#                 if not isinstance(value, (tuple, list, set)):
-#                     value = [value]
-#                 for node in value:
-#                     self.assertEquals(cmds.objExists(node), False)
+        arm.create()
 
-#     def test_get_snapshot(self):
-#         """[model.guide.Guide.get_snapshot]
-#         Guide snapshot is created with correct data
-#         """
+        dag = arm.get_dag()
+        nondag = arm.get_nondag()
+        arm.remove()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        for data in [dag, nondag]:
+            for key, value in dag.iteritems():
+                if not isinstance(value, (tuple, list, set)):
+                    value = [value]
+                for node in value:
+                    self.assertEquals(cmds.objExists(node), False)
 
-#         with self.assertRaises(Exception):
-#             arm.get_snapshot()
+    def test_get_snapshot(self):
+        """[model.guide.Guide.get_snapshot]
+        Guide snapshot is created with correct data
+        """
 
-#         arm.create()
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
 
-#         snapshot = arm.get_snapshot()
+        with self.assertRaises(Exception):
+            arm.get_snapshot()
 
-#         self.assertEquals(snapshot["node"], arm.get_node())
-#         self.assertEquals(snapshot["parent"], arm.get_parent())
-#         self.assertEquals(snapshot["children"], arm.get_children())
-#         self.assertEquals(snapshot["aim_orient"], arm.get_aim_orient())
-#         self.assertEquals(snapshot["offset_orient"], arm.get_offset_orient())
-#         self.assertEquals(snapshot["aim_at"], arm.get_aim_at())
-#         self.assertEquals(snapshot["aim_flip"], arm.get_aim_flip())
-#         self.assertEquals(snapshot["translates"], arm.get_translates())
-#         self.assertEquals(snapshot["up_translates"], arm.get_up().get_translates())
+        arm.create()
 
-#     def test_compile(self):
-#         """[model.guide.Guide.compile]
-#         Guide compiles to joint
-#         """
+        snapshot = arm.get_snapshot()
 
-#         arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        self.assertEquals(snapshot["node"], arm.get_node())
+        self.assertEquals(snapshot["parent"], arm.get_parent())
+        self.assertEquals(snapshot["children"], arm.get_children())
+        self.assertEquals(snapshot["aim_orient"], arm.get_aim_orient())
+        self.assertEquals(snapshot["offset_orient"], arm.get_offset_orient())
+        self.assertEquals(snapshot["aim_at"], arm.get_aim_at())
+        self.assertEquals(snapshot["aim_flip"], arm.get_aim_flip())
+        self.assertEquals(snapshot["translates"], arm.get_translates())
+        self.assertEquals(snapshot["up_translates"], arm.get_up().get_translates())
 
-#         with self.assertRaises(Exception):
-#             arm.compile()
+    def test_compile(self):
+        """[model.guide.Guide.compile]
+        Guide compiles to joint
+        """
 
-#         arm.create()
-#         joint = arm.compile()
-#         self.assertEquals(cmds.objExists(joint), True)
+        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+
+        with self.assertRaises(Exception):
+            arm.compile()
+
+        arm.create()
+        joint = arm.compile()
+        self.assertEquals(cmds.objExists(joint), True)
 
 
 class TestModelGuideHierarchy(unittest.TestCase):
@@ -325,58 +329,188 @@ class TestModelGuideHierarchy(unittest.TestCase):
 
     def test_get_parent(self):
         """[model.guide.Guide.get_parent]
-        Guide returns parent correctly
+        Guide get parent
         """
 
+        elbow = Guide("L", "elbow", 0)
+
+        with self.assertRaises(Exception):
+            elbow.get_parent()
+
+        elbow.create()
+
+        wrist = Guide("L", "wrist", 0)
+        wrist.create()
+
+        wrist.set_parent(elbow)
+
+        self.assertEquals(wrist.get_parent(), elbow)
+
+    def test_get_children(self):
+        """[model.guide.Guide.get_children]
+        Guide get children
+        """
+
+        elbow = Guide("L", "elbow", 0)
+
+        with self.assertRaises(Exception):
+            elbow.get_children()
+
+        elbow.create()
+
+        wrist = Guide("L", "wrist", 0)
+        wrist.create()
+
+        wrist.set_parent(elbow)
+
+        self.assertEquals(wrist in elbow.get_children(), True)
+
+    def test_get_aim_at(self):
+        """[model.guide.Guide.get_aim_at]
+        Guide is aiming at child
+        """
         arm = create_arm()
         wrist = create_wrist()
 
         wrist.set_parent(arm)
 
-        self.assertEquals(wrist.get_parent(), arm)
+        self.assertEquals(arm.get_aim_at(), wrist.get_node())
 
-    # def test_get_children(self):
-    #     """[model.guide.Guide.None]
-    #     """
-    #     raise NotImplementedError
+    def test_has_parent(self):
+        """[model.guide.Guide.has_parent]
+        Guide has parent anywhere above it
+        """
 
-    # def test_get_aim_at(self):
-    #     """[model.guide.Guide.None]
-    #     """
-    #     raise NotImplementedError
+        shoulder = Guide("L", "shoulder", 0)
+        shoulder.create()
 
-    # def test_has_parent(self):
-    #     """[model.guide.Guide.None]
-    #     """
-    #     raise NotImplementedError
+        elbow = Guide("L", "elbow", 0)
 
-    # def test_has_child(self):
-    #     """[model.guide.Guide.None]
-    #     """
-    #     raise NotImplementedError
+        with self.assertRaises(Exception):
+            elbow.has_parent(shoulder)
 
-    # def test_set_parent(self):
-    #     """[model.guide.Guide.None]
-    #     """
-    #     raise NotImplementedError
+        elbow.create()
 
-    # def test_add_child(self):
-    #     """[model.guide.Guide.None]
-    #     """
-    #     raise NotImplementedError
+        wrist = Guide("L", "wrist", 0)
+        wrist.create()
 
-    # def test_remove_parent(self):
-    #     """[model.guide.Guide.None]
-    #     """
-    #     raise NotImplementedError
+        wrist.set_parent(elbow)
+        elbow.set_parent(shoulder)
 
-    # def test_remove_child(self):
-    #     """[model.guide.Guide.None]
-    #     """
-    #     raise NotImplementedError
-    
-    # def test_remove(self):
-    #     """[model.guide.Guide.remove]
-    #     Set hierarchy and remove guides
-    #     """
-    #     raise NotImplementedError
+        self.assertEquals(wrist.has_parent(shoulder), True)
+
+
+    def test_has_child(self):
+        """[model.guide.Guide.has_child]
+        Guide has child
+        """
+
+        shoulder = Guide("L", "shoulder", 0)
+        shoulder.create()
+
+        elbow = Guide("L", "elbow", 0)
+
+        with self.assertRaises(Exception):
+            elbow.has_child(shoulder)
+
+        elbow.create()
+
+        shoulder.add_child(elbow)
+
+        self.assertEquals(shoulder.has_child(elbow), True)
+
+    def test_set_parent(self):
+        """[model.guide.Guide.set_parent]
+        Set guide parent
+        """
+
+        shoulder = Guide("L", "shoulder", 0)
+        shoulder.create()
+
+        elbow = Guide("L", "elbow", 0)
+
+        with self.assertRaises(Exception):
+            elbow.set_parent(shoulder)
+
+        elbow.create()
+        elbow.set_parent(shoulder)
+        self.assertEquals(elbow.get_parent(), shoulder)
+
+    def test_add_child(self):
+        """[model.guide.Guide.add_child]
+        Add guide as a child
+        """
+
+        shoulder = Guide("L", "shoulder", 0)
+        elbow = Guide("L", "elbow", 0)
+
+        with self.assertRaises(Exception):
+            shoulder.add_child(elbow)
+
+        shoulder.create()
+        elbow.create()
+
+        shoulder.add_child(elbow)
+        self.assertEquals(shoulder.get_child(elbow), elbow)
+
+    def test_get_child(self):
+        """[model.guide.Guide.get_child]
+        Guide get child
+        """
+
+        shoulder = Guide("L", "shoulder", 0)
+        elbow = Guide("L", "elbow", 0)
+
+        with self.assertRaises(Exception):
+            shoulder.get_child(elbow)
+
+        shoulder.create()
+        elbow.create()
+
+        shoulder.add_child(elbow)
+        self.assertEquals(shoulder.get_child(elbow), elbow)
+
+    def test_remove_parent(self):
+        """[model.guide.Guide.remove_parent]
+        Remove parent guide
+        """
+
+        shoulder = Guide("L", "shoulder", 0)
+        elbow = Guide("L", "elbow", 0)
+
+        with self.assertRaises(Exception):
+            shoulder.remove_parent()
+
+        shoulder.create()
+        elbow.create()
+
+        parent = elbow.get_parent()
+
+        elbow.set_parent(shoulder)
+        elbow.remove_parent()
+
+        self.assertEquals(parent, elbow.get_parent())
+
+    def test_remove_child(self):
+        """[model.guide.Guide.remove_child]
+        Remove child guide
+        """
+
+        shoulder = Guide("L", "shoulder", 0)
+        elbow = Guide("L", "elbow", 0)
+
+        # Doesn't exist yet
+        with self.assertRaises(Exception):
+            shoulder.remove_child(elbow)
+
+        shoulder.create()
+        elbow.create()
+
+        # Not connected yet
+        with self.assertRaises(Exception):
+            shoulder.remove_child(elbow)
+
+        shoulder.add_child(elbow)
+        shoulder.remove_child(elbow)
+
+        self.assertEquals(elbow not in shoulder.get_children(), True)

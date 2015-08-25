@@ -19,6 +19,9 @@ from creatureforge.exceptions import DuplicateNameError
 from creatureforge.exceptions import GuideDoesNotExistError
 from creatureforge.exceptions import GuideHierarchyError
 
+from creatureforge.model.up import Up
+from creatureforge.model.tendon import Tendon
+
 
 class GuideError(Exception):
     pass
@@ -69,14 +72,18 @@ class Guide(Module):
     def __init__(self, position, description, index=0):
         super(Guide, self).__init__(position, description, index)
 
+    def __gt__(self, other):
+        # TODO:
+        #   Write me properly
+        return str(self.get_node()) > str(other)
+
     def reinit(self):
         super(Guide, self).reinit()
-        self.store("up", Up(self))
         return self
 
     @cache
     def get_tendons(self):
-        return tuple(map(lambda g: Tendon(g, self), self.children))
+        return tuple(map(lambda g: Tendon(g, self), self.get_children()))
 
     @cache
     def get_aim(self):
@@ -114,6 +121,16 @@ class Guide(Module):
         children = cmds.listRelatives(
             self.get_node(), children=True, type="joint") or tuple()
         return tuple(map(Guide.validate, children))
+
+    @cache
+    def get_child(self, guide):
+        children = self.get_children()
+        try:
+            return children[children.index(guide)]
+        except ValueError:
+            err = "'{guide}' is not a child of '{node}'".format(
+                guide=guide, node=self.get_node())
+            raise GuideError(err)
 
     @cache
     def get_aim_flip(self):
@@ -204,11 +221,11 @@ class Guide(Module):
             if guide.node == parent.node:
                 return True
             parent = parent.get_parent()
-        return parent
+        return False
 
     @cache
     def has_child(self, guide):
-        return guide in self.children
+        return guide in self.get_children()
 
     @cache
     def set_parent(self, guide):
@@ -250,7 +267,7 @@ class Guide(Module):
         t = time.time()
 
         # Try to parent to itself
-        if self.get_node() == guide.node:
+        if self.get_node() == guide.get_node():
             err = "Cannot add '{node}' to itself as child.".format(
                 node=self.get_node())
             raise GuideError(err)
@@ -260,10 +277,10 @@ class Guide(Module):
             err = "'{guide}' is already a child of '{node}'.".format(
                 guide=guide, node=self.get_node())
             logger.warn(err)
-            return self.children.index(guide.node)
+            return self.get_child(guide)
 
         # If guide has any parent already
-        if guide.parent:
+        if guide.get_parent():
             guide.remove_parent()
 
         # Is guide above self in hierarchy
@@ -276,8 +293,6 @@ class Guide(Module):
                                         node=self.get_node(),
                                         time=(time.time() - t))
         logger.info(msg)
-
-        return guide
 
     @cache
     def remove(self):
@@ -333,24 +348,26 @@ class Guide(Module):
 
         t = time.time()
 
-        if guide not in self.children:
+        if guide not in self.get_children():
             error = "'{child}' is not a child of '{parent}'.".format(
                 child=guide, parent=self)
-            raise GuideHierarchyError(error)
+            raise GuideError(error)
 
         # Remove connector
         tendons = self.get_tendons()
         for con in tendons:
-            if con.parent == self:
+            if con.get_parent() == self:
                 con.remove()
                 break
 
         # Parent guide to world
-        cmds.parent(guide.node, world=True)
+        cmds.parent(guide.get_node(), world=True)
 
         # Remove enum name
-        enums = cmds.attributeQuery("guideAimAt", node=self.get_node(), listEnum=True)[0].split(":")
-        enums.remove(guide.node)
+        enums = cmds.attributeQuery("guideAimAt",
+                                    node=self.get_node(),
+                                    listEnum=True)[0].split(":")
+        enums.remove(guide.get_node())
         libattr.edit_enum(self.get_node(), "guideAimAt", enums)
         libattr.set(self.get_node(), "guideAimAt", len(enums) - 1)
 
@@ -368,7 +385,7 @@ class Guide(Module):
             libattr.set(self.get_node(), "guideAimAt", 0)
 
         logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.get_node(),
-                                                           guide.node,
+                                                           guide.get_node(),
                                                            time.time() - t))
 
     def __create_setup(self):
@@ -540,181 +557,3 @@ class Guide(Module):
         libattr.lock_visibility(self.get_node())
 
 
-class Up(Module):
-
-    SUFFIX = "up"
-    RAIDUS = 0.3
-
-    def __init__(self, guide):
-
-        self.__guide = guide
-
-        super(Up, self).__init__(*guide.tokens)
-
-    @cache
-    def get_translates(self, worldspace=True):
-        return tuple(cmds.xform(self.get_node(), q=True, ws=worldspace, t=True))
-
-    @cache
-    def get_guide(self):
-        return self.__guide
-
-    @cache
-    def get_group(self):
-        return self._dag.get("grp")
-
-    @cache
-    def get_shapes(self):
-        return self._dag.get("shapes")
-
-    def __create_node(self):
-        grp_name = libname.rename(self.get_name().compile(), append="Up", suffix="grp")
-        grp = cmds.createNode("transform", name=grp_name)
-        self.store("grp", grp)
-
-        sphere = cmds.sphere(name=self.get_name().compile(), radius=Up.RAIDUS)[0]
-        shapes = cmds.listRelatives(sphere, shapes=True)
-
-        cmds.parent(sphere, grp)
-
-        # Add attributes
-        libattr.add_double(self.get_node(), "guideScale", min=0.01, dv=1)
-
-        for attr in ["guideScale"]:
-            libattr.set(self.get_node(), attr, keyable=False, channelBox=True)
-
-        guide = self.get_guide()
-        for axis in AXIS:
-            cmds.connectAttr("{node}.guideScale".format(node=guide.node),
-                             "{grp}.scale{axis}".format(grp=grp, axis=axis))
-
-        self.store("node", sphere)
-        self.store("shapes", shapes, append=shapes)
-
-    def __create_scale(self):
-        shapes = self.get_shapes()
-        cl, cl_handle = cmds.cluster(shapes)
-        libattr.set(cl, "relative", True)
-        cl_handle = cmds.rename(cl_handle, libname.rename(self.get_node(), append="upScale", suffix="clh"))
-        self.store("scale", cl_handle)
-
-        for axis in AXIS:
-            cmds.connectAttr("{node}.guideScale".format(node=self.get_node()),
-                             "{handle}.scale{axis}".format(handle=cl_handle, axis=axis))
-
-        group = self.get_group()
-        cmds.parent(cl_handle, group)
-
-    def _create(self):
-        self.__create_node()
-        self.__create_scale()
-
-        libattr.set(self.get_node(), "translateY", 3)
-
-    def _post(self):
-        super(Up, self)._post()
-
-        # Lock up some attributes
-        libattr.lock_rotate(self.get_node())
-        libattr.lock_scale(self.get_node())
-        libattr.lock_visibility(self.get_node())
-
-
-class Tendon(Module):
-
-    SUFFIX = "cncShape"
-
-    def __init__(self, child, parent):
-
-        self.__child = child
-        self.__parent = parent
-
-        super(Tendon, self).__init__(*child.tokens)
-
-    @cache
-    def get_condition(self):
-        return self._nondag.get("condition")
-
-    @cache
-    def get_child(self):
-        return self.__child
-
-    @cache
-    def get_parent(self):
-        return self.__parent
-
-    def __create_annotation(self):
-        shape = cmds.createNode("annotationShape", name=self.get_name())
-        transform = cmds.listRelatives(shape, parent=True)[0]
-
-        parent = self.get_parent()
-        cmds.parent(self.get_node(), parent.node, shape=True, relative=True)
-        cmds.delete(transform)
-
-        libattr.set(self.get_node(), "overrideEnabled", True)
-        libattr.set(self.get_node(), "overrideColor", 18)
-        libattr.set(self.get_node(), "displayArrow", False)
-        libattr.set(self.get_node(), "displayArrow", True)
-        cmds.connectAttr("{src}.worldMatrix[0]".format(src=self.get_child().get_shapes()[0]),
-                         "{dst}.dagObjectMatrix[0]".format(dst=self.get_node()),
-                         force=True)
-
-    def __create_aim(self):
-
-        parent = self.get_parent()
-        child = self.get_child()
-
-        # Query aliases and target list from parent aim constraint
-        aim_handler = libconstraint.get_handler(parent.get_constraint())
-        aliases = aim_handler.aliases
-        targets = aim_handler.targets
-        index = targets.index(self.get_child().get_aim())
-
-        # Query parent joint enum items
-        enums = cmds.attributeQuery("guideAimAt", node=parent.get_node(), listEnum=True)[0].split(":")
-        enum_index = enums.index(child.get_node())
-
-        # Create condition that turns on aim for child constraint if
-        # enum index is set to match childs name
-        condition = cmds.createNode(
-            "condition",
-            name=libname.rename(
-                self.get_node(),
-                append=self.description,
-                suffix="cond"))
-
-        libattr.set(condition, "secondTerm", enum_index)
-        libattr.set(condition, "colorIfTrueR", 1)
-        libattr.set(condition, "colorIfFalseR", 0)
-
-        cmds.connectAttr("%s.guideAimAt" % parent.node, "%s.firstTerm" % condition)
-        cmds.connectAttr("%s.outColorR" % condition, "%s.%s" % (parent.get_constraint(), aliases[index]))
-
-        # Set enum to match child aim
-        libattr.set(parent.node, "guideAimAt", enum_index)
-
-        # Loop through all aliases on and set non-connected attributes to be 0
-        for alias in aliases:
-            if not cmds.listConnections('%s.%s' % (parent.get_constraint(), alias),
-                                        source=True,
-                                        destination=False,
-                                        plugs=True):
-                libattr.set(parent.get_constraint(), alias, 0)
-
-        # Store new condition
-        self.store("condition", condition, dag=False)
-
-    def __update_aim_index(self):
-        if self.exists:
-
-            # Query parent joint enum items
-            enums = cmds.attributeQuery("guideAimAt", node=self.__parent.node, listEnum=True)[0].split(':')
-            enum_index = enums.index(self.__child.node)
-
-            # Update index to reflect alias index of child
-            parent = self.get_parent()
-            libattr.set(parent.get_condition(), "secondTerm", enum_index)
-
-    def _create(self):
-        self.__create_annotation()
-        self.__create_aim()

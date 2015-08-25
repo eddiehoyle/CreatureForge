@@ -34,8 +34,8 @@ def get_hierarchy(guide):
     guide = Guide.validate(guide)
     data = {}
     def recur(guide, data):
-        data[guide] = guide.children
-        for child in guide.children:
+        data[guide] = guide.get_children()
+        for child in guide.get_children():
             recur(child, data)
     recur(guide, data)
     return data
@@ -57,9 +57,9 @@ def duplicate(guide, hierarchy=True):
 
     # Set hierarchy and positions
     for parent in guides:
-        translates = parent.get_position(worldspace=True)
+        translates = parent.get_translates(worldspace=True)
         dup_parent = copy_guides[parent]
-        dup_parent.set_position(*translates, worldspace=True)
+        dup_parent.set_translates(*translates, worldspace=True)
         for child in guides[parent]:
             dup_child = copy_guides[child]
             dup_parent.add_child(dup_child)
@@ -71,32 +71,38 @@ def duplicate(guide, hierarchy=True):
 
 
 def set_parent(child, parent):
-    child = validate(child)
     parent = validate(parent)
-    return child.set_parent(parent)
+    child = validate(child)
+    child.set_parent(parent)
 
 
 def add_child(parent, child):
-    child = validate(child)
     parent = validate(parent)
-    return parent.add_child(child)
+    child = validate(child)
+    parent.add_child(child)
+
+
+def add_children(parent, children):
+    parent = validate(parent)
+    for child in children:
+        parent.add_child(child)
 
 
 def has_parent(child, parent):
-    child = validate(child)
     parent = validate(parent)
+    child = validate(child)
     return child.has_parent(parent)
 
 
 def has_child(parent, child):
-    child = validate(child)
     parent = validate(parent)
-    return child.has_parent(parent)
+    child = validate(child)
+    return parent.has_child(child)
 
 
 def is_parent(parent, child):
-    child = validate(child)
     parent = validate(parent)
+    child = validate(child)
     return child.is_parent(parent)
 
 
@@ -119,7 +125,7 @@ def compile():
     # Create hierarchy
     hierarchy = {}
     for guide in guides:
-        hierarchy[guide] = guide.children
+        hierarchy[guide] = guide.get_children()
 
     # Create joints
     joints = {}
@@ -144,16 +150,15 @@ def decompile():
 
 
 def get_guides():
-    _guides = cmds.ls("*%s" % Guide.SUFFIX, type="joint")
-
+    dags = cmds.ls("*%s" % Guide.SUFFIX, type="joint")
     guides = []
-    for node in _guides:
+    for node in dags:
         try:
             guides.append(validate(node))
         except Exception:
-            logger.error("Failed to validate guide node: '%s'" % node)
-
-    return guides
+            logger.error("Failed to validate guide node: '{node}'".format(
+                node=node))
+    return tuple(guides)
 
 
 def exists(guide):
