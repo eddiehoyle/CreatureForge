@@ -200,7 +200,7 @@ class TestModelGuide(unittest.TestCase):
         arm.create()
 
         aim_orient = arm.get_aim_orient()
-        self.assertIsInstance(aim_orient, tuple)
+        self.assertIsInstance(aim_orient, str)
         self.assertEquals(len(aim_orient), 3)
 
     def test_get_offset_orient(self):

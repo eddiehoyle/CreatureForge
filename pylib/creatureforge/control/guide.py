@@ -9,7 +9,9 @@ where required.
 import os
 import json
 import logging
+import traceback
 from copy import deepcopy
+from pprint import pprint
 from collections import defaultdict
 
 from maya import cmds
@@ -146,13 +148,14 @@ def compile():
 
 
 def decompile():
-    raise NotImplementedYet("Decompile not implemented yet.")
+    raise NotImplementedError("Decompile not implemented yet.")
 
 
 def get_guides():
-    dags = cmds.ls("*%s" % Guide.SUFFIX, type="joint")
+    pattern = "*{suffix}".format(suffix=Guide.SUFFIX)
+    joints = cmds.ls(pattern, type="joint")
     guides = []
-    for node in dags:
+    for node in joints:
         try:
             guides.append(validate(node))
         except Exception:
@@ -163,78 +166,76 @@ def get_guides():
 
 def exists(guide):
     try:
-
-        # Exception is raised if guide does not exist
-        guide = validate(guide)
-        return guide.exists()
-
+        return validate(guide).exists()
     except Exception:
         return False
 
 
-def set_axis(guide, primary="X", secondary="Y"):
-    guide.set_axis(primary, secondary)
+def set_aim_orient(guide, order):
+    guide = validate(guide)
+    guide.set_aim_orient(order)
 
 
-def set_debug(value):
-    guides = get_guides()
-    for g in guides:
-        g.set_debug(value)
+def get_aim_orient(guide):
+    guide = validate(guide)
+    return guide.get_aim_orient()
 
 
-def write(path, guides=[]):
+def set_debug(guide, debug):
+    guide = validate(guide)
+    guide.set_debug(debug)
+
+
+def write(guides, path):
     # Get guides input or list from scene
-    if guides:
-
-        guides = []
-        for node in guides:
-            try:
-                guides.append(validate(node))
-            except Exception:
-                logger.error("Failed to validate guide node: '%s'" % node)
-
-    else:
-        guides = get_guides()
-
-    # Don't write file to disk of no guides are found
-    if not guides:
-        return False
+    _guides = []
+    for node in guides:
+        try:
+            _guides.append(validate(node))
+        except Exception:
+            print("Failed to validate guide node: '%s'" % node)
 
     # Create a data snapshot dict of guide
     data = {}
-    for guide in guides:
-        data[guide.node] = guide.snapshot()
+    for guide in _guides:
+        data[guide.get_node()] = guide.get_snapshot()
 
     # Write file to disk
     try:
         with open(path, 'w') as f:
             f.write(json.dumps(data, indent=4))
-    except Exception:
-        raise
+    except (OSError, IOError) as excp:
+        err = "Failed to save path: {tb}".format(
+            tb=traceback.format_exc(excp))
+        logger.error(err)
+        raisew
 
     return os.path.exists(path)
 
 
-def read(path, compile_guides=False):
-    data = {}
-
+def read(path):
     try:
         with open(path, "rU") as f:
-            data = json.loads(f.read())
-    except Exception:
+            return json.loads(f.read())
+    except (OSError, IOError) as excp:
+        err = "Failed to read snapshot path: {path}".format(
+            path)
+        logger.error(err)
         raise
 
-    # Check if all guides exist first
-    for guide in data.keys():
-        if not cmds.objExists(guide):
-            raise NameError("Guide '%s' does not exist." % guide)
+
+def restore(path):
+
+    data = read(path)
+
+    # TODO:
+    #   Raise warnings if snapshot targets don't exist
 
     # Setup behaviour
     for guide, snapshot in data.items():
         guide = validate(guide)
-
-        guide.set_position(*snapshot["position"], worldspace=True)
-        guide.set_axis(snapshot["primary"], snapshot["secondary"])
+        guide.set_translates(*snapshot["translates"], worldspace=True)
+        # guide.set_aim_axis(snapshot["primary"], snapshot["secondary"])
 
     # Create hierarchy
     for guide, snapshot in data.items():
@@ -243,34 +244,25 @@ def read(path, compile_guides=False):
             child = validate(child)
             add_child(guide, child)
 
-        guide.up.set_position(snapshot["up_position"], worldspace=True)
+        guide.get_up().set_translates(*snapshot["up_translates"], worldspace=True)
+        guide.set_aim_flip(snapshot["aim_flip"])
 
-        guide.aim_flip(snapshot["aim_flip"])
-        guide.aim_at(snapshot["aim_at"])
-        guide.set_offset(*snapshot["offset"])
+        if snapshot["aim_at"]:
+            guide.set_aim_at(snapshot["aim_at"])
 
-    # Compile into joints
-    if compile_guides:
-        compile()
-
-    return 
+        # TODO:
+        #   Rename this as 'orient_offset' and all things related
+        guide.set_offset_orient(*snapshot["offset_orient"])
 
 
-def rebuild(path, compile_guides=False):
+def rebuild(path):
+
     cmds.undoInfo(openChunk=True)
 
-    data = {}
+    for name in read(path).keys():
+        create(*libname.tokens(name))
 
-    try:
-        with open(path, "rU") as f:
-            data = json.loads(f.read())
-    except Exception:
-        raise
-
-    for guide in data.keys():
-        create(*libName.decompile(guide, 3))
-
-    read(path, compile_guides=compile_guides)
+    restore(path)
 
     cmds.undoInfo(closeChunk=True)
 

@@ -74,7 +74,7 @@ class Guide(Module):
 
     def __gt__(self, other):
         # TODO:
-        #   Write me properly
+        #   Write a better comparitor. Compare by hiearchy? Index?
         return str(self.get_node()) > str(other)
 
     def reinit(self):
@@ -133,6 +133,10 @@ class Guide(Module):
             raise GuideError(err)
 
     @cache
+    def set_aim_flip(self, flip):
+        cmds.setAttr("{node}.guideAimFlip".format(node=self.get_node()), bool(flip))
+
+    @cache
     def get_aim_flip(self):
         return bool(cmds.getAttr("{node}.guideAimFlip".format(node=self.get_node())))
 
@@ -183,11 +187,42 @@ class Guide(Module):
         return None
 
     @cache
+    def set_aim_at(self, guide):
+
+        if not self.has_child(guide):
+            err = "Cannot aim '{node}' at '{guide}' as '{guide}' is not a child of '{node}'".format(
+                node=self.get_node(), guide=guide)
+            raise GuideError(err)
+
+        enums = cmds.attributeQuery("guideAimAt", node=self.get_node(), listEnum=True)[0].split(":")
+        index = enums.index(guide.get_node())
+        cmds.setAttr("{node}.guideAimAt".format(node=self.get_node()), index)
+
+    @cache
+    def set_aim_orient(self, order):
+        if not str(order) in Guide.ORIENT:
+            err = "Order '{order}' is invalid, must be one of: {keys}".format(
+                Guide.ORIENT.keys())
+            raise RuntimeError(err)
+        index = Guide.ORIENT.keys().index(order)
+        cmds.setAttr("{node}.guideAimOrient".format(
+            node=self.get_node()), index)
+
+    @cache
     def get_aim_orient(self):
         order = Guide.ORIENT.keys()
-        orient = order[cmds.getAttr("{node}.guideAimOrient".format(
-            node=self.get_node()))]
-        return tuple(orient)
+        index = cmds.getAttr("{node}.guideAimOrient".format(
+            node=self.get_node()))
+        return order[index]
+
+    @cache
+    def set_debug(self, debug):
+        cmds.setAttr(
+            "{node}.guideDebug".format(node=self.get_node()), bool(debug))
+
+    @cache
+    def is_debug(self):
+        return cmds.getAttr("{node}.guideDebug".format(node=self.get_node()))
 
     @cache
     def get_offset_orient(self):
@@ -196,6 +231,17 @@ class Guide(Module):
             paths.append("{node}.guideOffsetOrient{axis}".format(
                 node=self.get_node(), axis=axis))
         return tuple(map(cmds.getAttr, paths))
+
+    @cache
+    def set_offset_orient(self, x=None, y=None, z=None):
+        # TODO:
+        #   Tidy me up
+        current_orient = self.get_offset_orient()
+        input_orient = (x if x is not None else current_orient[0],
+                        y if y is not None else current_orient[1],
+                        z if z is not None else current_orient[2])
+        for axis, value in zip(AXIS, input_orient):
+            libattr.set(self.get_node(), "guideOffsetOrient{axis}".format(axis=axis), value)
 
     @cache
     def get_translates(self, worldspace=True):

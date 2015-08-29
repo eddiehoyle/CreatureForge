@@ -1,11 +1,18 @@
+# In progress
+- [ ] Write control.guide tests
+
 # Core
+- [ ] Add renaming support
 - [ ] Create some basic exceptions
+- [ ] Make libname.Name look like a <Name 'L_arm_0_gde'> or something
 
 # Guide
-- [ ] Remove properties and implement getters
+- [ ] Move guide model into model.guide.guide.GuideModel
+- [ ] Import classes to model.guide level
+- [x] Remove properties and implement getters
 - [ ] Write docstrings
 - [ ] Tidy up string formatting
-- [ ] Add exists decorator to avoid constant 'if self.exists' checks
+- [x] Add exists decorator to avoid constant 'if self.exists' checks
 - [x] Add remove functionality
 - [x] Add simple 'guideAimAt' attribute to guide and setup it's defaults
 - [x] Add guide children property
@@ -21,11 +28,12 @@
 - [ ] Add shader model
 
 # Unittests
-- [ ] Update Guide
-- [ ] Write Up tests
+- [x] Update Guide
+- [x] Write Up tests
 - [ ] Write Tendon tests
 
 # Control
+- [ ] Write methods to accept lists of guides
 - [x] Add create
 - [x] Add get_hierarchy
 - [x] Add duplicate

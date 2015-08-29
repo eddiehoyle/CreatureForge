@@ -1,6 +1,9 @@
 #!/usr/bin/env /Applications/Autodesk/maya2016/Maya.app/Contents/bin/mayapy
 
+import os
+import tempfile
 import unittest
+from pprint import pprint
 
 from maya import cmds
 
@@ -183,38 +186,132 @@ class TestControlGuide(unittest.TestCase):
 
         self.assertEquals(guides, collect)
 
-    # def test_exists(self):
-    #     """[control.guide.None]
-    #     """
-    #     raise NotImplementedError
+    def test_exists(self):
+        """[control.guide.exists]
+        Guide exists
+        """
 
-    # def test_set_axis(self):
-    #     """[control.guide.None]
-    #     """
-    #     raise NotImplementedError
+        arm = guide.create("L", "arm", 0)
+        self.assertEquals(guide.exists(arm), True)
 
-    # def test_set_debug(self):
-    #     """[control.guide.None]
-    #     """
-    #     raise NotImplementedError
+        arm.remove()
+        self.assertEquals(guide.exists(arm), False)
 
-    # def test_write(self):
-    #     """[control.guide.None]
-    #     """
-    #     raise NotImplementedError
+    def test_set_aim_orient(self):
+        """[control.guide.set_aim_orient]
+        Set aim axis of input guide
+        """
 
-    # def test_read(self):
-    #     """[control.guide.None]
-    #     """
-    #     raise NotImplementedError
+        arm = guide.create("L", "arm", 0)
 
-    # def test_rebuild(self):
-    #     """[control.guide.None]
-    #     """
-    #     raise NotImplementedError
+        for order in Guide.ORIENT.keys():
+            guide.set_aim_orient(arm, order)
+            self.assertEquals(arm.get_aim_orient(), order)
 
-    # def test_validate(self):
-    #     """[control.guide.None]
-    #     """
-    #     raise NotImplementedError
+        with self.assertRaises(Exception):
+            arm.set_aim_orient("foo")
 
+    def test_get_aim_orient(self):
+        """[control.guide.get_aim_orient]
+        Get aim orient of guide
+        """
+
+        arm = guide.create("L", "arm", 0)
+
+        for order in Guide.ORIENT.keys():
+            arm.set_aim_orient(order)
+            self.assertEquals(guide.get_aim_orient(arm), order)
+
+    def test_set_debug(self):
+        """[control.guide.set_debug]
+        Set guide debug
+        """
+
+        arm = guide.create("L", "arm", 0)
+
+        guide.set_debug(arm, True)
+        self.assertEquals(arm.is_debug(), True)
+
+        guide.set_debug(arm, False)
+        self.assertEquals(arm.is_debug(), False)
+
+    def test_write(self):
+        """[control.guide.write]
+        Write snapshot to disk
+        """
+
+        arm = guide.create("L", "arm", 0)
+
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        guide.write([arm], tmp.name)
+
+        self.assertEquals(os.path.exists(tmp.name), True)
+        os.remove(tmp.name)
+
+    def test_read(self):
+        """[control.guide.read]
+        Read snapshot from disk
+        """
+
+        translates = (2, 4, 2)
+
+        arm = guide.create("L", "arm", 0)
+        arm.set_translates(*translates)
+
+        snapshot = arm.get_snapshot()
+
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        guide.write([arm], tmp.name)
+
+        with self.assertRaises(Exception):
+            guide.read("/path/does/not/exist.json")
+
+        # Remove and create new guide
+        guide.remove(arm)
+        guide.create("L", "arm", 0)
+
+        guide.restore(tmp.name)
+        new_snapshot = arm.get_snapshot()
+        self.assertEquals(new_snapshot, snapshot)
+
+    def test_rebuild(self):
+        """[control.guide.rebuild]
+        Rebuild scene from data
+        """
+
+        translates = (2, 4, 2)
+
+        arm = guide.create("L", "arm", 0)
+        arm.set_translates(*translates)
+
+        snapshot = arm.get_snapshot()
+
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        guide.write([arm], tmp.name)
+
+        with self.assertRaises(Exception):
+            guide.read("/path/does/not/exist.json")
+
+        # Remove and create new guide
+        guide.remove(arm)
+        cmds.file(new=True, force=True)
+
+        guide.rebuild(tmp.name)
+        arm_restore = guide.get_guides()[0]
+        new_snapshot = arm_restore.get_snapshot()
+        self.assertEquals(new_snapshot, snapshot)
+
+    def test_validate(self):
+        """[control.guide.validate]
+        Validate dag node, confirm it's a guide
+        """
+
+        arm = guide.create("L", "arm", 12)
+        self.assertIsInstance(guide.validate(arm), Guide)
+
+        with self.assertRaises(Exception):
+            guide.validate(None)
+
+        with self.assertRaises(Exception):
+            fake = cmds.createNode("joint", name="L_arm_0_gde")
+            guide.validate(fake)
