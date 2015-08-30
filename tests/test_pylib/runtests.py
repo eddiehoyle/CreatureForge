@@ -39,6 +39,7 @@ def get_tests(tests):
         test = "{base}.{test}".format(base=base, test=test)
         data.append(".".join(map(add, test.split("."))))
 
+    print "Tests path:", data
     return data
 
 

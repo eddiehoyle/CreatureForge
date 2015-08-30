@@ -37,12 +37,15 @@ def get_cvs(shape):
         err = "Invalid shape: '{shape}'".format(shape=shape)
         raise RuntimeError(err)
 
-class ControlTransformModel(Module):
+class ControlHandleModel(Module):
 
     SUFFIX = "ctl"
 
     def __init__(self, position, description, index=0):
-        super(ControlTransformModel, self).__init__(position, description, index=index)
+        super(ControlHandleModel, self).__init__(position, description, index=index)
+
+        # TODO:
+        #   Append FK to name
 
         self.__cvs = []
 
@@ -61,8 +64,26 @@ class ControlTransformModel(Module):
         cmds.select(cl=True)
         cmds.createNode("transform", name=self.get_name().compile())
 
+    def __create_shapes(self):
+
+        node = self.get_node()
+
+        for crv in self.__cvs:
+            degree = 1
+            temp_curve = cmds.curve(name="temp_curve", d=degree, p=crv)
+            shapes = cmds.listRelatives(temp_curve, shapes=True)
+            for shape in shapes:
+                cmds.parent(shape, node, shape=True, r=True)
+            cmds.delete(temp_curve)
+
+        shapes = cmds.listRelatives(node, shapes=True)
+        for index, shape in enumerate(shapes):
+            name = self.get_name().rename(shape=True)
+            cmds.rename(shape, "%s%s" % (name, index))
+
     def _create(self):
         self.__create_node()
+        self.__create_shapes()
 
 
 class ControlShapeModel(object):

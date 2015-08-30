@@ -38,7 +38,6 @@ def validate(func):
         return func(*args, **kwargs)
     return wraps
 
-
 class NameHandler(object):
 
     SEP = "_"
@@ -69,9 +68,9 @@ class NameHandler(object):
             self.index = index
         if suffix is not None:
             self.suffix = suffix
-        if kwargs.get("append"):
-            self.description = self.__append_description(kwargs.get("append"))
-        if kwargs.get("shape"):
+        if kwargs.get("append") is not None:
+            self.description = self.__append_description(str(kwargs.get("append")))
+        if kwargs.get("shape") is not None:
             self.suffix = "{sfx}Shape".format(sfx=self.suffix)
         return self.compile()
 
@@ -180,3 +179,120 @@ def tokens(name):
 @validate
 def is_valid(name):
     return True
+
+
+class NameModel(object):
+
+    SEP = "_"
+
+    def __init__(self, position, primary, primary_index, secondary,
+                 secondary_index, suffix):
+
+        self.__set_position(position)
+        self.__set_primary(primary)
+        self.__set_primary_index(primary_index)
+        self.__set_secondary(secondary)
+        self.__set_secondary_index(secondary_index)
+        self.__set_suffix(suffix)
+
+    def __repr__(self):
+            return self.compile()
+
+    def compile(self):
+        return ("{sep}".format(sep=NameHandler.SEP)).join(
+            [self.position,
+             self.primary,
+             str(self.primary_index),
+             self.secondary,
+             self.secondary_index,
+             self.suffix])
+
+    # def rename(self, position=None, description=None, index=None, suffix=None,
+    #            **kwargs):
+    #     if position is not None:
+    #         self.position = position
+    #     if description is not None:
+    #         self.description = description
+    #     if index is not None:
+    #         self.index = index
+    #     if suffix is not None:
+    #         self.suffix = suffix
+    #     if kwargs.get("append") is not None:
+    #         self.description = self.__append_description(str(kwargs.get("append")))
+    #     if kwargs.get("shape") is not None:
+    #         self.suffix = "{sfx}Shape".format(sfx=self.suffix)
+    #     return self.compile()
+
+    def __copy(self):
+        return deepcopy(self)
+
+    # def generate(self):
+    #     new = self.__copy()
+    #     while cmds.objExists(new.compile()):
+    #         new.index += 1
+    #     return new.compile()
+
+    # def __append_description(self, string):
+    #     append = "{0}{1}".format(string[0].upper(), string[1:])
+    #     return "{description}{append}".format(
+    #         description=self.description, append=append)
+
+    def __match(self, pattern, value, err):
+        try:
+            return re.match(pattern, value).group(0)
+        except (AttributeError, TypeError):
+            raise InvalidNameError(err)
+
+    def __set_position(self, val):
+        err = "Invalid position: '{val}'".format(val=val)
+        self.__position = str(self.__match(PATTERN_POSITION, val, err)).upper()
+
+    def __set_primary(self, val):
+        err = "Invalid primary: '{val}'".format(val=val)
+        self.__primary = self.__match(PATTERN_DESCRIPTION, val, err)
+
+    def __set_primary_index(self, val):
+        err = "Invalid primary: '{val}'".format(val=val)
+        self.__primary_index = int(self.__match(PATTERN_INDEX, str(val), err))
+
+    def __set_secondary(self, val):
+        err = "Invalid secondary: '{val}'".format(val=val)
+        self.__secondary = self.__match(PATTERN_DESCRIPTION, val, err)
+
+    def __set_secondary_index(self, val):
+        err = "Invalid secondary: '{val}'".format(val=val)
+        self.__secondary_index = int(self.__match(PATTERN_INDEX, str(val), err))
+
+    def __set_suffix(self, val):
+        err = "Invalid suffix: '{val}'".format(val=val)
+        self.__suffix = self.__match(PATTERN_SUFFIX, val, err)
+
+    def __get_position(self):
+        return self.__position
+
+    def __get_primary(self):
+        return self.__primary
+
+    def __get_primary_index(self):
+        return self.__primary_index
+
+    def __get_secondary(self):
+        return self.__secondary
+
+    def __get_secondary_index(self):
+        return self.__secondary_index
+
+    def __get_suffix(self):
+        return self.__suffix
+
+    def __get_tokens(self):
+        return (self.position, self.primary, self.primary_index,
+                self.secondary, self.secondary_index)
+
+    position = property(fget=__get_position, fset=__set_position)
+    primary = property(fget=__get_primary, fset=__set_primary)
+    primary_index = property(fget=__get_primary_index, fset=__set_primary_index)
+    secondary = property(fget=__get_secondary, fset=__set_secondary)
+    secondary_index = property(fget=__get_secondary_index, fset=__set_secondary_index)
+    suffix = property(fget=__get_suffix, fset=__set_suffix)
+    tokens = property(fget=__get_tokens)
