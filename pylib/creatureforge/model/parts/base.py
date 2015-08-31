@@ -6,7 +6,7 @@
 from creatureforge.model.base import Module
 from creatureforge.model.base import ModuleModelBase
 
-class PartModelBase(Module):
+class PartModelBase(ModuleModelBase):
 
     SUFFIX = "prt"
 

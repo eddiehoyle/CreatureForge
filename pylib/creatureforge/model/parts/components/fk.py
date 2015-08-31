@@ -70,12 +70,12 @@ class ComponentFkModel(ComponentModelBase):
 
     def _create(self):
         self.__create_controls()
-        # self.__create_node()
-        # self.__create_setup()
-        # self.__create_control()
+        self.__create_hiearchy()
+        self.__create_constraints()
 
     def __create_controls(self):
 
+        # Create controls
         for index, joint in enumerate(self.get_joints()):
             ctl_name = name.rename(self.get_name(), secondary_index=index)
             ctl_tokens = name.tokenize(ctl_name)
@@ -87,6 +87,7 @@ class ComponentFkModel(ComponentModelBase):
 
             self.__controls.append(ctl)
 
+    def __create_hiearchy(self):
         ctls = list(self.get_controls())
         parent = ctls.pop(0)
         while ctls:
@@ -94,6 +95,7 @@ class ComponentFkModel(ComponentModelBase):
             cmds.parent(child.get_group(), parent.get_transform())
             parent = child
 
+    def __create_constraints(self):
         for ctl, joint in zip(self.get_controls(), self.get_joints()):
             cmds.parentConstraint(ctl.get_transform(), joint, mo=False)
 
