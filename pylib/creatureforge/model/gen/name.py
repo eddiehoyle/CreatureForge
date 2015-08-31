@@ -25,7 +25,7 @@ DEFAULT_SUFFIX = "grp"
 PATTERN_POSITION = "^([a-zA-Z]+)$"
 PATTERN_DESCRIPTION = "^(?!^\d+)(?!^\d+$)([a-zA-Z0-9]+)$"
 PATTERN_INDEX = "^(\d+)$"
-PATTERN_SUFFIX = "^([a-zA-Z]+)$"
+PATTERN_SUFFIX = "^([a-zA-Z]+)[\d+]?$"
 
 # ------------------------------------------------------------------------------
 
@@ -37,80 +37,6 @@ def validate(func):
             raise InvalidNameError(err)
         return func(*args, **kwargs)
     return wraps
-
-
-def create(position, primary, primart_index, secondary, secondary_index, suffix):
-    return NameModel(position, primary, primart_index, secondary, secondary_index, suffix).compile()
-
-
-@validate
-def generate_primary(name):
-    return NameModel(*decompile(name)).generate_primary()
-
-@validate
-def generate_secondary(name):
-    return NameModel(*decompile(name)).generate_secondary()
-
-
-@validate
-def get_position(name):
-    return NameModel(*decompile(name)).position
-
-
-@validate
-def get_primary(name):
-    return NameModel(*decompile(name)).primary
-
-
-@validate
-def get_primary_index(name):
-    return NameModel(*decompile(name)).primary_index
-
-
-@validate
-def get_secondary(name):
-    return NameModel(*decompile(name)).secondary
-
-
-@validate
-def get_secondary_index(name):
-    return NameModel(*decompile(name)).secondary_index
-
-
-@validate
-def suffix(name):
-    return NameModel(*decompile(name)).suffix
-
-
-@validate
-def rename(name, **kwargs):
-    data = reinit(name).get_data()
-    for key in data:
-        new_value = kwargs.get(key)
-        if new_value is not None:
-            data.update({key: new_value})
-    if kwargs.get("shape"):
-        data.update({"suffix": "{suffix}Shape".format(suffix=data["suffix"])})
-    return NameModel(**data)
-
-
-@validate
-def decompile(name):
-    return NameModel(*name.split(NameModel.SEP)).get_components()
-
-
-@validate
-def reinit(name):
-    return NameModel(*decompile(name))
-
-
-def is_valid(name):
-    try:
-        decompile(name)
-        return True
-    except Exception as excp:
-        logger.error(excp.args[0])
-        return False
 
 
 class NameModel(object):

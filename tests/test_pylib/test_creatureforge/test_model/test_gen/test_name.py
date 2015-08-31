@@ -194,5 +194,5 @@ class TestNameModel(unittest.TestCase):
         new_secondary_index = 2
         new_suffix = "grp"
 
-        n.rename(position=new_position)
-        self.assertEquals(n., )
+        compiled = n.rename(position=new_position)
+        
