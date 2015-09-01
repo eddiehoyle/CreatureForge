@@ -10,6 +10,7 @@ from collections import OrderedDict
 from maya import cmds
 
 from creatureforge.lib import libxform
+from creatureforge.lib import libattr
 from creatureforge.control import name
 from creatureforge.model.parts.components.control import ControlHandleModel
 from creatureforge.decorators import Memoized
@@ -83,6 +84,10 @@ class ComponentFkModel(ComponentModelBase):
             ctl.set_shape("circle")
             ctl.create()
 
+            libattr.lock_translates(ctl.get_transform())
+            libattr.lock_scales(ctl.get_transform())
+            libattr.lock_visibility(ctl.get_transform())
+
             libxform.match(ctl.get_group(), joint)
 
             self.__controls.append(ctl)
@@ -97,7 +102,7 @@ class ComponentFkModel(ComponentModelBase):
 
     def __create_constraints(self):
         for ctl, joint in zip(self.get_controls(), self.get_joints()):
-            cmds.parentConstraint(ctl.get_transform(), joint, mo=False)
+            cmds.orientConstraint(ctl.get_transform(), joint, mo=False)
 
 
 

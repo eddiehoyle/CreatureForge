@@ -7,10 +7,11 @@ from maya import cmds
 
 from creatureforge.control import name
 from creatureforge.model.parts.base import PartModelBase
-from creatureforge.model.parts.components.fk import ComponentFkModel
+from creatureforge.model.parts.components.ik import ComponentIkScModel
+from creatureforge.model.parts.components.ik import ComponentIkRpModel
 
 
-class PartFkModel(PartModelBase):
+class PartIkScModel(PartModelBase):
     """
     Components make up parts.
 
@@ -27,9 +28,9 @@ class PartFkModel(PartModelBase):
     SUFFIX = "prt"
 
     def __init__(self, position, primary, primary_index, secondary, secondary_index):
-        super(PartFkModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
+        super(PartIkScModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
 
-        self.__create_fk_component()
+        self._create_ik_component()
 
     def get_control(self):
         return self._dag["control"]
@@ -38,7 +39,7 @@ class PartFkModel(PartModelBase):
         return self._dag["setup"]
 
     def set_joints(self, joints):
-        self.__fk_component.set_joints(joints)
+        self._ik_component.set_joints(joints)
 
     def __create_node(self):
         cmds.createNode("transform", name=self.get_name())
@@ -59,8 +60,24 @@ class PartFkModel(PartModelBase):
         self.__create_node()
         self.__create_setup()
         self.__create_control()
-        self.__fk_component.create()
-        cmds.parent(self.__fk_component.get_controls()[0].get_group(), self.get_control())
+        self._ik_component.create()
+        self.__create_hierarchy()
 
-    def __create_fk_component(self):
-        self.__fk_component = ComponentFkModel(*self.tokens)
+    def __create_hierarchy(self):
+        ctl_grps = [c.get_group() for c in self._ik_component.get_controls()]
+        control = self.get_control()
+        cmds.parent(ctl_grps, control)
+        cmds.parent(self._ik_component.get_handle(), control)
+
+    def _create_ik_component(self):
+        self._ik_component = ComponentIkScModel(*self.tokens)
+
+
+class PartIkRpModel(PartIkScModel):
+
+    def set_polevector_offset(self, x, y, z):
+        self._ik_component.set_polevector_offset(x, y, z)
+
+    def _create_ik_component(self):
+        print "ikrp"
+        self._ik_component = ComponentIkRpModel(*self.tokens)
