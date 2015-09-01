@@ -25,3 +25,15 @@ IkFkPart
         IkControl0
         IkControl1
         IkControl2
+
+Interactive:
+    parts have component definitions
+    parts hook into other parts
+        components can be junctioned
+            translate
+            rotate
+            (no scale for now)
+
+# Questions
+
+

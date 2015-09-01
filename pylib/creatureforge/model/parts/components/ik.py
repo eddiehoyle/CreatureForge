@@ -20,8 +20,11 @@ from creatureforge.model.parts.base import ComponentModelBase
 
 logger = logging.getLogger(__name__)
 
+class ComponentIkModelBase(ComponentModelBase):
+    pass
 
-class ComponentIkScModel(ComponentModelBase):
+
+class ComponentIkScModel(ComponentIkModelBase):
     """
     Components make up parts.
 
@@ -36,10 +39,11 @@ class ComponentIkScModel(ComponentModelBase):
     """
 
     def __init__(self, position, primary, primary_index, secondary, secondary_index):
-        super(ComponentIkScModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
+        super(ComponentIkModelBase, self).__init__(position, primary, primary_index, secondary, secondary_index)
 
-        self.__joints = []
-        self.__controls = []
+        self._joints = []
+        self._controls = []
+        self._stretch = False
 
     def get_handle(self):
         return self._dag.get("handle")
@@ -48,10 +52,10 @@ class ComponentIkScModel(ComponentModelBase):
         return self._dag.get("effector")
 
     def get_controls(self):
-        return tuple(self.__controls)
+        return tuple(self._controls)
 
     def get_joints(self):
-        return tuple(self.__joints)
+        return tuple(self._joints)
 
     def set_joints(self, joints):
         if self.exists():
@@ -69,7 +73,7 @@ class ComponentIkScModel(ComponentModelBase):
 
         logger.debug("Setting joints for '{name}': {joints}".format(
             name=self.get_name(), joints=_joints))
-        self.__joints = _joints
+        self._joints = _joints
 
     def _pre(self):
         if not self.get_joints():
@@ -83,15 +87,13 @@ class ComponentIkScModel(ComponentModelBase):
     def _create(self):
         self._create_ik()
         self._create_controls()
-        self.__create_hiearchy()
-        self.__create_constraints()
+        self._create_constraints()
 
-    def _create_ik(self):
+    def _create_constraints(self):
+        ctls = self.get_controls()
         joints = self.get_joints()
-        start_joint, end_joint = joints[0], joints[-1]
-        handle, effector = cmds.ikHandle(sj=start_joint, ee=end_joint, sol="ikSCsolver")
-        self.store("handle", handle)
-        self.store("effector", effector)
+        cmds.pointConstraint(ctls[0], joints[0])
+        cmds.pointConstraint(ctls[-1], self.get_handle())
 
     def _create_controls(self):
 
@@ -109,16 +111,14 @@ class ComponentIkScModel(ComponentModelBase):
 
             libxform.match(ctl.get_group(), joint)
 
-            self.__controls.append(ctl)
+            self._controls.append(ctl)
 
-    def __create_hiearchy(self):
-        pass
-
-    def __create_constraints(self):
-        ctls = self.get_controls()
+    def _create_ik(self):
         joints = self.get_joints()
-        cmds.pointConstraint(ctls[0], joints[0])
-        cmds.pointConstraint(ctls[-1], self.get_handle())
+        start_joint, end_joint = joints[0], joints[-1]
+        handle, effector = cmds.ikHandle(sj=start_joint, ee=end_joint, sol="ikSCsolver")
+        self.store("handle", handle)
+        self.store("effector", effector)
 
 
 class ComponentIkRpModel(ComponentIkScModel):
@@ -137,7 +137,10 @@ class ComponentIkRpModel(ComponentIkScModel):
 
     def _create_controls(self):
         super(ComponentIkRpModel, self)._create_controls()
-        self.__add_polevector()
+        self.__add_polevector_control()
+
+    def _create_constraints(self):
+        super(ComponentIkRpModel, self)._create_constraints()
 
     def set_polevector_offset(self, x, y, z):
         self.__polevector_offset = [x, y, z]
@@ -145,9 +148,8 @@ class ComponentIkRpModel(ComponentIkScModel):
     def get_polevector_offset(self):
         return self.__polevector_offset
 
-    def __add_polevector(self):
+    def __add_polevector_control(self):
         """Add pole vector for ikHandle"""
-        print "PV"
         # description = description or name.get_description(name.set_description_suffix(self.ik_ctl.ctl, "pv"))
         secondary = self.get_name().secondary
         ctl_name = name.rename(
@@ -192,16 +194,3 @@ class ComponentIkRpModel(ComponentIkScModel):
 
         # # Create poleVector
         cmds.poleVectorConstraint(ctl.get_transform(), self.get_handle(), weight=True)
-
-        # # Add annotation
-        # mid_jnt = self.ik_joints[(len(self.ik_joints)-1)/2]
-        # self.anno = anno.aim(ctl.ctl, mid_jnt, "pv")
-
-        # self.pv_ctl = ctl
-        # self.controls[ctl.name] = ctl
-
-
-
-
-
-
