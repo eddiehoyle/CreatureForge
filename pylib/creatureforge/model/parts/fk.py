@@ -29,16 +29,25 @@ class PartFkModel(PartModelBase):
     def __init__(self, position, primary, primary_index, secondary, secondary_index):
         super(PartFkModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
 
-        self.__create_fk_component()
+        fk = ComponentFkModel(*self.tokens)
+        self.register_component("fk", fk)
+
+    def __create_fk_component(self):
+        fk = self.get_component("fk")
+        fk.create()
+        ctl = fk.get_controls().values()[0]
+        cmds.parent(ctl.get_group(), self.get_control())
 
     def get_control(self):
+        # This is the control transform group
         return self._dag["control"]
 
     def get_setup(self):
         return self._dag["setup"]
 
     def set_joints(self, joints):
-        self.__fk_component.set_joints(joints)
+        fk = self.get_component("fk")
+        fk.set_joints(joints)
 
     def __create_node(self):
         cmds.createNode("transform", name=self.get_name())
@@ -59,8 +68,4 @@ class PartFkModel(PartModelBase):
         self.__create_node()
         self.__create_setup()
         self.__create_control()
-        self.__fk_component.create()
-        cmds.parent(self.__fk_component.get_controls()[0].get_group(), self.get_control())
-
-    def __create_fk_component(self):
-        self.__fk_component = ComponentFkModel(*self.tokens)
+        self.__create_fk_component()

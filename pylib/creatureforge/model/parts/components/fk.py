@@ -38,10 +38,6 @@ class ComponentFkModel(ComponentModelBase):
         super(ComponentFkModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
 
         self.__joints = []
-        self.__controls = []
-
-    def get_controls(self):
-        return tuple(self.__controls)
 
     def get_joints(self):
         return tuple(self.__joints)
@@ -90,10 +86,10 @@ class ComponentFkModel(ComponentModelBase):
 
             libxform.match(ctl.get_group(), joint)
 
-            self.__controls.append(ctl)
+            self.register_control(ctl)
 
     def __create_hiearchy(self):
-        ctls = list(self.get_controls())
+        ctls = list(self.get_controls().values())
         parent = ctls.pop(0)
         while ctls:
             child = ctls.pop(0)
@@ -101,7 +97,8 @@ class ComponentFkModel(ComponentModelBase):
             parent = child
 
     def __create_constraints(self):
-        for ctl, joint in zip(self.get_controls(), self.get_joints()):
+        ctls = list(self.get_controls().values())
+        for ctl, joint in zip(ctls, self.get_joints()):
             cmds.orientConstraint(ctl.get_transform(), joint, mo=False)
 
 

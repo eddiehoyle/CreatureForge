@@ -8,6 +8,7 @@ import itertools
 import collections
 
 def stringify(dictionary):
+    """Turn all dict items into strings"""
     for key, value in dictionary.iteritems():
         if isinstance(value, dict):
             return stringify(value)

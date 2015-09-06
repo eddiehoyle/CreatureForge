@@ -22,6 +22,10 @@ class ControlHandleModel(ModuleModelBase):
 
         self.__cvs = []
 
+    def get_key(self):
+        ctl_name = self.get_name()
+        return (ctl_name.secondary, ctl_name.secondary_index)
+
     def __rebuild(self):
         shapes = self.get_shapes()
         if shapes:

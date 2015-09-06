@@ -34,6 +34,7 @@ Interactive:
             rotate
             (no scale for now)
 
-# Questions
-
-
+Important ideas:
+* Parts register components during creation
+* Components register controls in dict ('secondary', 'secondary_index') as ley
+* Controls can be juntioned, exposed at part level
