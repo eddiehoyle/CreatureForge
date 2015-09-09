@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 from maya import cmds
 
-from creatureforge.lib import libname
+from creatureforge.control import name
 from creatureforge.lib import libattr
 from creatureforge.lib import libutil
 from creatureforge.lib import libconstraint
@@ -18,6 +18,7 @@ from creatureforge.model.base import Module
 from creatureforge.exceptions import DuplicateNameError
 from creatureforge.exceptions import GuideDoesNotExistError
 from creatureforge.exceptions import GuideHierarchyError
+from creatureforge.model.base import ModuleModelBase
 
 
 class GuideError(Exception):
@@ -38,7 +39,7 @@ def cache(func):
     return wraps
 
 
-class Tendon(Module):
+class TendonModel(ModuleModelBase):
 
     SUFFIX = "cncShape"
 
@@ -47,7 +48,7 @@ class Tendon(Module):
         self.__child = child
         self.__parent = parent
 
-        super(Tendon, self).__init__(*child.tokens)
+        super(TendonModel, self).__init__(*child.tokenize)
 
     @cache
     def get_condition(self):
@@ -96,9 +97,9 @@ class Tendon(Module):
         # enum index is set to match childs name
         condition = cmds.createNode(
             "condition",
-            name=libname.rename(
+            name=name.rename(
                 self.get_node(),
-                append=self.description,
+                # secondary=self.secondary,
                 suffix="cond"))
 
         libattr.set(condition, "secondTerm", enum_index)

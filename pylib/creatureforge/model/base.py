@@ -114,7 +114,7 @@ class Module(object):
         return cmds.objExists(self.get_name().compile())
 
     @property
-    def tokens(self):
+    def tokenize(self):
         return (self.position, self.description, self.index)
 
     @property
@@ -283,8 +283,8 @@ class ModuleModelBase(object):
         return cmds.objExists(self.get_name().compile())
 
     @property
-    def tokens(self):
-        return self.__name.get_tokens()
+    def tokenize(self):
+        return self.__name.tokenize()
 
     @property
     def node(self):

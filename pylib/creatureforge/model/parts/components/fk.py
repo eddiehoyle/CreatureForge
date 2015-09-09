@@ -66,6 +66,7 @@ class ComponentFkModel(ComponentModelBase):
         pass
 
     def _create(self):
+        super(ComponentFkModel, self)._create()
         self.__create_controls()
         self.__create_hiearchy()
         self.__create_constraints()

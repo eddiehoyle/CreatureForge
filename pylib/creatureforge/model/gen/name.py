@@ -85,7 +85,7 @@ class NameModel(object):
     def suffix(self):
         return self.__suffix
 
-    def get_tokens(self):
+    def tokenize(self):
         return self.get_components()[:-1]
 
     def get_components(self):
@@ -161,6 +161,6 @@ class NameModel(object):
         err = "Invalid suffix: '{val}'".format(val=val)
         self.__suffix = self.__match(PATTERN_SUFFIX, val, err)
 
-    def __get_tokens(self):
+    def __tokenize(self):
         return (self.position, self.primary, self.primary_index,
                 self.secondary, self.secondary_index)

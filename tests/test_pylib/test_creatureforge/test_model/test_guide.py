@@ -4,30 +4,32 @@ import unittest
 
 from maya import cmds
 
-from creatureforge.model.up import Up
-from creatureforge.model.guide import Guide
+from creatureforge.model.up import UpModel
+from creatureforge.model.guide import GuideModel
 
 # ------------------------------------------------------------------------------
 
 POSITION = "L"
-DESCRIPTION = "arm"
-INDEX = 0
+PRIMARY = "arm"
+PRIMARY_INDEX = 0
+SECONDARY = "wrist"
+SECONDARY_INDEX = 0
 
 # ------------------------------------------------------------------------------
 
 def create_arm():
-    guide = Guide(POSITION, DESCRIPTION, index=INDEX)
+    guide = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
     guide.create()
     return guide
 
 def create_wrist():
-    guide = Guide(POSITION, "wrist", index=INDEX)
+    guide = GuideModel(POSITION, "wrist", PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
     guide.create()
     return guide
 
 # ------------------------------------------------------------------------------
 
-class TestModelGuide(unittest.TestCase):
+class TestGuideModel(unittest.TestCase):
 
     def setUp(self):
         cmds.file(new=True, force=True)
@@ -36,11 +38,11 @@ class TestModelGuide(unittest.TestCase):
         pass
 
     def test_create(self):
-        """[model.guide.Guide.create]
+        """[model.guide.GuideModel.create]
         Create guide and check exists in Maya context
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_node()
@@ -59,11 +61,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(arm.exists(), True)
 
     def test_get_aim(self):
-        """[model.guide.Guide.get_aim]
+        """[model.guide.GuideModel.get_aim]
         Aim transform exists
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_aim()
@@ -73,11 +75,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(cmds.objExists(aim), True)
 
     def test_get_up(self):
-        """[model.guide.Guide.get_up]
-        Up node exists
+        """[model.guide.GuideModel.get_up]
+        UpModel node exists
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_up()
@@ -87,11 +89,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(cmds.objExists(up.get_node()), True)
 
     def test_get_setup(self):
-        """[model.guide.Guide.get_setup]
+        """[model.guide.GuideModel.get_setup]
         Setup transform exists
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_setup()
@@ -101,11 +103,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(cmds.objExists(setup), True)
 
     def test_get_shapes(self):
-        """[model.guide.Guide.get_shapes]
+        """[model.guide.GuideModel.get_shapes]
         Shapes exists under guide
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_shapes()
@@ -116,11 +118,11 @@ class TestModelGuide(unittest.TestCase):
             self.assertEquals(cmds.objExists(shape), True)
 
     def test_get_constraint(self):
-        """[model.guide.Guide.get_constraint]
+        """[model.guide.GuideModel.get_constraint]
         Aim constraint node exists
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_constraint()
@@ -130,11 +132,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(cmds.objExists(constraint), True)
 
     def test_get_condition(self):
-        """[model.guide.Guide.get_condition]
+        """[model.guide.GuideModel.get_condition]
         Aim condition node exists
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_condition()
@@ -144,11 +146,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(cmds.objExists(condition), True)
 
     def test_get_parent(self):
-        """[model.guide.Guide.get_parent]
-        Get Guide parent
+        """[model.guide.GuideModel.get_parent]
+        Get GuideModel parent
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_parent()
@@ -158,11 +160,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertIsNone(parent)
 
     def test_get_children(self):
-        """[model.guide.Guide.get_children]
-        Guide has children
+        """[model.guide.GuideModel.get_children]
+        GuideModel has children
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_children()
@@ -173,11 +175,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(len(children), 0)
 
     def test_get_aim_at(self):
-        """[model.guide.Guide.get_aim_at]
+        """[model.guide.GuideModel.get_aim_at]
         Get which guide parent guide is aiming at
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_aim_at()
@@ -188,11 +190,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertIsNone(aim_at)
 
     def test_get_aim_orient(self):
-        """[model.guide.Guide.get_aim_orient]
+        """[model.guide.GuideModel.get_aim_orient]
         Get guide aim orient
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_aim_orient()
@@ -204,10 +206,10 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(len(aim_orient), 3)
 
     def test_get_offset_orient(self):
-        """[model.guide.Guide.get_offset_orient]
+        """[model.guide.GuideModel.get_offset_orient]
         Get guide offset orient """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_offset_orient()
@@ -219,11 +221,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(len(offset_orient), 3)
 
     def test_get_translates(self):
-        """[model.guide.Guide.get_translates]
+        """[model.guide.GuideModel.get_translates]
         Get translates
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_translates()
@@ -236,10 +238,10 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(arm.get_translates(), translates)
 
     def test_set_translates(self):
-        """[model.guide.Guide.set_translates]
+        """[model.guide.GuideModel.set_translates]
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
         arm.create()
 
         translates = (0, 3, 0)
@@ -247,22 +249,24 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(arm.get_translates(), translates)
 
     def test_copy(self):
-        """[model.guide.Guide.copy]
+        """[model.guide.GuideModel.copy]
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
         arm.create()
 
+        # TODO
+        #   Generate primary or secondary or both
         new = arm.copy()
 
-        index = new.get_name().index
-        self.assertEquals(index - 1, INDEX)
+        primary_index = new.get_name().primary_index
+        self.assertEquals(primary_index - 1, PRIMARY_INDEX)
 
     def test_remove(self):
-        """[model.guide.Guide.remove]
+        """[model.guide.GuideModel.remove]
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.remove()
@@ -281,11 +285,11 @@ class TestModelGuide(unittest.TestCase):
                     self.assertEquals(cmds.objExists(node), False)
 
     def test_get_snapshot(self):
-        """[model.guide.Guide.get_snapshot]
-        Guide snapshot is created with correct data
+        """[model.guide.GuideModel.get_snapshot]
+        GuideModel snapshot is created with correct data
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.get_snapshot()
@@ -305,11 +309,11 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(snapshot["up_translates"], arm.get_up().get_translates())
 
     def test_compile(self):
-        """[model.guide.Guide.compile]
-        Guide compiles to joint
+        """[model.guide.GuideModel.compile]
+        GuideModel compiles to joint
         """
 
-        arm = Guide(POSITION, DESCRIPTION, index=INDEX)
+        arm = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, SECONDARY, SECONDARY_INDEX)
 
         with self.assertRaises(Exception):
             arm.compile()
@@ -319,7 +323,7 @@ class TestModelGuide(unittest.TestCase):
         self.assertEquals(cmds.objExists(joint), True)
 
 
-class TestModelGuideHierarchy(unittest.TestCase):
+class TestGuideModelHierarchy(unittest.TestCase):
 
     def setUp(self):
         cmds.file(new=True, force=True)
@@ -328,18 +332,18 @@ class TestModelGuideHierarchy(unittest.TestCase):
         pass
 
     def test_get_parent(self):
-        """[model.guide.Guide.get_parent]
-        Guide get parent
+        """[model.guide.GuideModel.get_parent]
+        GuideModel get parent
         """
 
-        elbow = Guide("L", "elbow", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         with self.assertRaises(Exception):
             elbow.get_parent()
 
         elbow.create()
 
-        wrist = Guide("L", "wrist", 0)
+        wrist = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "wrist", 0)
         wrist.create()
 
         wrist.set_parent(elbow)
@@ -347,18 +351,18 @@ class TestModelGuideHierarchy(unittest.TestCase):
         self.assertEquals(wrist.get_parent(), elbow)
 
     def test_get_children(self):
-        """[model.guide.Guide.get_children]
-        Guide get children
+        """[model.guide.GuideModel.get_children]
+        GuideModel get children
         """
 
-        elbow = Guide("L", "elbow", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         with self.assertRaises(Exception):
             elbow.get_children()
 
         elbow.create()
 
-        wrist = Guide("L", "wrist", 0)
+        wrist = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "wrist", 0)
         wrist.create()
 
         wrist.set_parent(elbow)
@@ -366,8 +370,8 @@ class TestModelGuideHierarchy(unittest.TestCase):
         self.assertEquals(wrist in elbow.get_children(), True)
 
     def test_get_aim_at(self):
-        """[model.guide.Guide.get_aim_at]
-        Guide is aiming at child
+        """[model.guide.GuideModel.get_aim_at]
+        GuideModel is aiming at child
         """
         arm = create_arm()
         wrist = create_wrist()
@@ -377,21 +381,21 @@ class TestModelGuideHierarchy(unittest.TestCase):
         self.assertEquals(arm.get_aim_at(), wrist.get_node())
 
     def test_has_parent(self):
-        """[model.guide.Guide.has_parent]
-        Guide has parent anywhere above it
+        """[model.guide.GuideModel.has_parent]
+        GuideModel has parent anywhere above it
         """
 
-        shoulder = Guide("L", "shoulder", 0)
+        shoulder = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "shoulder", 0)
         shoulder.create()
 
-        elbow = Guide("L", "elbow", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         with self.assertRaises(Exception):
             elbow.has_parent(shoulder)
 
         elbow.create()
 
-        wrist = Guide("L", "wrist", 0)
+        wrist = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "wrist", 0)
         wrist.create()
 
         wrist.set_parent(elbow)
@@ -401,14 +405,14 @@ class TestModelGuideHierarchy(unittest.TestCase):
 
 
     def test_has_child(self):
-        """[model.guide.Guide.has_child]
-        Guide has child
+        """[model.guide.GuideModel.has_child]
+        GuideModel has child
         """
 
-        shoulder = Guide("L", "shoulder", 0)
+        shoulder = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "shoulder", 0)
         shoulder.create()
 
-        elbow = Guide("L", "elbow", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         with self.assertRaises(Exception):
             elbow.has_child(shoulder)
@@ -420,14 +424,14 @@ class TestModelGuideHierarchy(unittest.TestCase):
         self.assertEquals(shoulder.has_child(elbow), True)
 
     def test_set_parent(self):
-        """[model.guide.Guide.set_parent]
+        """[model.guide.GuideModel.set_parent]
         Set guide parent
         """
 
-        shoulder = Guide("L", "shoulder", 0)
+        shoulder = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "shoulder", 0)
         shoulder.create()
 
-        elbow = Guide("L", "elbow", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         with self.assertRaises(Exception):
             elbow.set_parent(shoulder)
@@ -437,12 +441,12 @@ class TestModelGuideHierarchy(unittest.TestCase):
         self.assertEquals(elbow.get_parent(), shoulder)
 
     def test_add_child(self):
-        """[model.guide.Guide.add_child]
+        """[model.guide.GuideModel.add_child]
         Add guide as a child
         """
 
-        shoulder = Guide("L", "shoulder", 0)
-        elbow = Guide("L", "elbow", 0)
+        shoulder = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "shoulder", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         with self.assertRaises(Exception):
             shoulder.add_child(elbow)
@@ -454,12 +458,12 @@ class TestModelGuideHierarchy(unittest.TestCase):
         self.assertEquals(shoulder.get_child(elbow), elbow)
 
     def test_get_child(self):
-        """[model.guide.Guide.get_child]
-        Guide get child
+        """[model.guide.GuideModel.get_child]
+        GuideModel get child
         """
 
-        shoulder = Guide("L", "shoulder", 0)
-        elbow = Guide("L", "elbow", 0)
+        shoulder = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "shoulder", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         with self.assertRaises(Exception):
             shoulder.get_child(elbow)
@@ -471,12 +475,12 @@ class TestModelGuideHierarchy(unittest.TestCase):
         self.assertEquals(shoulder.get_child(elbow), elbow)
 
     def test_remove_parent(self):
-        """[model.guide.Guide.remove_parent]
+        """[model.guide.GuideModel.remove_parent]
         Remove parent guide
         """
 
-        shoulder = Guide("L", "shoulder", 0)
-        elbow = Guide("L", "elbow", 0)
+        shoulder = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "shoulder", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         with self.assertRaises(Exception):
             shoulder.remove_parent()
@@ -492,12 +496,12 @@ class TestModelGuideHierarchy(unittest.TestCase):
         self.assertEquals(parent, elbow.get_parent())
 
     def test_remove_child(self):
-        """[model.guide.Guide.remove_child]
+        """[model.guide.GuideModel.remove_child]
         Remove child guide
         """
 
-        shoulder = Guide("L", "shoulder", 0)
-        elbow = Guide("L", "elbow", 0)
+        shoulder = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "shoulder", 0)
+        elbow = GuideModel(POSITION, PRIMARY, PRIMARY_INDEX, "elbow", 0)
 
         # Doesn't exist yet
         with self.assertRaises(Exception):

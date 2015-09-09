@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 from maya import cmds
 
-from creatureforge.lib import libname
+from creatureforge.control import name
 from creatureforge.lib import libattr
 from creatureforge.lib import libutil
 from creatureforge.lib import libconstraint
@@ -18,6 +18,7 @@ from creatureforge.model.base import Module
 from creatureforge.exceptions import DuplicateNameError
 from creatureforge.exceptions import GuideDoesNotExistError
 from creatureforge.exceptions import GuideHierarchyError
+from creatureforge.model.base import ModuleModelBase
 
 
 class GuideError(Exception):
@@ -38,7 +39,7 @@ def cache(func):
     return wraps
 
 
-class Up(Module):
+class UpModel(ModuleModelBase):
 
     SUFFIX = "up"
     RAIDUS = 0.3
@@ -47,7 +48,7 @@ class Up(Module):
 
         self.__guide = guide
 
-        super(Up, self).__init__(*guide.tokens)
+        super(UpModel, self).__init__(*guide.tokenize)
 
     @cache
     def get_translates(self, worldspace=True):
@@ -72,11 +73,11 @@ class Up(Module):
         return self._dag.get("shapes")
 
     def __create_node(self):
-        grp_name = libname.rename(self.get_name().compile(), append="Up", suffix="grp")
+        grp_name = name.rename(self.get_name(), secondary="up", suffix="grp")
         grp = cmds.createNode("transform", name=grp_name)
         self.store("grp", grp)
 
-        sphere = cmds.sphere(name=self.get_name().compile(), radius=Up.RAIDUS)[0]
+        sphere = cmds.sphere(name=self.get_name().compile(), radius=UpModel.RAIDUS)[0]
         shapes = cmds.listRelatives(sphere, shapes=True)
 
         cmds.parent(sphere, grp)
@@ -99,7 +100,7 @@ class Up(Module):
         shapes = self.get_shapes()
         cl, cl_handle = cmds.cluster(shapes)
         libattr.set(cl, "relative", True)
-        cl_handle = cmds.rename(cl_handle, libname.rename(self.get_node(), append="upScale", suffix="clh"))
+        cl_handle = cmds.rename(cl_handle, name.rename(self.get_node(), secondary="upScale", suffix="clh"))
         self.store("scale", cl_handle)
 
         for axis in AXIS:
@@ -116,9 +117,9 @@ class Up(Module):
         libattr.set(self.get_node(), "translateY", 3)
 
     def _post(self):
-        super(Up, self)._post()
+        super(UpModel, self)._post()
 
         # Lock up some attributes
-        libattr.lock_rotate(self.get_node())
-        libattr.lock_scale(self.get_node())
+        libattr.lock_rotates(self.get_node())
+        libattr.lock_scales(self.get_node())
         libattr.lock_visibility(self.get_node())

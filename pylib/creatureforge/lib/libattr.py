@@ -102,7 +102,7 @@ def lock_all(node, *args, **kwargs):
     lock_translates(node, *args, **kwargs)
     lock_rotates(node, *args, **kwargs)
     lock_scales(node, *args, **kwargs)
-    lock_vis(node, *args, **kwargs)
+    lock_visibility(node, *args, **kwargs)
 
 def set_keyable(node, name):
     MayaAttribute(node, name, channelBox=True).set()

@@ -11,6 +11,9 @@ from creatureforge.lib import libattr
 from creatureforge.model.base import Module
 from creatureforge.model.base import ModuleModelBase
 
+from maya import cmds
+
+
 class PartModelBase(ModuleModelBase):
 
     SUFFIX = "prt"
@@ -44,23 +47,21 @@ class PartModelBase(ModuleModelBase):
         components = {}
         for key, comp in self.get_components().iteritems():
             components[key] = comp.__class__.__name__
+            cmds.parent(comp.get_node(), self.get_setup())
 
         node = self.get_node()
         libattr.set(node, "components", json.dumps(components), type="string")
         libattr.lock(node, "components")
 
+
 class ComponentModelBase(ModuleModelBase):
 
-    suffix = "cmp"
+    SUFFIX = "cmp"
 
     def __init__(self, *args, **kwargs):
         super(ComponentModelBase, self).__init__(*args, **kwargs)
 
         self._controls = OrderedDict()
-
-    def __create_node(self):
-        # Info meta node
-        pass
 
     def register_control(self, ctl):
         ctl_name = ctl.get_name()
@@ -79,3 +80,11 @@ class ComponentModelBase(ModuleModelBase):
 
     def get_controls(self):
         return deepcopy(self._controls)
+
+    def _create(self):
+        node = cmds.createNode("locator")
+        node = cmds.listRelatives(node, parent=True)[0]
+        node = cmds.rename(node, self.get_name())
+        libattr.lock_all(node)
+
+
