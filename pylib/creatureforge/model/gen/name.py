@@ -17,6 +17,10 @@ class InvalidNameError(Exception):
     pass
 
 
+class InvalidTokenError(Exception):
+    pass
+
+
 def validate(func):
     def wraps(*args, **kwargs):
         if not len(str(args[0]).split(NameModel.SEP)) == 6:
@@ -45,7 +49,7 @@ def match(pattern, key, value):
         return re.match(str(pattern), str(value)).group(0)
     except (AttributeError, TypeError):
         err = "Invalid token '{0}': {1}".format(key, value)
-        raise NameError(err)
+        raise InvalidTokenError(err)
 
 
 class NameModel(object):
