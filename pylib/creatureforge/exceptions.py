@@ -3,10 +3,10 @@
 """
 """
 
+from creatureforge.model.gen.name import InvalidNameError
 
 class InvalidNameError(Exception):
     pass
-
 
 class DuplicateNameError(Exception):
     pass

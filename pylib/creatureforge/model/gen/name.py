@@ -1,25 +1,12 @@
-#!/usr/bin/env pythong
-
-"""
-Naming convention file
-
-position_description(subType)_index_type
-"""
+#!/usr/bin/env python
 
 import re
 import logging
 from copy import deepcopy
 
-# from creatureforge.exceptions import InvalidNameError
-
-# from maya import cmds
-
-logging.basicConfig()
 logger = logging.getLogger(__name__)
 
-MAX = 6
 DEFAULT_SUFFIX = "grp"
-
 PATTERN_POSITION = r"^([a-zA-Z]+)$"
 PATTERN_DESCRIPTION = r"^(?!^\d+)(?!^\d+$)([a-zA-Z0-9]+)$"
 PATTERN_INDEX = r"^(\d+)$"
@@ -32,7 +19,7 @@ class InvalidNameError(Exception):
 
 def validate(func):
     def wraps(*args, **kwargs):
-        if not len(str(args[0]).split(NameModel.SEP)) == MAX:
+        if not len(str(args[0]).split(NameModel.SEP)) == 6:
             err = "Invalid name: {name}".format(name=args[0])
             raise InvalidNameError(err)
         return func(*args, **kwargs)
@@ -62,6 +49,9 @@ def match(pattern, key, value):
 
 
 class NameModel(object):
+    """
+    Name container immutable data
+    """
 
     SEP = "_"
 
@@ -111,8 +101,7 @@ class NameModel(object):
         self.__secondary = NameModel.fmt_secondary(secondary)
         self.__secondary_index = NameModel.fmt_secondary_index(secondary_index)
         self.__suffix = NameModel.fmt_suffix(suffix)
-
-        # self.__data = {}
+        self.__data = {}
 
     def __str__(self):
         return self.__compile()
@@ -120,7 +109,7 @@ class NameModel(object):
     def __repr__(self):
             return "<{cls} '{name}'>".format(
                 cls=self.__class__.__name__,
-                name=self.compile())
+                name=self.__compile())
 
     def __compile(self):
         return "{sep}".format(sep=NameModel.SEP).join(map(str, self.tokens))
@@ -158,15 +147,15 @@ class NameModel(object):
                 self.secondary_index,
                 self.suffix)
 
-    # @property
-    # def data(self):
-    #     if not self.__data:
-    #         self.__data = {
-    #             NameModel.POSITION: self.position,
-    #             NameModel.PRIMARY: self.primary,
-    #             NameModel.PRIMARY_INDEX: self.primary_index,
-    #             NameModel.SECONDARY: self.secondary,
-    #             NameModel.SECONDARY_INDEX: self.secondary_index,
-    #             NameModel.SUFFIX: self.suffix,
-    #         }
-    #     return self.__data
+    @property
+    def data(self):
+        if not self.__data:
+            self.__data = {
+                NameModel.POSITION: self.position,
+                NameModel.PRIMARY: self.primary,
+                NameModel.PRIMARY_INDEX: self.primary_index,
+                NameModel.SECONDARY: self.secondary,
+                NameModel.SECONDARY_INDEX: self.secondary_index,
+                NameModel.SUFFIX: self.suffix,
+            }
+        return deepcopy(self.__data)
