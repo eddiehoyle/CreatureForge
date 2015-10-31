@@ -198,13 +198,95 @@ class Module(object):
 
 
 class ModuleModelBase(object):
+
+    SUFFIX = "nde"
+
+    def __init__(self, position, primary, primary_index, secondary,
+                 secondary_index):
+
+        self.__name = NameModel(position,
+                                primary,
+                                primary_index,
+                                secondary,
+                                secondary_index,
+                                suffix=self.SUFFIX)
+
+        self._dag = {}
+        self._nondag = {}
+
+    def __eq__(self, other):
+        return str(self.name) == str(other)
+
+    def __str__(self):
+        return str(self.name)
+
+    def __repr__(self):
+        return "<%s '%s'>" % (self.__class__.__name__, self.name)
+
+    def __hash__(self):
+        return hash(str(self.name))
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def node(self):
+        if self.exists:
+            return str(self.name)
+        raise RuntimeError("Node '{0}' does not exist!".format(self.name))
+
+    @property
+    def exists(self):
+        return cmds.objExists(self.name)
+
+    @property
+    def dag(self):
+        if self.exists and not self._dag:
+            self._dag = json.loads(libattr.get(self.node, "dag"))
+        return self._dag
+
+    @property
+    def nondag(self):
+        if self.exists and not self._nondag:
+            self._nondag = json.loads(libattr.get(self.node, "nondag"))
+        return self._nondag
+
+    def create(self):
+        self._pre_create()
+        self._create()
+        self._post_create()
+
+    def _pre_create(self):
+        self.store("node", str(self.name))
+
+    def _create(self):
+        raise NotImplementedError("_create")
+
+    def _post_create(self):
+        raise NotImplementedError("_post_create")
+
+    def store(self, key, value, dag=True, append=False):
+        container = self._dag if dag else self._nondag
+        if append:
+            if key not in container:
+                container[key] = []
+            if isinstance(value, (list, tuple, set)):
+                container[key].extend(value)
+            else:
+                container[key].append(value)
+        else:
+            container[key] = value
+
+
+class ModuleModelBase2(object):
     """
     Base Maya module model.
     """
 
     SUFFIX = "nde"
 
-    __name__ = "ModuleModelBase"
+    __name__ = "ModuleModelBase2"
 
     def __init__(self, position, primary, primary_index, secondary, secondary_index):
 
@@ -214,7 +296,7 @@ class ModuleModelBase(object):
                                 secondary,
                                 secondary_index,
                                 suffix=self.SUFFIX)
-                                
+
         self.__node = self.__name.compile()
 
         self._dag = {}

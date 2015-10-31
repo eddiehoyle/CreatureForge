@@ -15,8 +15,8 @@ from creatureforge.lib import libattr
 from creatureforge.lib import libutil
 from creatureforge.lib import libconstraint
 from creatureforge.decorators import Memoized
-from creatureforge.model.base import Module
-from creatureforge.model.base import ModuleModelBase
+from creatureforge.model._base import Module
+from creatureforge.model._base import ModuleModelBase
 
 
 from creatureforge.model.up import UpModel
@@ -45,6 +45,55 @@ class GuideModel(ModuleModelBase):
 
     RADIUS = 1.0
     SUFFIX = "gde"
+    DEFAULT_AIM = ["world", "custom"]
+    ORIENT_MAP = OrderedDict([
+        ("xyz", [(0, 0, 0), (0, 180, 0)]),
+        ("xzy", [(-90, 0, 0), (-90, 180, 0)]),
+        ("yxz", [(0, -180, -90), (0, 0, 90)]),
+        ("yzx", [(0, -90, -90), (180, 90, -90)]),
+        ("zxy", [(-90, 180, -90), (90, 180, -90)]),
+        ("zyx", [(-90, 90, -90), (-90, -90, 90)])])
+
+    def __init__(self, position, primary, primary_index, secondary,
+                 secondary_index):
+        super(GuideModel2, self).__init__(position, primary, primary_index,
+                                          secondary, secondary_index)
+
+    def shapes(self):
+        raise NotImplementedError("shapes")
+
+    def up(self):
+        raise NotImplementedError("up")
+
+    def tendons(self):
+        raise NotImplementedError("tendons")
+
+    def setup(self):
+        raise NotImplementedError("setup")
+
+    def aim(self):
+        raise NotImplementedError("aim")
+
+    def constraint(self):
+        raise NotImplementedError("constraint")
+
+    def condition(self):
+        raise NotImplementedError("condition")
+
+    def parent(self):
+        raise NotImplementedError("parent")
+
+    def children(self):
+        raise NotImplementedError("children")
+
+
+
+
+
+class GuideModel2(ModuleModelBase):
+
+    RADIUS = 1.0
+    SUFFIX = "gde"
 
     ORIENT = OrderedDict([("xyz", [(0, 0, 0), (0, 180, 0)]),
                           ("xzy", [(-90, 0, 0), (-90, 180, 0)]),
@@ -63,14 +112,14 @@ class GuideModel(ModuleModelBase):
             if isinstance(node, cls):
                 return node
             else:
-                return GuideModel(*name.tokenize(str(node))).reinit()
+                return GuideModel2(*name.tokenize(str(node))).reinit()
         except Exception, excp:
             msg = "'{node}' is not a valid guide. {e}".format(node=node, e=excp)
             logger.error(msg)
             raise TypeError(msg)
 
     def __init__(self, position, primary, primary_index, secondary, secondary_index):
-        super(GuideModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
+        super(GuideModel2, self).__init__(position, primary, primary_index, secondary, secondary_index)
 
     def __gt__(self, other):
         # TODO:
@@ -78,7 +127,7 @@ class GuideModel(ModuleModelBase):
         return str(self.get_node()) > str(other)
 
     def reinit(self):
-        super(GuideModel, self).reinit()
+        super(GuideModel2, self).reinit()
         return self
 
     @cache
@@ -113,14 +162,14 @@ class GuideModel(ModuleModelBase):
     def get_parent(self):
         parent = cmds.listRelatives(self.get_node(), parent=True, type="joint")
         if parent:
-            return GuideModel.validate(parent[0])
+            return GuideModel2.validate(parent[0])
         return None
 
     @cache
     def get_children(self):
         children = cmds.listRelatives(
             self.get_node(), children=True, type="joint") or tuple()
-        return tuple(map(GuideModel.validate, children))
+        return tuple(map(GuideModel2.validate, children))
 
     @cache
     def get_child(self, guide):
@@ -160,7 +209,7 @@ class GuideModel(ModuleModelBase):
         # Get some joint creation args
         aim = self.get_aim()
         orientation = cmds.xform(aim, q=1, ws=1, ro=1)
-        rotation_order = GuideModel.ORIENT.keys()[cmds.getAttr("%s.guideAimOrient" % self.get_node())]
+        rotation_order = GuideModel2.ORIENT.keys()[cmds.getAttr("%s.guideAimOrient" % self.get_node())]
 
         # Create joint
         joint = cmds.joint(name=name.rename(self.get_name(), suffix="jnt"),
@@ -182,7 +231,7 @@ class GuideModel(ModuleModelBase):
 
         # Create guide object if valid
         if target not in self.DEFAULT:
-            return GuideModel(*name.tokenize(target))
+            return GuideModel2(*name.tokenize(target))
 
         return None
 
@@ -201,17 +250,17 @@ class GuideModel(ModuleModelBase):
     @cache
     def set_aim_orient(self, order):
         order = str(order).lower()
-        if order not in GuideModel.ORIENT:
+        if order not in GuideModel2.ORIENT:
             err = "Order '{order}' is invalid, must be one of: {keys}".format(
-                GuideModel.ORIENT.keys())
+                GuideModel2.ORIENT.keys())
             raise RuntimeError(err)
-        index = GuideModel.ORIENT.keys().index(order)
+        index = GuideModel2.ORIENT.keys().index(order)
         cmds.setAttr("{node}.guideAimOrient".format(
             node=self.get_node()), index)
 
     @cache
     def get_aim_orient(self):
-        order = GuideModel.ORIENT.keys()
+        order = GuideModel2.ORIENT.keys()
         index = cmds.getAttr("{node}.guideAimOrient".format(
             node=self.get_node()))
         return order[index]
@@ -257,7 +306,7 @@ class GuideModel(ModuleModelBase):
     @cache
     def copy(self):
         copy_name = name.generate_primary(self.get_node())
-        guide = GuideModel(*name.tokenize(copy_name))
+        guide = GuideModel2(*name.tokenize(copy_name))
         guide.create()
         return guide
 
@@ -319,7 +368,7 @@ class GuideModel(ModuleModelBase):
                 node=self.get_node())
             raise GuideModelError(err)
 
-        # GuideModel is already a child of self
+        # GuideModel2 is already a child of self
         if self.has_child(guide):
             err = "'{guide}' is already a child of '{node}'.".format(
                 guide=guide, node=self.get_node())
@@ -347,7 +396,7 @@ class GuideModel(ModuleModelBase):
         for child in self.get_children():
             self.remove_child(child)
         self.get_up().remove()
-        super(GuideModel, self).remove()
+        super(GuideModel2, self).remove()
         logger.info("Removed '{node}'".format(node=self.get_name()))
 
     @cache
@@ -428,7 +477,7 @@ class GuideModel(ModuleModelBase):
                 libattr.set(aim_constraint, alias, 0)
 
         # Default to world if no aim objects are attached
-        if len(enums) == len(GuideModel.DEFAULT):
+        if len(enums) == len(GuideModel2.DEFAULT):
             libattr.set(self.get_node(), "guideAimAt", 0)
 
         logger.debug("'%s' remove child: '%s' (%0.3fs)" % (self.get_node(),
@@ -451,7 +500,7 @@ class GuideModel(ModuleModelBase):
         libattr.set(self.get_node(), "drawStyle", 2)
 
         # Create shapes
-        transform = cmds.sphere(radius=GuideModel.RADIUS, ch=False)[0]
+        transform = cmds.sphere(radius=GuideModel2.RADIUS, ch=False)[0]
         shape = cmds.listRelatives(transform, type="nurbsSurface", children=True)[0]
         shape = cmds.rename(shape, name.rename(self.get_node(), shape=True))
         cmds.parent(shape, self.get_node(), r=True, s=True)
@@ -461,10 +510,10 @@ class GuideModel(ModuleModelBase):
 
         # Add attributes
         libattr.add_double(self.get_node(), "guideScale", min=0.01, dv=1)
-        libattr.add_enum(self.get_node(), "guideAimAt", enums=GuideModel.DEFAULT)
+        libattr.add_enum(self.get_node(), "guideAimAt", enums=GuideModel2.DEFAULT)
 
         libattr.add_bool(self.get_node(), "guideAimFlip")
-        libattr.add_enum(self.get_node(), "guideAimOrient", enums=GuideModel.ORIENT.keys())
+        libattr.add_enum(self.get_node(), "guideAimOrient", enums=GuideModel2.ORIENT.keys())
         libattr.add_bool(self.get_node(), "guideDebug", dv=1)
         libattr.add_vector(self.get_node(), "guideOffsetOrient")
 
@@ -532,7 +581,7 @@ class GuideModel(ModuleModelBase):
         aim_index = orient_targets.index(self.get_node())
 
         # Create 'custom' condition
-        libattr.set(aim_condition, "secondTerm", GuideModel.DEFAULT.index("custom"))
+        libattr.set(aim_condition, "secondTerm", GuideModel2.DEFAULT.index("custom"))
         libattr.set(aim_condition, "colorIfTrueR", 1)
         libattr.set(aim_condition, "colorIfFalseR", 0)
         libattr.set(aim_condition, "operation", 5)
@@ -549,7 +598,7 @@ class GuideModel(ModuleModelBase):
         cmds.connectAttr("{pma}.output3D".format(pma=offset_pma),
                          "{constraint}.offset".format(constraint=aim_constraint))
 
-        for pair_index, axises in enumerate(GuideModel.ORIENT):
+        for pair_index, axises in enumerate(GuideModel2.ORIENT):
 
             primary, secondary = self.ORIENT[axises]
 
@@ -574,7 +623,7 @@ class GuideModel(ModuleModelBase):
         # Add custom orient offset
         local_condition = cmds.createNode("condition")
         cmds.connectAttr("%s.guideAimAt" % self.get_node(), "%s.firstTerm" % local_condition)
-        libattr.set(local_condition, "secondTerm", GuideModel.DEFAULT.index("custom"))
+        libattr.set(local_condition, "secondTerm", GuideModel2.DEFAULT.index("custom"))
         libattr.set(local_condition, "operation", 0)
         for attr, axis, rgb in zip(["guideOffsetOrientX", "guideOffsetOrientY", "guideOffsetOrientZ"], AXIS, ["R", "G", "B"]):
             libattr.set(local_condition, "colorIfFalse%s" % rgb, 0)

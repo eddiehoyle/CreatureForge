@@ -3,6 +3,7 @@
 import re
 import logging
 from copy import deepcopy
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,6 @@ class NameModel(object):
     """
 
     SEP = "_"
-
     POSITION = "position"
     PRIMARY = "primary"
     PRIMARY_INDEX = "primary_index"
@@ -148,18 +148,17 @@ class NameModel(object):
                 self.primary,
                 self.primary_index,
                 self.secondary,
-                self.secondary_index,
-                self.suffix)
+                self.secondary_index)
 
     @property
     def data(self):
         if not self.__data:
-            self.__data = {
-                NameModel.POSITION: self.position,
-                NameModel.PRIMARY: self.primary,
-                NameModel.PRIMARY_INDEX: self.primary_index,
-                NameModel.SECONDARY: self.secondary,
-                NameModel.SECONDARY_INDEX: self.secondary_index,
-                NameModel.SUFFIX: self.suffix,
-            }
+            self.__data = OrderedDict([
+                (NameModel.POSITION, self.position),
+                (NameModel.PRIMARY, self.primary),
+                (NameModel.PRIMARY_INDEX, self.primary_index),
+                (NameModel.SECONDARY, self.secondary),
+                (NameModel.SECONDARY_INDEX, self.secondary_index),
+                (NameModel.SUFFIX, self.suffix),
+            ])
         return deepcopy(self.__data)
