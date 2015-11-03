@@ -47,6 +47,10 @@ class MayaAttribute(object):
         if self.has():
             cmds.setAttr(self.path, lock=True)
 
+    def unlock(self):
+        if self.has():
+            cmds.setAttr(self.path, lock=False)
+
 def add_double(node, name, *args, **kwargs):
     add(node, name, at="double", *args, **kwargs)
     # MayaAttribute(node, name, at="double", *args, **kwargs).add()
@@ -125,3 +129,6 @@ def has(node, name, *args, **kwargs):
 
 def lock(node, name, *args, **kwargs):
     MayaAttribute(node, name, *args, **kwargs).lock()
+
+def unlock(node, name, *args, **kwargs):
+    MayaAttribute(node, name, *args, **kwargs).unlock()

@@ -50,6 +50,9 @@ class ModuleModelBase(object):
         if self.exists:
             self._dag = json.loads(libattr.get(self.node, "dag"))
             self._nondag = json.loads(libattr.get(self.node, "nondag"))
+
+            # TODO:
+            #   Reinit all values to be original types?
             self._meta = json.loads(libattr.get(self.node, "meta"))
 
     def __eq__(self, other):
@@ -116,6 +119,8 @@ class ModuleModelBase(object):
         libattr.lock(self.node, "dag")
         libattr.lock(self.node, "nondag")
         libattr.lock(self.node, "meta")
+
+        cmds.select(self.node)
 
     def remove(self):
         """Delete all traces of module from scene.

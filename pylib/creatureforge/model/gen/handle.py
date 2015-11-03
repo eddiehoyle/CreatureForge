@@ -4,8 +4,13 @@
 """
 
 import sys
+import json
 
 from maya import cmds
+
+from creatureforge.lib import libattr
+from creatureforge.lib import libmaya
+from creatureforge.lib import libutil
 from creatureforge.control import name
 from creatureforge.model._base import ModuleModelBase
 
@@ -35,8 +40,18 @@ class Shapes(object):
                [0.0, 0.0, 1.0]]]
 
 
+class Colors:
+
+    YELLOW = 17
+    RED = 13
+
+
 def get_cvs(style):
     return getattr(Shapes, str(style.upper()))
+
+
+def get_color(color):
+    return getattr(Colors, str(color.upper()))
 
 
 def exists(func):
@@ -58,15 +73,21 @@ def exists(func):
 
 
 class ControlModel(ModuleModelBase):
+    """Control handle to drive rig components
+    """
 
     SUFFIX = "ctl"
+    DEFAULT_SHAPE = "circle"
+    DEFAULT_COLOR = "yellow"
 
     def __init__(self, position, primary, primary_index, secondary,
                  secondary_index):
         super(ControlModel, self).__init__(position, primary, primary_index,
                                            secondary, secondary_index)
 
-        self.set_style("circle")
+        self.__cvs = []
+        self.set_style(self.style or ControlModel.DEFAULT_SHAPE, rebuild=False)
+        self.set_color(self.color or ControlModel.DEFAULT_COLOR, rebuild=False)
 
     @property
     def shapes(self):
@@ -81,30 +102,52 @@ class ControlModel(ModuleModelBase):
         return self._meta.get("style", None)
 
     @property
-    def cvs(self):
-        return self._meta.get("cvs", [])
+    def color(self):
+        return self._meta.get("color", None)
 
-    def set_style(self, style):
+    def set_style(self, style, rebuild=True):
+        """Update stlye of handle.
+        """
         # TODO:
         #   Validate shape name against Shapes map
         self.store("style", style, container="meta")
-        self.store("cvs", get_cvs(style), container="meta")
+        self.__cvs = get_cvs(style)
+        if rebuild:
+            self.rebuild()
 
-        if self.exists:
-            self.__rebuild()
+    def set_color(self, color, rebuild=True):
+        """Update color of handle
+        """
+        self.store("color", color, container="meta")
+        if rebuild:
+            self.rebuild()
 
     def _create(self):
         self.__create_handle()
         self.__create_shapes()
+        self.__attributes()
 
-    def __rebuild(self):
+    def __attributes(self):
+        libattr.lock_visibility(self.node)
+
+    def rebuild(self):
+        """Must be called after updating style or color to see effects
         """
-        """
-        cmds.delete(self.shapes)
-        self.__create_shapes()
+        if self.exists:
+            cmds.delete(self.shapes)
+            self.__create_shapes()
+
+            # TODO:
+            #   Updating meta container here is not good.
+            libattr.unlock(self.node, "meta")
+            libattr.set(self.node, "meta", json.dumps(
+                libutil.stringify(self.meta)), type="string")
+            libattr.lock(self.node, "meta")
+
+        return self
 
     def __create_handle(self):
-        """Create contorl handle.
+        """Create control handle
         """
         cmds.select(cl=True)
         cmds.createNode("transform", name=self.name)
@@ -113,18 +156,23 @@ class ControlModel(ModuleModelBase):
     def __create_shapes(self):
         """Create shapes under control handle.
         """
-        for crv in self.cvs:
-            degree = 1
-            temp_curve = cmds.curve(name="temp_curve", d=degree, p=crv)
-            shapes = cmds.listRelatives(temp_curve, shapes=True)
-            for shape in shapes:
-                cmds.parent(shape, self.node, shape=True, r=True)
-            cmds.delete(temp_curve)
+        with libmaya.Selection():
+            for crv in self.__cvs:
+                degree = 1
+                temp_curve = cmds.curve(name="temp_curve", d=degree, p=crv)
+                shapes = cmds.listRelatives(temp_curve, shapes=True)
+                for shape in shapes:
+                    cmds.parent(shape, self.node, shape=True, r=True)
+                cmds.delete(temp_curve)
 
-        # Rename
-        shapes = cmds.listRelatives(self.node, shapes=True) or []
-        for index, shape in enumerate(shapes):
-            shape_name = name.rename(self.name, shape=True)
-            new_shape = cmds.rename(shape, shape_name)
-            shapes[shapes.index(shape)] = new_shape
-        self.store("shapes", shapes, container="dag")
+            # Rename
+            shapes = cmds.listRelatives(self.node, shapes=True) or []
+            for index, shape in enumerate(shapes):
+                shape_name = name.rename(self.name, shape=True)
+                cmds.rename(shape, shape_name)
+                shapes[shapes.index(shape)] = shape_name
+
+                libattr.set(shape_name, "overrideEnabled", 1)
+                libattr.set(shape_name, "overrideColor", get_color(self.color))
+
+            self.store("shapes", shapes, container="dag")
