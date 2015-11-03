@@ -116,7 +116,8 @@ class NameModel(object):
                 name=self.__compile())
 
     def __compile(self):
-        return "{sep}".format(sep=NameModel.SEP).join(map(str, self.tokens))
+        return "{sep}".format(sep=NameModel.SEP).join(
+            map(str, self.data.values()))
 
     @property
     def position(self):
