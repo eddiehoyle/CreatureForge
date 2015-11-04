@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 """
+Control handle model
 """
 
 import sys
@@ -10,7 +11,6 @@ from maya import cmds
 
 from creatureforge.lib import libattr
 from creatureforge.lib import libmaya
-from creatureforge.lib import libutil
 from creatureforge.control import name
 from creatureforge.model._base import ModuleModelBase
 
@@ -47,10 +47,14 @@ class Colors:
 
 
 def get_cvs(style):
+    # TODO:
+    #   Validate shape name against Shapes map
     return getattr(Shapes, str(style.upper()))
 
 
 def get_color(color):
+    # TODO:
+    #   Validate color names
     return getattr(Colors, str(color.upper()))
 
 
@@ -72,22 +76,20 @@ def exists(func):
     return prop
 
 
-class ControlModel(ModuleModelBase):
+class HandleModel(ModuleModelBase):
     """Control handle to drive rig components
     """
 
     SUFFIX = "ctl"
-    DEFAULT_SHAPE = "circle"
+    DEFAULT_STYLE = "circle"
     DEFAULT_COLOR = "yellow"
 
     def __init__(self, position, primary, primary_index, secondary,
                  secondary_index):
-        super(ControlModel, self).__init__(position, primary, primary_index,
-                                           secondary, secondary_index)
+        super(HandleModel, self).__init__(position, primary, primary_index,
+                                          secondary, secondary_index)
 
         self.__cvs = []
-        self.set_style(self.style or ControlModel.DEFAULT_SHAPE, rebuild=False)
-        self.set_color(self.color or ControlModel.DEFAULT_COLOR, rebuild=False)
 
     @property
     def shapes(self):
@@ -99,52 +101,46 @@ class ControlModel(ModuleModelBase):
 
     @property
     def style(self):
-        return self._meta.get("style", None)
+        return self._meta.get("style")
 
     @property
     def color(self):
-        return self._meta.get("color", None)
+        return self._meta.get("color")
 
-    def set_style(self, style, rebuild=True):
+    def set_style(self, style):
         """Update stlye of handle.
         """
-        # TODO:
-        #   Validate shape name against Shapes map
         self.store("style", style, container="meta")
         self.__cvs = get_cvs(style)
-        if rebuild:
-            self.rebuild()
+        self.__rebuild()
 
-    def set_color(self, color, rebuild=True):
+    def set_color(self, color):
         """Update color of handle
         """
         self.store("color", color, container="meta")
-        if rebuild:
-            self.rebuild()
+        self.__rebuild()
 
     def _create(self):
         self.__create_handle()
-        self.__create_shapes()
+        self.set_style(self.style)
+        self.set_color(self.color)
         self.__attributes()
+
+    def __rebuild(self):
+        """Rebuild control handle shapes and colors
+        """
+        if self.exists:
+            if self.shapes:
+                cmds.delete(self.shapes)
+            self.__create_shapes()
+            for shape in self.shapes:
+                libattr.set(shape, "overrideEnabled", 1)
+                libattr.set(shape, "overrideColor", get_color(self.color))
+            self.refresh()
+        return self
 
     def __attributes(self):
         libattr.lock_visibility(self.node)
-
-    def rebuild(self):
-        """Must be called after updating style or color to see effects
-        """
-        if self.exists:
-            cmds.delete(self.shapes)
-            self.__create_shapes()
-
-            # TODO:
-            #   Updating meta container here is not good.
-            libattr.unlock(self.node, "meta")
-            libattr.set(self.node, "meta", json.dumps(
-                libutil.stringify(self.meta)), type="string")
-            libattr.lock(self.node, "meta")
-
-        return self
 
     def __create_handle(self):
         """Create control handle
@@ -171,8 +167,5 @@ class ControlModel(ModuleModelBase):
                 shape_name = name.rename(self.name, shape=True)
                 cmds.rename(shape, shape_name)
                 shapes[shapes.index(shape)] = shape_name
-
-                libattr.set(shape_name, "overrideEnabled", 1)
-                libattr.set(shape_name, "overrideColor", get_color(self.color))
 
             self.store("shapes", shapes, container="dag")

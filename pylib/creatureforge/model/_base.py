@@ -102,25 +102,38 @@ class ModuleModelBase(object):
         libattr.add_string(self.node, "dag")
         libattr.add_string(self.node, "nondag")
         libattr.add_string(self.node, "meta")
-        libattr.set(self.node, "dag", "{}", type="string")
-        libattr.set(self.node, "nondag", "{}", type="string")
-        libattr.set(self.node, "meta", "{}", type="string")
 
         self.store("node", str(self.name), container="dag")
+        self.refresh()
 
-        # TODO:
-        #   Tidy this up
-        libattr.set(self.node, "dag", json.dumps(
-            libutil.stringify(self.dag)), type="string")
-        libattr.set(self.node, "nondag", json.dumps(
-            libutil.stringify(self.nondag)), type="string")
+        cmds.select(self.node, r=True)
+
+    def refresh(self):
+        """Store container data into nodes
+        """
+
+        libattr.unlock(self.node, "dag")
+        libattr.unlock(self.node, "nondag")
+        libattr.unlock(self.node, "meta")
+
+        meta = json.loads(libattr.get(self.node, "meta") or "{}")
+        meta.update(self.meta)
         libattr.set(self.node, "meta", json.dumps(
-            libutil.stringify(self.meta)), type="string")
+            libutil.stringify(meta)), type="string")
+
+        dag = json.loads(libattr.get(self.node, "dag") or "{}")
+        dag.update(self.dag)
+        libattr.set(self.node, "dag", json.dumps(
+            libutil.stringify(dag)), type="string")
+
+        nondag = json.loads(libattr.get(self.node, "nondag") or "{}")
+        nondag.update(self.nondag)
+        libattr.set(self.node, "nondag", json.dumps(
+            libutil.stringify(nondag)), type="string")
+
         libattr.lock(self.node, "dag")
         libattr.lock(self.node, "nondag")
         libattr.lock(self.node, "meta")
-
-        cmds.select(self.node)
 
     def remove(self):
         """Delete all traces of module from scene.
