@@ -52,39 +52,3 @@ class PartModelBase(ModuleModelBase):
         node = self.get_node()
         libattr.set(node, "components", json.dumps(components), type="string")
         libattr.lock(node, "components")
-
-
-class ComponentModelBase(ModuleModelBase):
-
-    SUFFIX = "cmp"
-
-    def __init__(self, *args, **kwargs):
-        super(ComponentModelBase, self).__init__(*args, **kwargs)
-
-        self._controls = OrderedDict()
-
-    def register_control(self, ctl):
-        ctl_name = ctl.get_name()
-        ctl_key = (ctl_name.secondary, ctl_name.secondary_index)
-        self._controls[ctl_key] = ctl
-
-    def get_control(self, secondary, secondary_index):
-        ctl_key = (secondary, secondary_index)
-        try:
-            return self._controls[ctl_key]
-        except KeyError, excp:
-            err = "Component '{comp}' does not have control: {key}".format(
-                comp=self.__class__.__name__, key=ctl_key)
-            excp.args = [err]
-            raise
-
-    def get_controls(self):
-        return deepcopy(self._controls)
-
-    def _create(self):
-        node = cmds.createNode("locator")
-        node = cmds.listRelatives(node, parent=True)[0]
-        node = cmds.rename(node, self.get_name())
-        libattr.lock_all(node)
-
-

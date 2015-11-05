@@ -27,6 +27,8 @@ def cache(func):
 
 
 class ModuleModelBase(object):
+    """Base class for all models.
+    """
 
     SUFFIX = "nde"
 
@@ -147,9 +149,7 @@ class ModuleModelBase(object):
         if nondag:
             cmds.delete(nondag)
 
-        self._dag = {}
-        self._nondag = {}
-        self._meta = {}
+        self._dag = self._nondag = self._meta = {}
 
         print "Deleted {0} node(s).".format(len(dag + nondag))
 
