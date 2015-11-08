@@ -13,18 +13,92 @@ from creatureforge.lib import libxform
 from creatureforge.lib import libattr
 from creatureforge.lib import libvector
 from creatureforge.control import name
-from creatureforge.model.parts.components.control import ControlHandleModel
-from creatureforge.decorators import Memoized
-from creatureforge.model.parts.base import ComponentModelBase
+from creatureforge.model.components._base import ComponentModelBase
+from creatureforge.control import handle
 
 
 logger = logging.getLogger(__name__)
 
+
 class ComponentIkModelBase(ComponentModelBase):
-    pass
+
+    def __init__(self, position, primary, primary_index, secondary,
+                 secondary_index):
+        super(ComponentIkModelBase, self).__init__(position, primary,
+                                                   primary_index, secondary,
+                                                   secondary_index)
 
 
 class ComponentIkScModel(ComponentIkModelBase):
+    """
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(ComponentIkScModel, self).__init__(*args, **kwargs)
+
+        self.__ikhandle = None
+        self.__effector = None
+
+    @property
+    def ikhandle(self):
+        return self.__ikhandle
+
+    @property
+    def effector(self):
+        return self.__effector
+
+    def __create_ik(self):
+        joints = self.get_joints()
+        start_joint, end_joint = joints[0], joints[-1]
+        handle, effector = cmds.ikHandle(sj=start_joint, ee=end_joint, sol="ikSCsolver")
+
+        self.__ikhandle = handle
+        self.__effector = effector
+
+        self.store("handle", handle)
+        self.store("effector", effector)
+
+    def __create_controls(self):
+        for index, joint in enumerate(self.get_joints()):
+            ctl_name = name.rename(self.name, secondary_index=index)
+            ctl = handle.create_handle(*ctl_name.tokens)
+            ctl.set_style("circle")
+
+            libattr.lock_rotates(ctl.handle)
+            libattr.lock_scales(ctl.handle)
+            libxform.match(ctl.group, joint)
+
+            key = "{0}_{1}".format(
+                ctl_name.secondary, ctl_name.secondary_index)
+            self.store("controls", str(ctl_name), container="meta", append=True)
+            self.store(key, str(ctl_name), container="dag")
+
+    def __create_constraints(self):
+        ctls = self.get_controls()
+        joints = self.get_joints()
+        cmds.pointConstraint(ctls[0], joints[0])
+        cmds.pointConstraint(ctls[-1], self.ikhandle)
+
+    def __post_create(self):
+        pass
+
+    def _create(self):
+        if not self.get_joints():
+            raise ValueError("Set some joints first.")
+        self.__create_controls()
+        self.__create_ik()
+        self.__create_constraints()
+        self.__post_create()
+
+
+
+
+
+
+
+
+
+class ComponentIkScModel2(ComponentIkModelBase):
     """
     Components make up parts.
 
@@ -121,10 +195,10 @@ class ComponentIkScModel(ComponentIkModelBase):
         self.store("effector", effector)
 
 
-class ComponentIkRpModel(ComponentIkScModel):
+class ComponentIkRpModel2(ComponentIkScModel2):
 
     def __init__(self, position, primary, primary_index, secondary, secondary_index):
-        super(ComponentIkRpModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
+        super(ComponentIkRpModel2, self).__init__(position, primary, primary_index, secondary, secondary_index)
 
         self.__polevector_offset = [0, 0, 0]
 
@@ -136,11 +210,11 @@ class ComponentIkRpModel(ComponentIkScModel):
         self.store("effector", effector)
 
     def _create_controls(self):
-        super(ComponentIkRpModel, self)._create_controls()
+        super(ComponentIkRpModel2, self)._create_controls()
         self.__add_polevector_control()
 
     def _create_constraints(self):
-        super(ComponentIkRpModel, self)._create_constraints()
+        super(ComponentIkRpModel2, self)._create_constraints()
 
     def set_polevector_offset(self, x, y, z):
         self.__polevector_offset = [x, y, z]

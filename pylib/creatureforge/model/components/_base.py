@@ -20,20 +20,79 @@ class ComponentModelBase(ModuleModelBase):
     def __init__(self, *args, **kwargs):
         super(ComponentModelBase, self).__init__(*args, **kwargs)
 
+        self.__setup = None
+        self.__control = None
+
     @property
-    def controls(self):
+    def control(self):
+        """
+        """
+        return self.dag.get("control")
+
+    @property
+    def setup(self):
+        """
+        """
+        return self.dag.get("setup")
+
+    def __create_nodes(self):
+        """Create component node and setup node
+        """
+
+        # Create setup node
+        setup_suffix = "setup"
+        setup_name = name.rename(self.name, suffix=setup_suffix)
+        cmds.createNode("transform", name=setup_name)
+        self.store("setup", str(setup_name), container="dag")
+
+        control_suffix = "control"
+        control_name = name.rename(self.name, suffix=control_suffix)
+        cmds.createNode("transform", name=control_name)
+        self.store("control", str(control_name), container="dag")
+
+    def __setup_hierarchy(self):
+        """Parent control and setup under component
+        """
+
+        cmds.parent([self.control, self.setup], self.node)
+
+    def create(self):
+        self.__create_nodes()
+        super(ComponentModelBase, self).create()
+        self.__setup_hierarchy()
+
+    def get_controls(self):
+        """Returns a list? Should it be a dictionary?
+
+        Problems:
+            How do I know the order of controls being made?
+            I need to retain order for fk Chains, etc
+        """
         controls = self._meta.get("controls", [])
-        controls = [self._dag.get(ctl) for ctl in controls]
         models = []
         for ctl in controls:
-            models.append(HandleModel(*name.initialise(ctl).tokens))
+            models.append(self.get_control(ctl))
         return models
 
-    def get_control(self, control):
-        raise NotImplementedError()
+    def get_control(self, handle):
+        """Look up in _dag to find control string name, return an object
+        """
 
-    @property
-    def joints(self):
+        ctl_name = name.initialise(handle)
+        ctl_key = "{0}_{1}".format(ctl_name.secondary, ctl_name.secondary_index)
+        ctl = self._dag.get(ctl_key)
+        try:
+            model = HandleModel(*ctl_name.tokens)
+
+        # TODO:
+        #   Better exception handling
+        except Exception:
+            print "Component '{0}' does not have handle: {1}'".format(
+                self, ctl)
+
+        return model
+
+    def get_joints(self):
         return self._dag.get("joints", [])
 
     def set_joints(self, joints):
@@ -42,29 +101,3 @@ class ComponentModelBase(ModuleModelBase):
             raise RuntimeError(err)
         joints = [j for j in joints if cmds.nodeType(j) == "joint"]
         self.store("joints", joints, container="dag")
-
-    # def register_control(self, ctl):
-    #     ctl_name = ctl.get_name()
-    #     ctl_key = (ctl_name.secondary, ctl_name.secondary_index)
-    #     self._controls[ctl_key] = ctl
-
-    # def get_control(self, secondary, secondary_index):
-    #     ctl_key = (secondary, secondary_index)
-    #     try:
-    #         return self._controls[ctl_key]
-    #     except KeyError, excp:
-    #         err = "Component '{comp}' does not have control: {key}".format(
-    #             comp=self.__class__.__name__, key=ctl_key)
-    #         excp.args = [err]
-    #         raise
-
-    # def get_controls(self):
-    #     return deepcopy(self._controls)
-
-    # def _create(self):
-    #     node = cmds.createNode("locator")
-    #     node = cmds.listRelatives(node, parent=True)[0]
-    #     node = cmds.rename(node, self.get_name())
-    #     libattr.lock_all(node)
-
-

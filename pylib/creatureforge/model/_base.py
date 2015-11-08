@@ -99,43 +99,43 @@ class ModuleModelBase(object):
         if self.exists:
             raise RuntimeError("Model '{0}' already exists!".format(self.name))
 
+        self.__pre_create()
         self._create()
-
-        libattr.add_string(self.node, "dag")
-        libattr.add_string(self.node, "nondag")
-        libattr.add_string(self.node, "meta")
-
-        self.store("node", str(self.name), container="dag")
-        self.refresh()
+        self.__post_create()
 
         cmds.select(self.node, r=True)
 
-    def refresh(self):
+    def __pre_create(self):
+        """Create model node(s).
+        """
+
+        node = cmds.createNode("transform", name=self.name)
+        self.store("node", node, container="dag")
+
+        libattr.add_string(node, "dag")
+        libattr.add_string(node, "nondag")
+        libattr.add_string(node, "meta")
+
+    def _create(self):
+        raise NotImplementedError("_create")
+
+    def __post_create(self):
         """Store container data into nodes
         """
 
-        libattr.unlock(self.node, "dag")
-        libattr.unlock(self.node, "nondag")
-        libattr.unlock(self.node, "meta")
+        self._refresh("dag")
+        self._refresh("nondag")
+        self._refresh("meta")
 
-        meta = json.loads(libattr.get(self.node, "meta") or "{}")
-        meta.update(self.meta)
-        libattr.set(self.node, "meta", json.dumps(
-            libutil.stringify(meta)), type="string")
-
-        dag = json.loads(libattr.get(self.node, "dag") or "{}")
-        dag.update(self.dag)
-        libattr.set(self.node, "dag", json.dumps(
-            libutil.stringify(dag)), type="string")
-
-        nondag = json.loads(libattr.get(self.node, "nondag") or "{}")
-        nondag.update(self.nondag)
-        libattr.set(self.node, "nondag", json.dumps(
-            libutil.stringify(nondag)), type="string")
-
+    def _refresh(self, container):
+        """Refresh a container
+        """
+        libattr.unlock(self.node, container)
+        data = json.loads(libattr.get(self.node, container) or "{}")
+        data.update(getattr(self, container) or {})
+        libattr.set(self.node, container, json.dumps(
+            libutil.stringify(data)), type="string")
         libattr.lock(self.node, "dag")
-        libattr.lock(self.node, "nondag")
-        libattr.lock(self.node, "meta")
 
     def remove(self):
         """Delete all traces of module from scene.
@@ -153,22 +153,21 @@ class ModuleModelBase(object):
 
         print "Deleted {0} node(s).".format(len(dag + nondag))
 
-    def _create(self):
-        raise NotImplementedError("_create")
-
     def store(self, key, value, container="dag", append=False):
         container_map = {
             "dag": self._dag,
             "nondag": self._nondag,
             "meta": self._meta
         }
-        container = container_map[container]
+        data = container_map[container]
         if append:
-            if key not in container:
-                container[key] = []
+            if key not in data:
+                data[key] = []
             if isinstance(value, (list, tuple, set)):
-                container[key].extend(value)
+                data[key].extend(value)
             else:
-                container[key].append(value)
+                data[key].append(value)
         else:
-            container[key] = value
+            data[key] = value
+        if self.exists:
+            self._refresh(container)

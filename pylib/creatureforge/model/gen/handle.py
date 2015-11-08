@@ -161,7 +161,6 @@ class HandleModel(ModuleModelBase):
 
     def _create(self):
         with libmaya.Selection():
-            self.__create_handle()
             self.__create_offset()
             self.__create_group()
             self.set_style(self.style)
@@ -178,18 +177,13 @@ class HandleModel(ModuleModelBase):
             for shape in self.shapes:
                 libattr.set(shape, "overrideEnabled", 1)
                 libattr.set(shape, "overrideColor", get_color(self.color))
-            self.refresh()
+            # self._refresh("dag")
+            # self._refresh("nondag")
+            # self._refresh("meta")
         return self
 
     def __attributes(self):
         libattr.lock_visibility(self.node)
-
-    def __create_handle(self):
-        """Create control handle
-        """
-        cmds.select(cl=True)
-        cmds.createNode("transform", name=self.name)
-        self.__handle = self.node
 
     def __create_shapes(self):
         """Create shapes under control handle.
