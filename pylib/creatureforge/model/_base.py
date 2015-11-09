@@ -110,7 +110,6 @@ class ModuleModelBase(object):
         """
 
         node = cmds.createNode("transform", name=self.name)
-        self.store("node", node, container="dag")
 
         libattr.add_string(node, "dag")
         libattr.add_string(node, "nondag")
@@ -118,6 +117,32 @@ class ModuleModelBase(object):
 
     def _create(self):
         raise NotImplementedError("_create")
+
+    def __post_create(self):
+        """Store container data into nodes
+        """
+        return
+
+    def remove(self):
+        """Delete all traces of module from scene.
+        """
+
+        dag = list(libutil.flatten(self.dag.values()))
+        nondag = list(libutil.flatten(self.nondag.values()))
+
+        if dag:
+            cmds.delete(dag)
+        if nondag:
+            cmds.delete(nondag)
+
+        self._dag = self._nondag = self._meta = {}
+
+        print "Deleted {0} node(s).".format(len(dag + nondag))
+
+
+class ModuleModelDynamicBase(ModuleModelBase):
+    """User facing models?
+    """
 
     def __post_create(self):
         """Store container data into nodes
@@ -137,22 +162,6 @@ class ModuleModelBase(object):
             libutil.stringify(data)), type="string")
         libattr.lock(self.node, "dag")
 
-    def remove(self):
-        """Delete all traces of module from scene.
-        """
-
-        dag = list(libutil.flatten(self.dag.values()))
-        nondag = list(libutil.flatten(self.nondag.values()))
-
-        if dag:
-            cmds.delete(dag)
-        if nondag:
-            cmds.delete(nondag)
-
-        self._dag = self._nondag = self._meta = {}
-
-        print "Deleted {0} node(s).".format(len(dag + nondag))
-
     def store(self, key, value, container="dag", append=False):
         container_map = {
             "dag": self._dag,
@@ -171,3 +180,7 @@ class ModuleModelBase(object):
             data[key] = value
         if self.exists:
             self._refresh(container)
+
+
+class ModuleModelStaticBase(ModuleModelBase):
+    pass

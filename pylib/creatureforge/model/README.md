@@ -1,5 +1,9 @@
 parts blocking:
 
+
+Models are not interactive at runtime!
+--------------------------------------
+
 # Raw model builds
 * parts are built with componenets
 * components are where control logic lies
@@ -38,3 +42,4 @@ Important ideas:
 * Parts register components during creation
 * Components register controls in dict ('secondary', 'secondary_index') as ley
 * Controls can be juntioned, exposed at part level
+

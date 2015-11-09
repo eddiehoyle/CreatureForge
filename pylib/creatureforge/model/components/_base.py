@@ -3,15 +3,17 @@
 """
 """
 
-from creatureforge.control import name
+from copy import deepcopy
+from collections import OrderedDict
 
-from creatureforge.model.gen.handle import HandleModel
-from creatureforge.model._base import ModuleModelBase
+from creatureforge.lib import libattr
+from creatureforge.control import name
+from creatureforge.model._base import ModuleModelStaticBase
 
 from maya import cmds
 
 
-class ComponentModelBase(ModuleModelBase):
+class ComponentModelBase(ModuleModelStaticBase):
     """Component model base for things
     """
 
@@ -23,43 +25,46 @@ class ComponentModelBase(ModuleModelBase):
         self.__setup = None
         self.__control = None
 
+        self._controls = OrderedDict()
+        self._joints = []
+
     @property
     def control(self):
         """
         """
-        return self.dag.get("control")
+        return self.__control
 
     @property
     def setup(self):
         """
         """
-        return self.dag.get("setup")
+        return self.__setup
 
     def __create_nodes(self):
         """Create component node and setup node
         """
 
-        # Create setup node
         setup_suffix = "setup"
         setup_name = name.rename(self.name, suffix=setup_suffix)
-        cmds.createNode("transform", name=setup_name)
-        self.store("setup", str(setup_name), container="dag")
+        setup_node = cmds.createNode("transform", name=setup_name)
+        libattr.lock_all(setup_node)
+        self.__setup = setup_node
 
         control_suffix = "control"
         control_name = name.rename(self.name, suffix=control_suffix)
-        cmds.createNode("transform", name=control_name)
-        self.store("control", str(control_name), container="dag")
+        control_node = cmds.createNode("transform", name=control_name)
+        libattr.lock_all(control_node)
+        self.__control = control_node
 
-    def __setup_hierarchy(self):
+    def __create_hierarchy(self):
         """Parent control and setup under component
         """
-
-        cmds.parent([self.control, self.setup], self.node)
+        cmds.parent([self.setup, self.control], self.node)
 
     def create(self):
         self.__create_nodes()
         super(ComponentModelBase, self).create()
-        self.__setup_hierarchy()
+        self.__create_hierarchy()
 
     def get_controls(self):
         """Returns a list? Should it be a dictionary?
@@ -68,36 +73,19 @@ class ComponentModelBase(ModuleModelBase):
             How do I know the order of controls being made?
             I need to retain order for fk Chains, etc
         """
-        controls = self._meta.get("controls", [])
-        models = []
-        for ctl in controls:
-            models.append(self.get_control(ctl))
-        return models
+        return deepcopy(self._controls)
 
     def get_control(self, handle):
         """Look up in _dag to find control string name, return an object
         """
-
-        ctl_name = name.initialise(handle)
-        ctl_key = "{0}_{1}".format(ctl_name.secondary, ctl_name.secondary_index)
-        ctl = self._dag.get(ctl_key)
-        try:
-            model = HandleModel(*ctl_name.tokens)
-
-        # TODO:
-        #   Better exception handling
-        except Exception:
-            print "Component '{0}' does not have handle: {1}'".format(
-                self, ctl)
-
-        return model
+        controls = self.get_controls()
+        return controls["handle"]
 
     def get_joints(self):
-        return self._dag.get("joints", [])
+        return self.__joints
 
     def set_joints(self, joints):
         if self.exists:
             err = "Cannot set joints after part has been created!"
             raise RuntimeError(err)
-        joints = [j for j in joints if cmds.nodeType(j) == "joint"]
-        self.store("joints", joints, container="dag")
+        self.__joints = [j for j in joints if cmds.nodeType(j) == "joint"]

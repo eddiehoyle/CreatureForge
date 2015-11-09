@@ -28,37 +28,24 @@ class ComponentIkModelBase(ComponentModelBase):
                                                    primary_index, secondary,
                                                    secondary_index)
 
-
-class ComponentIkScModel(ComponentIkModelBase):
-    """
-    """
-
-    def __init__(self, *args, **kwargs):
-        super(ComponentIkScModel, self).__init__(*args, **kwargs)
-
-        self.__ikhandle = None
-        self.__effector = None
+        self._ikhandle = None
+        self._effector = None
+        self._stretch = False
 
     @property
     def ikhandle(self):
-        return self.__ikhandle
+        return self._ikhandle
 
     @property
     def effector(self):
-        return self.__effector
+        return self._effector
 
-    def __create_ik(self):
-        joints = self.get_joints()
-        start_joint, end_joint = joints[0], joints[-1]
-        handle, effector = cmds.ikHandle(sj=start_joint, ee=end_joint, sol="ikSCsolver")
+    def set_stretch(self, stretch):
+        """
+        """
+        self._stretch = bool(stretch)
 
-        self.__ikhandle = handle
-        self.__effector = effector
-
-        self.store("handle", handle)
-        self.store("effector", effector)
-
-    def __create_controls(self):
+    def _create_controls(self):
         for index, joint in enumerate(self.get_joints()):
             ctl_name = name.rename(self.name, secondary_index=index)
             ctl = handle.create_handle(*ctl_name.tokens)
@@ -70,185 +57,88 @@ class ComponentIkScModel(ComponentIkModelBase):
 
             key = "{0}_{1}".format(
                 ctl_name.secondary, ctl_name.secondary_index)
-            self.store("controls", str(ctl_name), container="meta", append=True)
-            self.store(key, str(ctl_name), container="dag")
+            self._controls[key] = ctl
 
-    def __create_constraints(self):
-        ctls = self.get_controls()
+    def _create_constraints(self):
+        controls = self.get_controls().values()
         joints = self.get_joints()
-        cmds.pointConstraint(ctls[0], joints[0])
-        cmds.pointConstraint(ctls[-1], self.ikhandle)
+        cmds.pointConstraint(controls[0], joints[0])
+        cmds.pointConstraint(controls[1], self.ikhandle)
 
-    def __post_create(self):
-        pass
+    def _create_ik(self):
+        raise RuntimeError("Base class not buildable")
 
     def _create(self):
         if not self.get_joints():
             raise ValueError("Set some joints first.")
-        self.__create_controls()
-        self.__create_ik()
-        self.__create_constraints()
-        self.__post_create()
-
-
-
-
-
-
-
-
-
-class ComponentIkScModel2(ComponentIkModelBase):
-    """
-    Components make up parts.
-
-    Not to be confused with controls
-
-    Part
-        Component
-            Control
-                Shapes
-        Component
-            Control
-    """
-
-    def __init__(self, position, primary, primary_index, secondary, secondary_index):
-        super(ComponentIkModelBase, self).__init__(position, primary, primary_index, secondary, secondary_index)
-
-        self._joints = []
-        self._controls = []
-        self._stretch = False
-
-    def get_handle(self):
-        return self._dag.get("handle")
-
-    def get_effector(self):
-        return self._dag.get("effector")
-
-    def get_controls(self):
-        return tuple(self._controls)
-
-    def get_joints(self):
-        return tuple(self._joints)
-
-    def set_joints(self, joints):
-        if self.exists():
-            err = "Cannot set joints after part has been created!"
-            raise RuntimeError(err)
-
-        _joints = []
-        for dag in joints:
-            if cmds.nodeType(dag) == "joint":
-                _joints.append(dag)
-
-        if not len(joints) >= 2:
-            err = "Must set at least 2 joints for Ik component!"
-            raise ValueError(err)
-
-        logger.debug("Setting joints for '{name}': {joints}".format(
-            name=self.get_name(), joints=_joints))
-        self._joints = _joints
-
-    def _pre(self):
-        if not self.get_joints():
-            err = "Cannot create '{name}' as no joints have been set!".format(
-                name=self.get_name().compile())
-            raise ValueError(err)
-
-    def _post(self):
-        pass
-
-    def _create(self):
         self._create_ik()
         self._create_controls()
+        self._create_hierarchy()
         self._create_constraints()
+        self._post_create()
 
-    def _create_constraints(self):
-        ctls = self.get_controls()
-        joints = self.get_joints()
-        cmds.pointConstraint(ctls[0], joints[0])
-        cmds.pointConstraint(ctls[-1], self.get_handle())
+    def _post_create(self):
+        cmds.parent(self.ikhandle, self.setup)
 
-    def _create_controls(self):
+    def _create_hierarchy(self):
+        controls = self.get_controls().values()
+        groups = [ctl.group for ctl in controls]
+        cmds.parent(groups, self.control)
 
-        # Create controls
-        for index, joint in enumerate(self.get_joints()):
-            ctl_name = name.rename(self.get_name(), secondary_index=index)
-            ctl_tokens = name.tokenize(ctl_name)
-            ctl = ControlHandleModel(*ctl_tokens)
-            ctl.set_shape("circle")
-            ctl.create()
+class ComponentIkScModel(ComponentIkModelBase):
+    """
+    """
 
-            libattr.lock_rotates(ctl.get_transform())
-            libattr.lock_scales(ctl.get_transform())
-            libattr.lock_visibility(ctl.get_transform())
-
-            libxform.match(ctl.get_group(), joint)
-
-            self._controls.append(ctl)
+    def __init__(self, *args, **kwargs):
+        super(ComponentIkScModel, self).__init__(*args, **kwargs)
 
     def _create_ik(self):
         joints = self.get_joints()
         start_joint, end_joint = joints[0], joints[-1]
         handle, effector = cmds.ikHandle(sj=start_joint, ee=end_joint, sol="ikSCsolver")
-        self.store("handle", handle)
-        self.store("effector", effector)
+
+        self._ikhandle = handle
+        self._effector = effector
 
 
-class ComponentIkRpModel2(ComponentIkScModel2):
+class ComponentIkRpModel(ComponentIkModelBase):
 
-    def __init__(self, position, primary, primary_index, secondary, secondary_index):
-        super(ComponentIkRpModel2, self).__init__(position, primary, primary_index, secondary, secondary_index)
+    def __init__(self, *args, **kwargs):
+        super(ComponentIkRpModel, self).__init__(*args, **kwargs)
 
-        self.__polevector_offset = [0, 0, 0]
+        self._polevector_offset = [0, 0, 0]
 
     def _create_ik(self):
         joints = self.get_joints()
         start_joint, end_joint = joints[0], joints[-1]
         handle, effector = cmds.ikHandle(sj=start_joint, ee=end_joint, sol="ikRPsolver")
-        self.store("handle", handle)
-        self.store("effector", effector)
+
+        self._ikhandle = handle
+        self._effector = effector
 
     def _create_controls(self):
-        super(ComponentIkRpModel2, self)._create_controls()
-        self.__add_polevector_control()
-
-    def _create_constraints(self):
-        super(ComponentIkRpModel2, self)._create_constraints()
+        super(ComponentIkRpModel, self)._create_controls()
+        self._add_polevector_handle()
 
     def set_polevector_offset(self, x, y, z):
-        self.__polevector_offset = [x, y, z]
+        self._polevector_offset = [x, y, z]
 
     def get_polevector_offset(self):
-        return self.__polevector_offset
+        return self._polevector_offset
 
-    def __add_polevector_control(self):
+    def _add_polevector_handle(self):
         """Add pole vector for ikHandle"""
-        # description = description or name.get_description(name.set_description_suffix(self.ik_ctl.ctl, "pv"))
-        secondary = self.get_name().secondary
+
         ctl_name = name.rename(
-            self.get_name(),
-            secondary="{secondary}Pv".format(
-                secondary=secondary))
-        ctl_tokens = name.tokenize(ctl_name)
-        ctl = ControlHandleModel(*ctl_tokens)
-        ctl.set_shape("circle")
-        ctl.create()
+            self.name,
+            secondary="{0}Pv".format(self.name.secondary))
+        ctl = handle.create_handle(*ctl_name.tokens)
+        ctl.set_style("pyramid")
+        key = "{0}_{1}".format(
+            ctl_name.secondary, ctl_name.secondary_index)
+        self._controls[key] = ctl
 
-        # Create control
-        # ctl = Control(self.position, description)
-        # ctl.create()
-        # ctl.set_style("pyramid")
-
-        # ctl.lock_rotates()
-        # ctl.lock_scales()
-
-        # # TODO
-        # # Create aim
-        # # for axis in ["X", "Y", "Z"]:
-        # #     cmds.setAttr("%s.rotate%s" % (ctl.ctl, axis), k=False, cb=False)
-
-        # # Find center of ik handle
+        # Find center of ik handle
         joints = self.get_joints()
         start_joint, end_joint = joints[0], joints[-1]
         start_pos = cmds.xform(start_joint, q=1, t=1, ws=1)
@@ -257,14 +147,7 @@ class ComponentIkRpModel2(ComponentIkScModel2):
         offset = self.get_polevector_offset()
         middle_pos = libvector.average_3f(start_pos, end_pos)
         middle_pos = libvector.add_3f(middle_pos, offset)
+        cmds.xform(ctl.group, t=middle_pos, ws=True)
 
-        #  # Find center of ik handle
-        # start_rot = cmds.xform(self.ik_joints[0], q=1, ro=1, ws=1)
-        # end_rot = cmds.xform(self.ik_joints[-1], q=1, ro=1, ws=1)
-        # middle_rot = vector.average_3f(start_rot, end_rot)
-
-        # # Move into position
-        cmds.xform(ctl.get_group(), t=middle_pos, ws=True)
-
-        # # Create poleVector
-        cmds.poleVectorConstraint(ctl.get_transform(), self.get_handle(), weight=True)
+        # Add
+        # cmds.poleVectorConstraint(ctl.handle, self.ikhandle, weight=True)

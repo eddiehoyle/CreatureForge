@@ -11,7 +11,7 @@ from maya import cmds
 from creatureforge.lib import libattr
 from creatureforge.lib import libmaya
 from creatureforge.control import name
-from creatureforge.model._base import ModuleModelBase
+from creatureforge.model._base import ModuleModelDynamicBase
 
 
 class Shapes(object):
@@ -89,7 +89,7 @@ def exists(func):
     return prop
 
 
-class HandleModel(ModuleModelBase):
+class HandleModel(ModuleModelDynamicBase):
     """Control handle to drive rig components
     """
 
@@ -110,7 +110,9 @@ class HandleModel(ModuleModelBase):
 
     @property
     def handle(self):
-        return self._dag.get("node")
+        # TODO:
+        #   This is bad, build this class better
+        return str(self.name)
 
     @property
     def offset(self):
