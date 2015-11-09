@@ -46,17 +46,6 @@ class ModuleModelBase(object):
         self._nondag = {}
         self._meta = {}
 
-        self.__reinit()
-
-    def __reinit(self):
-        if self.exists:
-            self._dag = json.loads(libattr.get(self.node, "dag"))
-            self._nondag = json.loads(libattr.get(self.node, "nondag"))
-
-            # TODO:
-            #   Reinit all values to be original types?
-            self._meta = json.loads(libattr.get(self.node, "meta"))
-
     def __eq__(self, other):
         return str(self.name) == str(other)
 
@@ -75,9 +64,7 @@ class ModuleModelBase(object):
 
     @property
     def node(self):
-        if self.exists:
-            return str(self.name)
-        raise RuntimeError("Node '{0}' does not exist!".format(self.name))
+        return str(self.name)
 
     @property
     def exists(self):

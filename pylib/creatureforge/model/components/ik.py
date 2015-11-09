@@ -17,9 +17,6 @@ from creatureforge.model.components._base import ComponentModelBase
 from creatureforge.control import handle
 
 
-logger = logging.getLogger(__name__)
-
-
 class ComponentIkModelBase(ComponentModelBase):
 
     def __init__(self, position, primary, primary_index, secondary,
@@ -84,6 +81,7 @@ class ComponentIkModelBase(ComponentModelBase):
         controls = self.get_controls().values()
         groups = [ctl.group for ctl in controls]
         cmds.parent(groups, self.control)
+
 
 class ComponentIkScModel(ComponentIkModelBase):
     """
@@ -150,4 +148,4 @@ class ComponentIkRpModel(ComponentIkModelBase):
         cmds.xform(ctl.group, t=middle_pos, ws=True)
 
         # Add
-        # cmds.poleVectorConstraint(ctl.handle, self.ikhandle, weight=True)
+        cmds.poleVectorConstraint(ctl.handle, self.ikhandle, weight=True)
