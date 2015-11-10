@@ -8,25 +8,39 @@ from collections import OrderedDict
 from copy import deepcopy
 
 from creatureforge.lib import libattr
-from creatureforge.model.base import Module
-from creatureforge.model.base import ModuleModelBase
+from creatureforge.build._base import BuildBase
+from creatureforge.control import name
+from creatureforge.model.components.skeleton import ComponentSkeletonModel
 
 from maya import cmds
 
 
-class BipedBuild(ModuleModelBase):
+class BipedBuild(BuildBase):
 
     SUFFIX = "rig"
 
     def __init__(self, *args, **kwargs):
         super(BipedBuild, self).__init__(*args, **kwargs)
 
-    def __create_node(self):
-        cmds.createNode("transform", name=self.get_name())
+        self.skeleton = None
 
-    def __create_guide_system(self):
-        raise NotImplementedError("Add me!!")
+    def _new(self):
+        cmds.file(new=True, force=True)
+
+    def _create_node(self):
+        node = cmds.createNode("transform", name=self.name)
+        libattr.lock_all(node)
+
+    def _create_skeleton(self):
+        skeleton_name = name.rename(self.name, secondary="skeleton")
+        skeleton = ComponentSkeletonModel(*skeleton_name.tokens)
+        path = "/Users/eddiehoyle/Documents/maya/projects/fishy/scenes/skeleton.mb"
+        skeleton.set_path(path)
+        skeleton.create()
+        cmds.parent(skeleton.node, self.node)
+        self.skeleton = skeleton
 
     def _create(self):
-        self.__create_node()
-        self.__create_guide_system()
+        self._new()
+        self._create_node()
+        self._create_skeleton()

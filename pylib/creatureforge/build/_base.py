@@ -8,13 +8,12 @@ from collections import OrderedDict
 from copy import deepcopy
 
 from creatureforge.lib import libattr
-from creatureforge.model.base import Module
-from creatureforge.model.base import ModuleModelBase
+from creatureforge.model._base import ModuleModelStaticBase
 
 from maya import cmds
 
 
-class BuildBase(ModuleModelBase):
+class BuildBase(ModuleModelStaticBase):
 
     SUFFIX = "rig"
 

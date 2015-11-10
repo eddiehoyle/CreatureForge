@@ -6,8 +6,8 @@
 from maya import cmds
 
 from creatureforge.control import name
-from creatureforge.model.parts.base import PartModelBase
-from creatureforge.model.parts.components.fk import ComponentFkModel
+from creatureforge.model.parts._base import PartModelBase
+from creatureforge.model.components.fk import ComponentFkModel
 
 
 class PartFkModel(PartModelBase):
@@ -29,43 +29,25 @@ class PartFkModel(PartModelBase):
     def __init__(self, position, primary, primary_index, secondary, secondary_index):
         super(PartFkModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
 
-        fk = ComponentFkModel(*self.tokens)
-        self.register_component("fk", fk)
+        self.__joints = []
+        self.__fk = None
 
-    def __create_fk_component(self):
-        fk = self.get_component("fk")
-        fk.create()
-        ctl = fk.get_controls().values()[0]
-        cmds.parent(ctl.get_group(), self.get_control())
-
-    def get_control(self):
-        # This is the control transform group
-        return self._dag["control"]
-
-    def get_setup(self):
-        return self._dag["setup"]
+    @property
+    def fk(self):
+        return self.__fk
 
     def set_joints(self, joints):
-        fk = self.get_component("fk")
-        fk.set_joints(joints)
+        self.__joints = joints
 
-    def __create_node(self):
-        cmds.createNode("transform", name=self.get_name())
+    def _create_fk_component(self):
+        fk = ComponentFkModel(*self.name.tokens)
+        fk.set_joints(self.__joints)
+        fk.create()
+        self.__fk = fk
 
-    def __create_setup(self):
-        setup_name = name.rename(self.get_name(), suffix="setup")
-        setup = cmds.createNode("transform", name=setup_name)
-        cmds.parent(setup, self.get_node())
-        self.store("setup", setup)
-
-    def __create_control(self):
-        control_name = name.rename(self.get_name(), suffix="control")
-        control = cmds.createNode("transform", name=control_name)
-        cmds.parent(control, self.get_node())
-        self.store("control", control)
+    def _create_hierarchy(self):
+        cmds.parent(self.fk.node, self.node)
 
     def _create(self):
-        self.__create_node()
-        self.__create_setup()
-        self.__create_control()
-        self.__create_fk_component()
+        self._create_fk_component()
+        self._create_hierarchy()
