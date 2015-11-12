@@ -62,6 +62,7 @@ class Colors:
 
     YELLOW = 17
     RED = 13
+    BLUE = 6
 
 
 def get_cvs(style):
@@ -157,7 +158,7 @@ class HandleModel(ModuleModelDynamicBase):
                 degree = libattr.get(shape, "degree")
                 spans = libattr.get(shape, "spans")
                 path = "{0}.cv[0:{1}]".format(shape, degree + spans)
-                cvs.append(cmds.ls(path, fl=True))
+                cvs.append(cmds.ls(path, fl=False))
             return cvs
         return []
 
@@ -175,40 +176,25 @@ class HandleModel(ModuleModelDynamicBase):
         self.__rebuild(shapes=False)
 
     def set_shape_translate(self, x=None, y=None, z=None):
-        offset = (
-            x if x is not None else 0,
-            y if y is not None else 0,
-            z if z is not None else 0)
-        cl, handle = cmds.cluster(self.handle)
-        libattr.set(handle, "translate", *offset, type="float3")
-        cmds.delete(self.shapes, ch=True)
-        # cvs = self.get_cvs()
-        # for shape in cvs:
-        #     for cv in shape:
-        #         pos = cmds.xform(cv, q=True, ws=False, t=True)
-        #         new_pos = libvector.add_3f(pos, offset)
-        #         cmds.xform(cv, ws=False, t=new_pos)
-        self.__translate_offset = offset
+        offset = map(lambda n: float(n) if n is not None else 0, (x, y, z))
+        cvs = self.get_cvs()
+        for shape in cvs:
+            for cv in shape:
+                cmds.xform(cv, ws=False, t=offset, r=True)
 
     def set_shape_rotate(self, x=None, y=None, z=None):
-        offset = (
-            x if x is not None else 0,
-            y if y is not None else 0,
-            z if z is not None else 0)
-        cl, handle = cmds.cluster(self.handle)
-        libattr.set(handle, "rotate", *offset, type="float3")
-        cmds.delete(self.shapes, ch=True)
-        self.__rotate_offset = offset
+        offset = map(lambda n: float(n) if n is not None else 0, (x, y, z))
+        cvs = self.get_cvs()
+        for shape in cvs:
+            for cv in shape:
+                cmds.xform(cv, ws=False, ro=offset, r=True)
 
     def set_shape_scale(self, x=None, y=None, z=None):
-        offset = (
-            x if x is not None else 0,
-            y if y is not None else 0,
-            z if z is not None else 0)
-        cl, handle = cmds.cluster(self.handle)
-        libattr.set(handle, "scale", *offset, type="float3")
-        cmds.delete(self.shapes, ch=True)
-        self.__scale_offset = offset
+        offset = map(lambda n: float(n) if n is not None else 0, (x, y, z))
+        cvs = self.get_cvs()
+        for shape in cvs:
+            for cv in shape:
+                cmds.xform(cv, ws=False, s=offset, r=True)
 
     def __create_offset(self):
         """
@@ -233,9 +219,9 @@ class HandleModel(ModuleModelDynamicBase):
         self.__create_attributes()
 
         self.set_style(self.__style or HandleModel.DEFAULT_STYLE)
-        self.set_shape_translate(*self.__translate_offset)
-        self.set_shape_rotate(*self.__rotate_offset)
-        self.set_shape_scale(*self.__scale_offset)
+        # self.set_shape_translate(*self.__translate_offset)
+        # self.set_shape_rotate(*self.__rotate_offset)
+        # self.set_shape_scale(*self.__scale_offset)
 
     def remove(self):
         cmds.delete([self.handle, self.offset, self.group])

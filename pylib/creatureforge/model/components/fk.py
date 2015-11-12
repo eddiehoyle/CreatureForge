@@ -42,12 +42,12 @@ class ComponentFkModel(ComponentModelBase):
     def _create(self):
         if not self.get_joints():
             raise ValueError("Set some joints first.")
-        self._create_controls()
+        self._create_handles()
         self._create_hiearchy()
         self._create_constraints()
         self._post_create()
 
-    def _create_controls(self):
+    def _create_handles(self):
         for index, joint in enumerate(self.get_joints()):
             ctl_name = name.rename(self.name, secondary_index=index)
             ctl = handle.create_handle(*ctl_name.tokens)
@@ -57,11 +57,11 @@ class ComponentFkModel(ComponentModelBase):
             libattr.lock_scales(ctl.handle)
             libxform.match(ctl.group, joint)
 
-            key = "{0}_{1}".format(ctl_name.secondary, ctl_name.secondary_index)
-            self._controls[key] = ctl
+            key = "{0}{1}".format(ctl_name.secondary, ctl_name.secondary_index)
+            self._handles[key] = ctl
 
     def _create_hiearchy(self):
-        ctls = self.get_controls().values()
+        ctls = self.get_handles().values()
         parent = ctls.pop(0)
         while ctls:
             child = ctls.pop(0)
@@ -69,10 +69,10 @@ class ComponentFkModel(ComponentModelBase):
             parent = child
 
     def _create_constraints(self):
-        for ctl, joint in zip(self.get_controls().values(), self.get_joints()):
+        for ctl, joint in zip(self.get_handles().values(), self.get_joints()):
             cmds.orientConstraint(ctl.handle, joint, mo=False)
 
     def _post_create(self):
-        for ctl in self.get_controls().values():
+        for ctl in self.get_handles().values():
             if not cmds.listRelatives(ctl.group, parent=True) or []:
                 cmds.parent(ctl.group, self.control)

@@ -25,7 +25,7 @@ class ComponentModelBase(ModuleModelStaticBase):
         self.__setup = None
         self.__control = None
 
-        self._controls = OrderedDict()
+        self._handles = OrderedDict()
         self._joints = []
 
     @property
@@ -66,20 +66,31 @@ class ComponentModelBase(ModuleModelStaticBase):
         super(ComponentModelBase, self).create()
         self.__create_hierarchy()
 
-    def get_controls(self):
+    def get_handles(self):
         """Returns a list? Should it be a dictionary?
 
         Problems:
             How do I know the order of controls being made?
             I need to retain order for fk Chains, etc
         """
-        return deepcopy(self._controls)
+        return deepcopy(self._handles)
 
-    def get_control(self, handle):
+    def get_handle(self, name):
         """Look up in _dag to find control string name, return an object
         """
-        controls = self.get_controls()
-        return controls["handle"]
+        return self.get_handles()[name]
+
+    def set_shape_translate(self, x=None, y=None, z=None):
+        for ctl in self._handles.values():
+            ctl.set_shape_translate(x, y, z)
+
+    def set_shape_rotate(self, x=None, y=None, z=None):
+        for ctl in self._handles.values():
+            ctl.set_shape_rotate(x, y, z)
+
+    def set_shape_scale(self, x=None, y=None, z=None):
+        for ctl in self._handles.values():
+            ctl.set_shape_scale(x, y, z)
 
     def get_joints(self):
         return self.__joints
