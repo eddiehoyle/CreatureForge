@@ -70,6 +70,11 @@ class BipedBuild(BuildBase):
         for pos in ["L", "R"]:
             leg = ComponentIkRpModel(pos, "leg", 0, "base", 0)
             leg.set_joints(map(lambda s: s.format(pos), joints))
+            leg.set_match("translate")
+
+            if pos == "L":
+                leg.set_offset_rotate(x=180)
+
             leg.create()
 
             pv = leg.get_handle("pv")
@@ -78,7 +83,6 @@ class BipedBuild(BuildBase):
             libattr.set(pv.offset, "translateZ", 5)
 
             ik = leg.get_handle("ik")
-            ik.set_shape_rotate(z=90)
 
             color = "blue" if pos == "R" else "red"
             for ctl in leg.get_handles().values():

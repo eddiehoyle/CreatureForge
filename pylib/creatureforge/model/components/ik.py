@@ -14,7 +14,10 @@ from creatureforge.lib import libattr
 from creatureforge.lib import libvector
 from creatureforge.control import name
 from creatureforge.model.components._base import ComponentModelBase
-from creatureforge.control import handle
+from creatureforge.model.gen.handle import HandleModel
+
+TRANSLATE = "translate"
+ROTATE = "rotate"
 
 
 class ComponentIkModelBase(ComponentModelBase):
@@ -27,6 +30,9 @@ class ComponentIkModelBase(ComponentModelBase):
 
         self._ikhandle = None
         self._effector = None
+        self.__match_translate = False
+        self.__match_rotate = False
+        self.__offset_rotate = [0, 0, 0]
 
     @property
     def ikhandle(self):
@@ -35,6 +41,25 @@ class ComponentIkModelBase(ComponentModelBase):
     @property
     def effector(self):
         return self._effector
+
+    def set_match(self, descriptors):
+
+        if not hasattr(descriptors, "__iter__"):
+            descriptors = [descriptors]
+        if TRANSLATE in descriptors:
+            self.__match_translate = True
+
+        if ROTATE in descriptors:
+            self.__match_rotate = True
+
+    def set_offset_rotate(self, x=None, y=None, z=None):
+        """Set offsets on handle offset transform before or after creation
+        """
+        values = map(lambda n: float(n) if n is not None else 0, (x, y, z))
+        self.__offset_rotate = values
+        if self.exists:
+            ctl = self.get_handle("ik")
+            libattr.set(ctl.offset, "rotate", *self.__offset_rotate, type="float3")
 
     def add_stretch(self):
         """
@@ -48,10 +73,17 @@ class ComponentIkModelBase(ComponentModelBase):
         joint = self.get_joints()[-1]
 
         ctl_name = name.rename(self.name)
-        ctl = handle.create_handle(*ctl_name.tokens)
+        ctl = HandleModel(*ctl_name.tokens)
         ctl.set_style("square")
+        ctl.create()
+        libattr.set(ctl.offset, "rotate", *self.__offset_rotate, type="float3")
+
         libattr.lock_scales(ctl.handle)
-        libxform.match(ctl.group, joint)
+
+        if self.__match_translate:
+            libxform.match_translates(ctl.group, joint)
+        if self.__match_rotate:
+            libxform.match_rotates(ctl.group, joint)
 
         self._handles["ik"] = ctl
 
@@ -134,8 +166,9 @@ class ComponentIkRpModel(ComponentIkModelBase):
         ctl_name = name.rename(
             self.name,
             secondary="{0}Pv".format(self.name.secondary))
-        ctl = handle.create_handle(*ctl_name.tokens)
+        ctl = HandleModel(*ctl_name.tokens)
         ctl.set_style("pyramid")
+        ctl.create()
         self._handles["pv"] = ctl
 
         # Find center of ik handle

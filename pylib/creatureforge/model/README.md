@@ -13,6 +13,12 @@ Models are not interactive at runtime!
 # Components
 Components make up parts. Not to be confused with controls
 
+# IDEAS to rename parts:
+    scaffold (thanks laura xoxooxoxxo)
+    appendage
+    branch
+
+
 Part
     Component
         Control
