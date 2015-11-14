@@ -61,6 +61,10 @@ class ComponentModelBase(ModuleModelStaticBase):
         """
         cmds.parent([self.setup, self.control], self.node)
 
+        for ctl in self.get_handles().values():
+            if not cmds.listRelatives(ctl.group, parent=True) or []:
+                cmds.parent(ctl.group, self.control)
+
     def create(self):
         self.__create_nodes()
         super(ComponentModelBase, self).create()
@@ -74,6 +78,13 @@ class ComponentModelBase(ModuleModelStaticBase):
             I need to retain order for fk Chains, etc
         """
         return deepcopy(self._handles)
+
+    def add_handles(self, handles):
+        """Dict of handles
+        """
+        if not isinstance(handles, dict):
+            raise ValueError("Handles must be a dict")
+        self._handles.update(handles)
 
     def get_handle(self, name):
         """Look up in _dag to find control string name, return an object

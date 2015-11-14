@@ -82,8 +82,6 @@ class BipedBuild(BuildBase):
             pv.set_shape_rotate(x=-90)
             libattr.set(pv.offset, "translateZ", 5)
 
-            ik = leg.get_handle("ik")
-
             color = "blue" if pos == "R" else "red"
             for ctl in leg.get_handles().values():
                 ctl.set_color(color)
