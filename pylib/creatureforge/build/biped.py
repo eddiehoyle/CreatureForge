@@ -66,13 +66,14 @@ class BipedBuild(BuildBase):
             part = PartFkModel(pos, "arm", 0, "base", 0)
             part.set_joints(map(lambda s: s.format(pos), joints))
             part.create()
-            self.add_part("{0}_arm".format(pos), part)
 
             fk = part.get_component("fk")
             color = "blue" if pos == "R" else "red"
             for ctl in fk.get_controls().values():
                 ctl.set_color(color)
                 ctl.set_shape_rotate(z=90)
+
+            self.add_part("{0}_arm".format(pos), part)
 
     def _create_legs(self):
         joints = ["{0}_leg_0_hip_1_jnt",
@@ -82,17 +83,16 @@ class BipedBuild(BuildBase):
             part = PartIkRpModel(pos, "leg", 0, "base", 0)
             part.set_joints(map(lambda s: s.format(pos), joints))
 
-            # TODO:
-            #   figure out how to set translates on a an unitialised
-            #   component within a part.
-            # part.get_component("ik").set_match("translate")
-
-            part.create()
-            self.add_part("{0}_leg".format(pos), part)
-
             ik = part.get_component("ik")
             if pos == "L":
                 ik.set_offset_rotate(x=180)
+            ik.set_match("translate")
+
+            # TODOL
+            #   This is currently being called at a 'specific' time
+            #   during build. Need to set a convention when parts are
+            #   created.
+            part.create()
 
             pv = ik.get_control("pv")
             pv.set_shape_scale(0.5, 0.5, 0.5)
@@ -102,4 +102,5 @@ class BipedBuild(BuildBase):
             color = "blue" if pos == "R" else "red"
             for ctl in ik.get_controls().values():
                 ctl.set_color(color)
-                ctl.set_shape_rotate(z=90)
+
+            self.add_part("{0}_leg".format(pos), part)

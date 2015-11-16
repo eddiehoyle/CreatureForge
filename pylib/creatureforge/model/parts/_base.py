@@ -23,6 +23,7 @@ class PartModelBase(ModuleModelStaticBase):
 
     def set_joints(self, joints):
         self._joints = joints
+        print "setting joints:", joints
 
     def get_joints(self):
         return deepcopy(self._joints)

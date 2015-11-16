@@ -102,10 +102,12 @@ class ComponentModelBase(ModuleModelStaticBase):
             ctl.set_shape_scale(x, y, z)
 
     def get_joints(self):
-        return self.__joints
+        return deepcopy(self._joints)
 
     def set_joints(self, joints):
         if self.exists:
             err = "Cannot set joints after part has been created!"
             raise RuntimeError(err)
-        self.__joints = [j for j in joints if cmds.nodeType(j) == "joint"]
+        # self._joints = [j for j in joints if cmds.nodeType(j) == "joint"]
+        print "adding joints:", joints
+        self._joints = joints
