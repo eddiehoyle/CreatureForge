@@ -61,7 +61,7 @@ class ComponentModelBase(ModuleModelStaticBase):
         """
         cmds.parent([self.setup, self.control], self.node)
 
-        for ctl in self.get_handles().values():
+        for ctl in self.get_controls().values():
             if not cmds.listRelatives(ctl.group, parent=True) or []:
                 cmds.parent(ctl.group, self.control)
 
@@ -70,7 +70,7 @@ class ComponentModelBase(ModuleModelStaticBase):
         super(ComponentModelBase, self).create()
         self.__create_hierarchy()
 
-    def get_handles(self):
+    def get_controls(self):
         """Returns a list? Should it be a dictionary?
 
         Problems:
@@ -79,17 +79,15 @@ class ComponentModelBase(ModuleModelStaticBase):
         """
         return deepcopy(self._handles)
 
-    def add_handles(self, handles):
+    def add_handle(self, key, handle):
         """Dict of handles
         """
-        if not isinstance(handles, dict):
-            raise ValueError("Handles must be a dict")
-        self._handles.update(handles)
+        self._handles.update({key: handle})
 
-    def get_handle(self, name):
+    def get_control(self, name):
         """Look up in _dag to find control string name, return an object
         """
-        return self.get_handles()[name]
+        return self.get_controls()[name]
 
     def set_shape_translate(self, x=None, y=None, z=None):
         for ctl in self._handles.values():

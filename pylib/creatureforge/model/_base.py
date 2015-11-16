@@ -97,7 +97,6 @@ class ModuleModelBase(object):
         """
 
         node = cmds.createNode("transform", name=self.name)
-
         libattr.add_string(node, "dag")
         libattr.add_string(node, "nondag")
         libattr.add_string(node, "meta")

@@ -56,6 +56,42 @@ class Shapes(object):
              [1.0, -1.0, 1.0], [1.0, 1.0, 1.0], [1.0, -1.0, 1.0],
              [-1.0, -1.0, 1.0], [-1.0, 1.0, 1.0], [-1.0, -1.0, 1.0],
              [-1.0, -1.0, -1.0]]]
+    ARROW_QUAD = [[[-1.0, 0.0, -1.0], [-1.0, 0.0, -3.0], [-2.0, 0.0, -3.0],
+                   [0.0, 0.0, -5.0], [2.0, 0.0, -3.0], [1.0, 0.0, -3.0],
+                   [1.0, 0.0, -1.0], [3.0, 0.0, -1.0], [3.0, 0.0, -2.0],
+                   [5.0, 0.0, 0.0], [3.0, 0.0, 2.0], [3.0, 0.0, 1.0],
+                   [1.0, 0.0, 1.0], [1.0, 0.0, 3.0], [2.0, 0.0, 3.0],
+                   [0.0, 0.0, 5.0], [-2.0, 0.0, 3.0], [-1.0, 0.0, 3.0],
+                   [-1.0, 0.0, 1.0], [-3.0, 0.0, 1.0], [-3.0, 0.0, 2.0],
+                   [-5.0, 0.0, 0.0], [-3.0, 0.0, -2.0], [-3.0, 0.0, -1.0],
+                   [-1.0, 0.0, -1.0]]]
+    ROOT = [[[-0.5, 0.0, 1.0], [-1.0, 0.0, 0.5], [-1.0, 0.0, -0.5],
+             [-0.5, 0.0, -1.0], [0.5, 0.0, -1.0], [1.0, 0.0, -0.5],
+             [1.0, 0.0, 0.5], [0.5, 0.0, 1.0], [0.3, 0.0, 1.0],
+             [0.3, 0.0, 1.1], [0.5, 0.0, 1.1], [0.0, 0.0, 1.6],
+             [-0.5, 0.0, 1.1], [-0.3, 0.0, 1.1], [-0.3, 0.0, 1.0],
+             [-0.5, 0.0, 1.0]]]
+    OCTAGON = [[[-0.5, 0.0, 1.0], [-1.0, 0.0, 0.5], [-1.0, 0.0, -0.5],
+                [-0.5, 0.0, -1.0], [0.5, 0.0, -1.0], [1.0, 0.0, -0.5],
+                [1.0, 0.0, 0.5], [0.5, 0.0, 1.0], [-0.5, 0.0, 1.0]]]
+
+
+def gen_cvs(transforms):
+    """Create cv data from selection
+
+    TODO:
+        write this better
+    """
+
+    shapes = []
+    for sel in cmds.ls(sl=1):
+        positions = []
+        points = cmds.ls(sel + ".cv[:]", fl=True)
+        for point in points:
+            dec = lambda n: float("%0.1f" % n)
+            positions.append(map(dec, cmds.pointPosition(point)))
+        shapes.append(positions)
+    return shapes
 
 
 class Colors:
@@ -113,9 +149,9 @@ class HandleModel(ModuleModelDynamicBase):
         self.__group = None
         self.__offset = None
 
-        self.__translate_offset = [0, 0, 0]
-        self.__rotate_offset = [0, 0, 0]
-        self.__scale_offset = [1, 1, 1]
+        self.__shape_translate_offset = [0, 0, 0]
+        self.__shape_rotate_offset = [0, 0, 0]
+        self.__shape_scale_offset = [1, 1, 1]
 
         self.__style = HandleModel.DEFAULT_STYLE
         self.__color = HandleModel.DEFAULT_COLOR
@@ -177,6 +213,7 @@ class HandleModel(ModuleModelDynamicBase):
 
     def set_shape_translate(self, x=None, y=None, z=None):
         offset = map(lambda n: float(n) if n is not None else 0, (x, y, z))
+        self.__shape_translate_offset = offset
         cvs = self.get_cvs()
         for shape in cvs:
             for cv in shape:
@@ -184,6 +221,7 @@ class HandleModel(ModuleModelDynamicBase):
 
     def set_shape_rotate(self, x=None, y=None, z=None):
         offset = map(lambda n: float(n) if n is not None else 0, (x, y, z))
+        self.__shape_rotate_offset = offset
         cvs = self.get_cvs()
         for shape in cvs:
             for cv in shape:
@@ -191,6 +229,7 @@ class HandleModel(ModuleModelDynamicBase):
 
     def set_shape_scale(self, x=None, y=None, z=None):
         offset = map(lambda n: float(n) if n is not None else 0, (x, y, z))
+        self.__shape_scale_offset = offset
         cvs = self.get_cvs()
         for shape in cvs:
             for cv in shape:
@@ -219,9 +258,6 @@ class HandleModel(ModuleModelDynamicBase):
         self.__create_attributes()
 
         self.set_style(self.__style or HandleModel.DEFAULT_STYLE)
-        # self.set_shape_translate(*self.__translate_offset)
-        # self.set_shape_rotate(*self.__rotate_offset)
-        # self.set_shape_scale(*self.__scale_offset)
 
     def remove(self):
         cmds.delete([self.handle, self.offset, self.group])
@@ -266,3 +302,7 @@ class HandleModel(ModuleModelDynamicBase):
             cmds.rename(shape, shape_name)
             shapes[shapes.index(shape)] = shape_name
         self.store("shapes", shapes, container="dag")
+
+        self.set_shape_translate(*self.__shape_translate_offset)
+        self.set_shape_rotate(*self.__shape_rotate_offset)
+        self.set_shape_scale(*self.__shape_scale_offset)

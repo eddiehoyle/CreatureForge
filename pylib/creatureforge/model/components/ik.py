@@ -58,7 +58,7 @@ class ComponentIkModelBase(ComponentModelBase):
         values = map(lambda n: float(n) if n is not None else 0, (x, y, z))
         self.__offset_rotate = values
         if self.exists:
-            ctl = self.get_handle("ik")
+            ctl = self.get_control("ik")
             libattr.set(ctl.offset, "rotate", *self.__offset_rotate, type="float3")
 
     def add_stretch(self):
@@ -88,7 +88,7 @@ class ComponentIkModelBase(ComponentModelBase):
         self._handles["ik"] = ctl
 
     def _create_constraints(self):
-        ctl = self.get_handle("ik")
+        ctl = self.get_control("ik")
         cmds.pointConstraint(ctl.handle, self.ikhandle, mo=True)
         cmds.orientConstraint(ctl.handle, self.get_joints()[-1], mo=True)
 
@@ -108,7 +108,7 @@ class ComponentIkModelBase(ComponentModelBase):
         cmds.parent(self.ikhandle, self.setup)
 
     def _create_hierarchy(self):
-        handles = self.get_handles().values()
+        handles = self.get_controls().values()
         groups = [ctl.group for ctl in handles]
         cmds.parent(groups, self.control)
 

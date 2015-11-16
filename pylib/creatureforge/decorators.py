@@ -33,7 +33,6 @@ def timeit(f):
         msg += ", ".join(z)
 
         msg += ") took %2.8fs" % (time.time() - t)
-        print msg
         return result
 
     return timed
