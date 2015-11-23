@@ -133,6 +133,9 @@ def exists(func):
 
 class HandleModel(ModuleModelDynamicBase):
     """Control handle to drive rig components
+
+    TODO:
+        Don't cache __group or __offset?
     """
 
     SUFFIX = "ctl"

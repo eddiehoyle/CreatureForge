@@ -163,3 +163,12 @@ class NameModel(object):
                 (NameModel.SUFFIX, self.suffix),
             ])
         return deepcopy(self.__data)
+
+    # def rename(self, **kwargs):
+    #     """TODO:
+    #         Should this method exist here?
+    #         Does it make sense to name it 'rename'?
+    #     """
+    #     data = self.data
+    #     data.update(**kwargs)
+        # return NameModel(**data)

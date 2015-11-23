@@ -21,9 +21,11 @@ class PartModelBase(ModuleModelStaticBase):
         self._joints = []
         self._components = {}
 
+        self.set_joints(kwargs.get("joints", []))
+
     def set_joints(self, joints):
-        self._joints = joints
         print "setting joints:", joints
+        self._joints = joints
 
     def get_joints(self):
         return deepcopy(self._joints)
@@ -43,21 +45,26 @@ class PartModelBase(ModuleModelStaticBase):
 
         print "Adding component %s: %s" % (key, component)
         self._components.update({key: component})
+        if self.exists:
+            cmds.parent(component.node, self.node)
 
-    def get_component(self, component):
+    def get_component(self, key):
+        """Get specific component
         """
-        TODO:
-            name check if component
-            consider renaming args
-        """
-
-        return self._components.get(component)
+        try:
+            return self._components[key]
+        except KeyError as e:
+            err = "Part '{0}' does not have '{1}' component.".format(
+                self.name, key)
+            e.args = [err]
+            raise
 
     def __pre_create(self):
         """
         """
 
-        pass
+        if not self.get_components():
+            raise ValueError("No components added to part yet.")
 
     def create(self):
         self.__pre_create()

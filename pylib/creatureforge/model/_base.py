@@ -33,7 +33,7 @@ class ModuleModelBase(object):
     SUFFIX = "nde"
 
     def __init__(self, position, primary, primary_index, secondary,
-                 secondary_index):
+                 secondary_index, **kwargs):
 
         self.__name = NameModel(position,
                                 primary,

@@ -25,8 +25,10 @@ class ComponentModelBase(ModuleModelStaticBase):
         self.__setup = None
         self.__control = None
 
-        self._handles = OrderedDict()
+        self._controls = OrderedDict()
         self._joints = []
+
+        self.set_joints(kwargs.get("joints", []))
 
     @property
     def control(self):
@@ -61,9 +63,13 @@ class ComponentModelBase(ModuleModelStaticBase):
         """
         cmds.parent([self.setup, self.control], self.node)
 
+        # TODO
+        #   ctl.group is returning None. Fix the __group caching issue
+        #   in HandleModel
         for ctl in self.get_controls().values():
             if not cmds.listRelatives(ctl.group, parent=True) or []:
-                cmds.parent(ctl.group, self.control)
+                print "%s <- %s" % (ctl.group, self.control)
+                # cmds.parent(ctl.group, self.control)
 
     def create(self):
         self.__create_nodes()
@@ -77,12 +83,23 @@ class ComponentModelBase(ModuleModelStaticBase):
             How do I know the order of controls being made?
             I need to retain order for fk Chains, etc
         """
-        return deepcopy(self._handles)
+        return self._controls
 
-    def add_handle(self, key, handle):
+    def add_control(self, key, handle):
         """Dict of handles
         """
-        self._handles.update({key: handle})
+        self._controls.update({key: handle})
+        if handle.exists:
+            if not cmds.listRelatives(handle.group, p=True):
+                cmds.parent(handle.group, self.control)
+
+    def update_control(self, key, control):
+        """
+        """
+        self._controls.update({key: control})
+        if control.exists:
+            if not cmds.listRelatives(control.group, p=True):
+                cmds.parent(control.group, self.control)
 
     def get_control(self, name):
         """Look up in _dag to find control string name, return an object
@@ -90,15 +107,15 @@ class ComponentModelBase(ModuleModelStaticBase):
         return self.get_controls()[name]
 
     def set_shape_translate(self, x=None, y=None, z=None):
-        for ctl in self._handles.values():
+        for ctl in self._controls.values():
             ctl.set_shape_translate(x, y, z)
 
     def set_shape_rotate(self, x=None, y=None, z=None):
-        for ctl in self._handles.values():
+        for ctl in self._controls.values():
             ctl.set_shape_rotate(x, y, z)
 
     def set_shape_scale(self, x=None, y=None, z=None):
-        for ctl in self._handles.values():
+        for ctl in self._controls.values():
             ctl.set_shape_scale(x, y, z)
 
     def get_joints(self):
@@ -109,5 +126,4 @@ class ComponentModelBase(ModuleModelStaticBase):
             err = "Cannot set joints after part has been created!"
             raise RuntimeError(err)
         # self._joints = [j for j in joints if cmds.nodeType(j) == "joint"]
-        print "adding joints:", joints
         self._joints = joints

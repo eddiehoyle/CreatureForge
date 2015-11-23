@@ -21,33 +21,38 @@ class PartRootModel(PartModelBase):
 
     def __init__(self, position, primary, primary_index, secondary, secondary_index):
         super(PartRootModel, self).__init__(position, primary, primary_index, secondary, secondary_index)
-        pass
+        self._init_root_component()
 
-    def __create_component(self):
+    def _init_root_component(self):
         component = ComponentGenModel(*self.name.tokens)
         self.add_component("root", component)
 
-    def __create_controls(self):
+        # Create controls
         root_name = name.rename(self.name, secondary="root")
         root = HandleModel(*root_name.tokens)
-        root.set_style("root")
-        root.create()
+        component.add_control("root", root)
 
         offset_name = name.rename(self.name, secondary="offset")
         offset = HandleModel(*offset_name.tokens)
-        offset.set_shape_scale(0.8, 0.8, 0.8)
+        component.add_control("offset", offset)
+
+    def _create_component(self):
+        root = self.get_component("root")
+        root.create()
+
+    def _create_controls(self):
+        component = self.get_component("root")
+
+        root = component.get_control("root")
+        root.set_style("root")
+        root.create()
+
+        offset = component.get_control("offset")
         offset.set_style("octagon")
         offset.create()
 
         cmds.parent(offset.group, root.handle)
 
-        component = self.get_component("root")
-        component.add_handle("root", root)
-        component.add_handle("offset", offset)
-
     def _create(self):
-        self.__create_component()
-        self.__create_controls()
-
-        for key, component in self.get_components().iteritems():
-            component.create()
+        self._create_component()
+        self._create_controls()

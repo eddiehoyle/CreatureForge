@@ -21,16 +21,7 @@ logger = logging.getLogger(__name__)
 
 class ComponentSkeletonModel(ComponentModelBase):
     """
-    Components make up parts.
-
-    Not to be confused with controls
-
-    Part
-        Component
-            Setup
-            Control
-                Handle
-                    Shapes
+    A compiled skeleton component.
     """
 
     def __init__(self, position, primary, primary_index, secondary,
@@ -41,9 +32,6 @@ class ComponentSkeletonModel(ComponentModelBase):
 
         self.__path = None
         self.__joints = []
-
-    def get_joints(self):
-        return self.__joints
 
     def get_path(self):
         return self.__path

@@ -34,6 +34,15 @@ class ComponentIkModelBase(ComponentModelBase):
         self.__match_rotate = False
         self.__offset_rotate = [0, 0, 0]
 
+        self._register_controls()
+
+    def _register_controls(self):
+        """Register ik control
+        """
+        ctl_name = name.rename(self.name)
+        ctl = HandleModel(*ctl_name.tokens)
+        self.add_control("ik", ctl)
+
     @property
     def ikhandle(self):
         return self._ikhandle
@@ -42,14 +51,15 @@ class ComponentIkModelBase(ComponentModelBase):
     def effector(self):
         return self._effector
 
-    def set_match(self, descriptors):
-
-        if not hasattr(descriptors, "__iter__"):
-            descriptors = [descriptors]
-        if TRANSLATE in descriptors:
+    def set_match(self, schema):
+        """Set matching logic for ik ctrl to handle
+        """
+        if not hasattr(schema, "__iter__"):
+            schema = [schema]
+        if TRANSLATE in schema:
             self.__match_translate = True
 
-        if ROTATE in descriptors:
+        if ROTATE in schema:
             self.__match_rotate = True
 
     def set_offset_rotate(self, x=None, y=None, z=None):
@@ -66,14 +76,13 @@ class ComponentIkModelBase(ComponentModelBase):
         """
         pass
 
-    def _create_handles(self):
+    def _create_controls(self):
         """
         """
 
         joint = self.get_joints()[-1]
 
-        ctl_name = name.rename(self.name)
-        ctl = HandleModel(*ctl_name.tokens)
+        ctl = self.get_control("ik")
         ctl.set_style("square")
         ctl.create()
         libattr.set(ctl.offset, "rotate", *self.__offset_rotate, type="float3")
@@ -85,7 +94,7 @@ class ComponentIkModelBase(ComponentModelBase):
         if self.__match_rotate:
             libxform.match_rotates(ctl.group, joint)
 
-        self._handles["ik"] = ctl
+        self.add_control("ik", ctl)
 
     def _create_constraints(self):
         ctl = self.get_control("ik")
@@ -95,22 +104,27 @@ class ComponentIkModelBase(ComponentModelBase):
     def _create_ik(self):
         raise RuntimeError("Base class not buildable")
 
-    def _create(self):
+    def __pre_create(self):
+        """Special checks to block creation of component if any special
+        haven't been applied yet.
+        """
+
         if not self.get_joints():
-            raise ValueError("Set some joints first.")
+            raise ValueError("No joints set.")
+
+        if not any([self.__match_rotate, self.__match_translate]):
+            raise ValueError("No matching schema set for {0}".format(
+                self.__class__.__name__))
+
+    def _create(self):
+        self.__pre_create()
         self._create_ik()
-        self._create_handles()
-        self._create_hierarchy()
+        self._create_controls()
         self._create_constraints()
         self._post_create()
 
     def _post_create(self):
         cmds.parent(self.ikhandle, self.setup)
-
-    def _create_hierarchy(self):
-        handles = self.get_controls().values()
-        groups = [ctl.group for ctl in handles]
-        cmds.parent(groups, self.control)
 
 
 class ComponentIkScModel(ComponentIkModelBase):
@@ -141,6 +155,14 @@ class ComponentIkRpModel(ComponentIkModelBase):
 
         self._polevector_offset = [0, 0, 0]
 
+    def _register_controls(self):
+        super(ComponentIkRpModel, self)._register_controls()
+        pv_name = name.rename(
+            self.name,
+            secondary="{0}Pv".format(self.name.secondary))
+        pv = HandleModel(*pv_name.tokens)
+        self.add_control("pv", pv)
+
     def _create_ik(self):
         joints = self.get_joints()
         start_joint, end_joint = joints[0], joints[-1]
@@ -150,8 +172,8 @@ class ComponentIkRpModel(ComponentIkModelBase):
         self._ikhandle = handle
         self._effector = effector
 
-    def _create_handles(self):
-        super(ComponentIkRpModel, self)._create_handles()
+    def _create_controls(self):
+        super(ComponentIkRpModel, self)._create_controls()
         self._add_polevector_handle()
 
     def set_polevector_offset(self, x, y, z):
@@ -163,13 +185,10 @@ class ComponentIkRpModel(ComponentIkModelBase):
     def _add_polevector_handle(self):
         """Add pole vector for ikHandle"""
 
-        ctl_name = name.rename(
-            self.name,
-            secondary="{0}Pv".format(self.name.secondary))
-        ctl = HandleModel(*ctl_name.tokens)
+        ctl = self.get_control("pv")
         ctl.set_style("pyramid")
         ctl.create()
-        self._handles["pv"] = ctl
+        self.add_control("pv", ctl)
 
         # Find center of ik handle
         joints = self.get_joints()
@@ -182,5 +201,4 @@ class ComponentIkRpModel(ComponentIkModelBase):
         middle_pos = libvector.add_3f(middle_pos, offset)
         cmds.xform(ctl.group, t=middle_pos, ws=True)
 
-        # Add
         cmds.poleVectorConstraint(ctl.handle, self.ikhandle, weight=True)
