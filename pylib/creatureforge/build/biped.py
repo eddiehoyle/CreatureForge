@@ -8,6 +8,7 @@ from collections import OrderedDict
 from copy import deepcopy
 
 from creatureforge.lib import libattr
+from creatureforge.lib import libxform
 from creatureforge.build._base import BuildBase
 from creatureforge.control import name
 from creatureforge.model.parts.root import PartRootModel
@@ -46,9 +47,10 @@ class BipedBuild(BuildBase):
 
     def _create(self):
         self._create_skeleton()
-        self._create_root()
-        self._create_cog()
-        self._create_arms()
+        # self._create_root()
+        # self._create_cog()
+        # self._create_arms()
+        self._create_hips()
         self._create_legs()
 
     def _create_root(self):
@@ -97,6 +99,33 @@ class BipedBuild(BuildBase):
 
             part.create()
             self.add_part("{0}_arm".format(pos), part)
+
+    def _create_hips(self):
+        joint = "{0}_leg_0_hip_0_jnt"
+        for pos in ["L", "R"]:
+            part = PartGenModel(pos, "leg", 0, "hip", 0)
+            part.set_joints(map(lambda s: s.format(pos), [joint]))
+
+            component = ComponentGenModel(pos, "leg", 0, "hip", 0)
+            component.create()
+            part.add_component("{0}_hip".format(pos), component)
+
+            hip = HandleModel(pos, "leg", 0, "hip", 0)
+            hip.create()
+            hip.set_style("square")
+            libxform.match_translates(hip.group, joint.format(pos))
+            component.add_control("{0}_hip".format(pos), hip)
+
+            # Set control colors
+            color = "blue" if pos == "R" else "red"
+            if pos == "L":
+                hip.set_color(color)
+                libattr.set(hip.offset, "rotateX", 180)
+
+            cmds.parentConstraint(hip.handle, joint.format(pos), mo=True)
+
+            part.create()
+            self.add_part("{0}_hip".format(pos), part)
 
     def _create_legs(self):
         joints = ["{0}_leg_0_hip_1_jnt",
