@@ -53,3 +53,7 @@ class BuildBase(ModuleModelStaticBase):
 
     def get_parts(self):
         return deepcopy(self._parts)
+
+
+class AppendageBase(object):
+    pass
