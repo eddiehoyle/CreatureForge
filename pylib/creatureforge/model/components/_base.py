@@ -42,6 +42,9 @@ class ComponentModelBase(ModuleModelStaticBase):
         """
         return self.__setup
 
+    def _register_controls(self):
+        pass
+
     def __create_nodes(self):
         """Create component node and setup node
         """
@@ -75,6 +78,16 @@ class ComponentModelBase(ModuleModelStaticBase):
         self.__create_nodes()
         super(ComponentModelBase, self).create()
         self.__create_hierarchy()
+        self.__post_create()
+
+    def __post_create(self):
+        """
+        """
+
+        print "post create on joints:", self.get_joints()
+        for joint in self.get_joints():
+            if not cmds.listRelatives(joint, parent=True) or []:
+                cmds.parent(joint, self.setup)
 
     def get_controls(self):
         """Returns a list? Should it be a dictionary?
@@ -119,7 +132,7 @@ class ComponentModelBase(ModuleModelStaticBase):
             ctl.set_shape_scale(x, y, z)
 
     def get_joints(self):
-        return deepcopy(self._joints)
+        return self._joints
 
     def set_joints(self, joints):
         if self.exists:

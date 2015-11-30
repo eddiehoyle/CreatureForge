@@ -24,17 +24,19 @@ class PartModelBase(ModuleModelStaticBase):
         self.set_joints(kwargs.get("joints", []))
 
     def set_joints(self, joints):
-        print "setting joints:", joints
         self._joints = joints
+        for component in self.get_components().values():
+            component.set_joints(joints)
+            component._register_controls()
 
     def get_joints(self):
-        return deepcopy(self._joints)
+        return self._joints
 
     def get_components(self):
         """
         """
 
-        return deepcopy(self._components)
+        return self._components
 
     def add_component(self, key, component):
         """

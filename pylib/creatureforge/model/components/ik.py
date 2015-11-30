@@ -23,10 +23,10 @@ ROTATE = "rotate"
 class ComponentIkModelBase(ComponentModelBase):
 
     def __init__(self, position, primary, primary_index, secondary,
-                 secondary_index):
+                 secondary_index, joints=None):
         super(ComponentIkModelBase, self).__init__(position, primary,
                                                    primary_index, secondary,
-                                                   secondary_index)
+                                                   secondary_index, joints=joints)
 
         self._ikhandle = None
         self._effector = None

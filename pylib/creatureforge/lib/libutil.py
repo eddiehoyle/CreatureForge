@@ -6,6 +6,7 @@
 import ast
 import itertools
 import collections
+from maya import cmds
 
 def stringify(dictionary):
     """Turn all dict items into strings"""
@@ -69,3 +70,14 @@ def write_hierarchy_recursive(guide):
             hierarchy[child] = recur(child)
         return hierarchy
     return {guide: recur(guide)}
+
+
+def get_hierarchy(transform):
+    def recur(transform):
+        hierarchy = {}
+        children = cmds.listRelatives(
+            transform, children=True, type="joint") or []
+        for child in children:
+            hierarchy[cmds.ls(child, long=True)[0]] = recur(child)
+        return hierarchy
+    return {cmds.ls(transform, long=True)[0]: recur(transform)}

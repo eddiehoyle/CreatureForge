@@ -44,15 +44,15 @@ class ComponentFkModel(ComponentModelBase):
     def _register_controls(self):
         """
         """
+        print 'register fk controls', self._joints
         for index, joint in enumerate(self.get_joints()):
             ctl_name = name.rename(
                 self.name,
                 secondary="{0}Fk".format(self.name.secondary),
                 secondary_index=index)
             ctl = HandleModel(*ctl_name.tokens)
-            key = "{0}_{1}".format(
-                ctl_name.secondary,
-                ctl_name.secondary_index)
+            key = "fk{0}".format(
+                index)
             self.add_control(key, ctl)
 
     def _create(self):
@@ -67,11 +67,10 @@ class ComponentFkModel(ComponentModelBase):
         for index, joint in enumerate(self.get_joints()):
             ctl_name = name.rename(
                 self.name,
-                secondary="{0}Fk".format(self.name.secondary),
+                secondary="fkFk".format(self.name.secondary),
                 secondary_index=index)
-            key = "{0}_{1}".format(
-                ctl_name.secondary,
-                ctl_name.secondary_index)
+            key = "fk{0}".format(
+                index)
             ctl = self.get_control(key)
             ctl.set_style("circle")
             ctl.create()

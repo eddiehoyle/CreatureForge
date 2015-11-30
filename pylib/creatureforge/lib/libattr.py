@@ -7,6 +7,7 @@ General attribute use
 from maya import cmds
 from copy import deepcopy
 
+
 class MayaAttribute(object):
     """
     Maya add, set and get attribute wrapper
@@ -30,6 +31,8 @@ class MayaAttribute(object):
     def add(self):
         if not self.has():
             cmds.addAttr(self.node, ln=self.name, *self.args, **self.kwargs)
+            cmds.setAttr(self.path, cb=True)
+            cmds.setAttr(self.path, k=True)
 
     def set(self):
         if self.has():
