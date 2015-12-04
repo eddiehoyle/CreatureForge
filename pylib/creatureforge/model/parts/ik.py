@@ -178,7 +178,7 @@ class PartIkFkModel(PartIkModelBase):
         # Parent settings shape
         for component in self.get_components().values():
             for control in component.get_controls().values():
-                cmds.parent(settings, control.handle, addObject=True, shape=True)
+                control.add_settings(settings)
 
         cmds.delete(loc)
 

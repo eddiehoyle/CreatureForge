@@ -151,6 +151,7 @@ class HandleModel(ModuleModelDynamicBase):
 
         self.__group = None
         self.__offset = None
+        self.__settings = None
 
         self.__shape_translate_offset = [0, 0, 0]
         self.__shape_rotate_offset = [0, 0, 0]
@@ -186,6 +187,25 @@ class HandleModel(ModuleModelDynamicBase):
     @property
     def group(self):
         return self.__group
+
+    @property
+    def settings(self):
+        return self.__settings
+
+    def add_settings(self, shape):
+        """
+        """
+
+        # NOTE:
+        #   Last shape added is always the one displayed under outliner.
+        #   Look into adding post build callback that re-parents settings
+        #   shapes to be re-ordered.
+        if cmds.nodeType(shape) != "locator":
+            raise ValueError("Shape needs to be locator.")
+
+        self.__settings = shape
+        if self.exists:
+            cmds.parent(shape, self.handle, shape=True, addObject=True)
 
     def get_color(self):
         return self.__color
