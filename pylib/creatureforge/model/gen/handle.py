@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Control handle model
+Control control model
 """
 
 import sys
@@ -131,8 +131,8 @@ def exists(func):
     return prop
 
 
-class HandleModel(ModuleModelDynamicBase):
-    """Control handle to drive rig components
+class ControlModel(ModuleModelDynamicBase):
+    """Control control to drive rig components
 
     TODO:
         Don't cache __group or __offset?
@@ -142,10 +142,8 @@ class HandleModel(ModuleModelDynamicBase):
     DEFAULT_STYLE = "circle"
     DEFAULT_COLOR = "yellow"
 
-    def __init__(self, position, primary, primary_index, secondary,
-                 secondary_index):
-        super(HandleModel, self).__init__(position, primary, primary_index,
-                                          secondary, secondary_index)
+    def __init__(self, name):
+        super(ControlModel, self).__init__(name)
 
         self.__cvs = []
 
@@ -157,8 +155,8 @@ class HandleModel(ModuleModelDynamicBase):
         self.__shape_rotate_offset = [0, 0, 0]
         self.__shape_scale_offset = [1, 1, 1]
 
-        self.__style = HandleModel.DEFAULT_STYLE
-        self.__color = HandleModel.DEFAULT_COLOR
+        self.__style = ControlModel.DEFAULT_STYLE
+        self.__color = ControlModel.DEFAULT_COLOR
 
         if self.exists:
             self.__refresh()
@@ -167,17 +165,17 @@ class HandleModel(ModuleModelDynamicBase):
         if self.shapes:
             self.__color = libattr.get(self.shapes[0], "overrideColor")
             self.__cvs = []
-        self.__offset = cmds.listRelatives(self.handle, p=True)[0]
+        self.__offset = cmds.listRelatives(self.control, p=True)[0]
         self.__group = cmds.listRelatives(self.offset, p=True)[0]
 
     @property
     def shapes(self):
         if self.exists:
-            return cmds.listRelatives(self.handle, shapes=True) or []
+            return cmds.listRelatives(self.control, shapes=True) or []
         return []
 
     @property
-    def handle(self):
+    def control(self):
         return self.node
 
     @property
@@ -192,6 +190,13 @@ class HandleModel(ModuleModelDynamicBase):
     def settings(self):
         return self.__settings
 
+    def get_callbacks(self):
+        """
+        """
+
+        callbacks = []
+        callbacks.append(lambda: callback_reorder_settings(self))
+
     def add_settings(self, shape):
         """
         """
@@ -205,7 +210,7 @@ class HandleModel(ModuleModelDynamicBase):
 
         self.__settings = shape
         if self.exists:
-            cmds.parent(shape, self.handle, shape=True, addObject=True)
+            cmds.parent(shape, self.control, shape=True, addObject=True)
 
     def get_color(self):
         return self.__color
@@ -222,14 +227,14 @@ class HandleModel(ModuleModelDynamicBase):
         return []
 
     def set_style(self, style):
-        """Update stlye of handle.
+        """Update stlye of control.
         """
         self.__style = style
         self.__cvs = get_cvs(style)
         self.__rebuild(shapes=True)
 
     def set_color(self, color):
-        """Update color of handle
+        """Update color of control
         """
         self.__color = color
         self.__rebuild(shapes=False)
@@ -280,18 +285,18 @@ class HandleModel(ModuleModelDynamicBase):
         self.__create_hierarchy()
         self.__create_attributes()
 
-        self.set_style(self.__style or HandleModel.DEFAULT_STYLE)
+        self.set_style(self.__style or ControlModel.DEFAULT_STYLE)
 
     def remove(self):
-        cmds.delete([self.handle, self.offset, self.group])
+        cmds.delete([self.control, self.offset, self.group])
 
     def __create_hierarchy(self):
         """"""
         cmds.parent(self.offset, self.group)
-        cmds.parent(self.handle, self.offset)
+        cmds.parent(self.control, self.offset)
 
     def __rebuild(self, shapes=False):
-        """Rebuild control handle shapes and colors
+        """Rebuild control control shapes and colors
         """
         with libmaya.Selection():
             if self.exists:
@@ -307,7 +312,7 @@ class HandleModel(ModuleModelDynamicBase):
         libattr.lock_visibility(self.node)
 
     def __create_shapes(self):
-        """Create shapes under control handle.
+        """Create shapes under control control.
         """
 
         for crv in self.__cvs:
@@ -329,3 +334,22 @@ class HandleModel(ModuleModelDynamicBase):
         self.set_shape_translate(*self.__shape_translate_offset)
         self.set_shape_rotate(*self.__shape_rotate_offset)
         self.set_shape_scale(*self.__shape_scale_offset)
+
+
+def callback_reorder_settings(model):
+    """
+    """
+
+    shapes = cmds.listRelatives(model.control, shapes=True) or []
+    settings = None
+    for shape in shapes:
+        if libattr.has("settings"):
+            settings = shape
+            break
+
+    if settings:
+        tmp = cmds.createNode("transform")
+        cmds.parent(settings, tmp, shape=True)
+        cmds.parent(settings, model.control, addObject=True, shape=True)
+        cmds.delete(tmp)
+

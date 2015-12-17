@@ -22,8 +22,8 @@ class PartIkModelBase(PartModelBase):
 
     SUFFIX = "prt"
 
-    def __init__(self, position, primary, primary_index, secondary, secondary_index):
-        super(PartIkModelBase, self).__init__(position, primary, primary_index, secondary, secondary_index)
+    def __init__(self, position, primary, primary_index, secondary, secondary_index, joints=[]):
+        super(PartIkModelBase, self).__init__(position, primary, primary_index, secondary, secondary_index, joints=joints)
         self._init_ik_component()
 
     def _init_ik_component(self):

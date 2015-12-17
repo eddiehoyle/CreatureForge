@@ -10,3 +10,6 @@
 - [ ] Move naming rename() logic to name model
 - [ ] Need a new name for parts/components, they're not very user friendly
 - [ ] Fix all giant inits to use a simple name model as first arg
+
+# Done
+ - [x] Moved controller

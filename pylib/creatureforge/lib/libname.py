@@ -1,298 +1,273 @@
-#!/usr/bin/env pythong
-
-"""
-Naming convention file
-
-position_description(subType)_index_type
-"""
+#!/usr/bin/env python
 
 import re
 import logging
 from copy import deepcopy
-
-from creatureforge.exceptions import InvalidNameError
+from collections import OrderedDict
 
 from maya import cmds
 
-logging.basicConfig()
-logger = logging.getLogger("__name__")
+# from creatureforge.model.gen.name import NameModel
+# from creatureforge.model.gen.name import validate
 
-# ------------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
-MAX = 4
 DEFAULT_SUFFIX = "grp"
+PATTERN_POSITION = r"^([a-zA-Z]+)$"
+PATTERN_DESCRIPTION = r"^(?!^\d+)(?!^\d+$)([a-zA-Z0-9]+)$"
+PATTERN_INDEX = r"^(\d+)$"
+PATTERN_SUFFIX = r"^([a-zA-Z]+)[\d+]?$"
 
-PATTERN_POSITION = "^([a-zA-Z]+)$"
-PATTERN_DESCRIPTION = "^(?!^\d+)(?!^\d+$)([a-zA-Z0-9]+)$"
-PATTERN_INDEX = "^(\d+)$"
-PATTERN_SUFFIX = "^([a-zA-Z]+)$"
 
-# ------------------------------------------------------------------------------
+class InvalidNameError(Exception):
+    pass
+
+
+class InvalidTokenError(Exception):
+    pass
 
 
 def validate(func):
     def wraps(*args, **kwargs):
-        if not len(str(args[0]).split(NameHandler.SEP)) == MAX:
+        if not len(str(args[0]).split(NameModel.SEP)) == 6:
             err = "Invalid name: {name}".format(name=args[0])
             raise InvalidNameError(err)
         return func(*args, **kwargs)
     return wraps
 
-class NameHandler(object):
 
-    SEP = "_"
+@validate
+def init(name):
+    """Initialise a name into a model object
 
-    def __init__(self, position, description, index, suffix):
+    Args:
+        name (str): A valid name
 
-        self.__set_position(position)
-        self.__set_description(description)
-        self.__set_index(index)
-        self.__set_suffix(suffix)
+    Raises:
+        InvalidNameError: If the name is unrecognised as a name model
 
-    def __repr__(self):
-            return self.compile()
-
-    def compile(self):
-        return ("{sep}".format(sep=NameHandler.SEP)).join([self.position,
-                                                           self.description,
-                                                           str(self.index),
-                                                           self.suffix])
-
-    def rename(self, position=None, description=None, index=None, suffix=None,
-               **kwargs):
-        if position is not None:
-            self.position = position
-        if description is not None:
-            self.description = description
-        if index is not None:
-            self.index = index
-        if suffix is not None:
-            self.suffix = suffix
-        if kwargs.get("append") is not None:
-            self.description = self.__append_description(str(kwargs.get("append")))
-        if kwargs.get("shape") is not None:
-            self.suffix = "{sfx}Shape".format(sfx=self.suffix)
-        return self.compile()
-
-    def __copy(self):
-        return deepcopy(self)
-
-    def generate(self):
-        new = self.__copy()
-        while cmds.objExists(new.compile()):
-            new.index += 1
-        return new.compile()
-
-    def __append_description(self, string):
-        append = "{0}{1}".format(string[0].upper(), string[1:])
-        return "{description}{append}".format(
-            description=self.description, append=append)
-
-    def __match(self, pattern, value, err):
-        try:
-            return re.match(pattern, value).group(0)
-        except (AttributeError, TypeError):
-            raise InvalidNameError(err)
-
-    def __set_position(self, val):
-        err = "Invalid position: '{val}'".format(val=val)
-        self.__position = str(self.__match(PATTERN_POSITION, val, err)).upper()
-
-    def __set_description(self, val):
-        err = "Invalid description: '{val}'".format(val=val)
-        self.__description = self.__match(PATTERN_DESCRIPTION, val, err)
-
-    def __set_index(self, val):
-        err = "Invalid index: '{val}'".format(val=val)
-        self.__index = int(self.__match(PATTERN_INDEX, str(val), err))
-
-    def __set_suffix(self, val):
-        err = "Invalid suffix: '{val}'".format(val=val)
-        self.__suffix = self.__match(PATTERN_SUFFIX, val, err)
-
-    def __get_position(self):
-        return self.__position
-
-    def __get_description(self):
-        return self.__description
-
-    def __get_index(self):
-        return self.__index
-
-    def __get_suffix(self):
-        return self.__suffix
-
-    def __get_tokens(self):
-        return (self.position, self.description, self.index, self.suffix)
-
-    # Properties
-    position = property(fget=__get_position, fset=__set_position)
-    description = property(fget=__get_description, fset=__set_description)
-    index = property(fget=__get_index, fset=__set_index)
-    suffix = property(fget=__get_suffix, fset=__set_suffix)
-    tokens = property(fget=__get_tokens)
+    Returns:
+        name (NameModel): Name model object
+    """
+    return NameModel(*str(name).split(NameModel.SEP))
 
 
-def create(position, description, index, suffix):
-    return str(NameHandler(position, description, index, suffix))
+def create(position, primary, primary_index, secondary,
+           secondary_index, suffix):
+    """Create a name model
+
+    Args:
+        position (str): Position
+        primary (str): Primary description
+        primary_index (str, int): Primary index
+        secondary (str): Secondary description
+        secondary_index (str, int): Secondary index
+        suffix (str): Suffix appended to the end of the name
+
+    Raises:
+        InvalidTokenError: If an input token is invalid
+
+    Returns:
+        name (NameModel): Name model object
+    """
+    return NameModel(position, primary, primary_index, secondary,
+                     secondary_index, suffix)
 
 
 @validate
-def generate(name):
-    return NameHandler(*decompile(name)).generate()
+def generate(name, secondary=False):
+    """Generate a name model that doesn't exist in the current Maya workspace
 
+    Args:
+        name (str): A valid name
+        secondary (bool): Generate a name with unique secondary index
 
-@validate
-def decompile(name):
-    return NameHandler(*name.split(NameHandler.SEP)).tokens
+    Raises:
+        InvalidNameError: If the name is unrecognised as a name model
+
+    Returns:
+        name (NameModel): A unique name model
+    """
+
+    while cmds.objExists(name):
+        if secondary:
+            update = {"secondary_index": name.secondary_index + 1}
+        else:
+            update = {"primary_index": name.primary_index + 1}
+        data = name.data
+        data.update(update)
+        name = create(**data)
+    return name
 
 
 @validate
 def rename(name, **kwargs):
-    return NameHandler(*decompile(name)).rename(**kwargs)
+    """Create a new name model based on key word argument pairs
+
+    Args:
+        name (str): A valid name
+        position (str): Position
+        primary (str): Primary description
+        primary_index (str, int): Primary index
+        secondary (str): Secondary description
+        secondary_index (str, int): Secondary index
+        suffix (str): Suffix appended to the end of the name
+        shape (bool): Treat this model as a shape node, append shape and
+            index to suffix.
+
+    Raises:
+        InvalidNameError: If the name is unrecognised as a name model
+        InvalidTokenError: If an input token is invalid
+
+    Returns:
+        name (NameModel): Name model object
+    """
+    data = init(name).data
+    for key in data:
+        new_value = kwargs.get(key)
+        if new_value is not None:
+            data.update({key: new_value})
+    if kwargs.get("shape"):
+        shape_index = 0
+        shape_name = "{suffix}Shape{index}".format(
+            suffix=data["suffix"], index=shape_index)
+        while cmds.objExists(shape_name):
+            shape_index += 1
+            shape_name = "{suffix}Shape{index}".format(
+                suffix=data["suffix"], index=shape_index)
+        data.update({"suffix": shape_name})
+    return create(**data)
 
 
-@validate
-def position(name):
-    return NameHandler(*decompile(name)).position
+def _match(pattern, key, value):
+    """Match a pattern with a given value.
 
+    Args:
+        pattern (str): Regex pattern
+        key (str): Description of matched token
+        value (str): Value to match against regex pattern
 
-@validate
-def description(name):
-    return NameHandler(*decompile(name)).description
+    Raises:
+        NameError: If value does not match regex pattern
 
+    Returns:
+        value (str): Matched regex group
+    """
 
-@validate
-def index(name):
-    return NameHandler(*decompile(name)).index
-
-
-@validate
-def suffix(name):
-    return NameHandler(*decompile(name)).suffix
-
-@validate
-def tokens(name):
-    return NameHandler(*decompile(name)).tokens[:3]
-
-
-@validate
-def is_valid(name):
-    return True
+    try:
+        return re.match(str(pattern), str(value)).group(0)
+    except (AttributeError, TypeError):
+        err = "Invalid '{0}' token: {1}".format(key, value)
+        raise InvalidTokenError(err)
 
 
 class NameModel(object):
+    """
+    Name container immutable data
+    """
 
     SEP = "_"
+    POSITION = "position"
+    PRIMARY = "primary"
+    PRIMARY_INDEX = "primary_index"
+    SECONDARY = "secondary"
+    SECONDARY_INDEX = "secondary_index"
+    SUFFIX = "suffix"
+
+    @staticmethod
+    def fmt_position(position):
+        args = (PATTERN_DESCRIPTION, NameModel.POSITION, position)
+        return _match(*args).upper()
+
+    @staticmethod
+    def fmt_primary(primary):
+        args = (PATTERN_DESCRIPTION, NameModel.PRIMARY, primary)
+        return _match(*args)
+
+    @staticmethod
+    def fmt_primary_index(primary_index):
+        args = (PATTERN_INDEX, NameModel.PRIMARY_INDEX, str(primary_index))
+        return int(_match(*args))
+
+    @staticmethod
+    def fmt_secondary(secondary):
+        args = (PATTERN_DESCRIPTION, NameModel.SECONDARY, secondary)
+        return _match(*args)
+
+    @staticmethod
+    def fmt_secondary_index(secondary_index):
+        args = (PATTERN_INDEX, NameModel.SECONDARY_INDEX, str(secondary_index))
+        return int(_match(*args))
+
+    @staticmethod
+    def fmt_suffix(suffix):
+        args = (PATTERN_SUFFIX, NameModel.SUFFIX, suffix)
+        return _match(*args)
 
     def __init__(self, position, primary, primary_index, secondary,
                  secondary_index, suffix):
 
-        self.__set_position(position)
-        self.__set_primary(primary)
-        self.__set_primary_index(primary_index)
-        self.__set_secondary(secondary)
-        self.__set_secondary_index(secondary_index)
-        self.__set_suffix(suffix)
+        self.__position = NameModel.fmt_position(position)
+        self.__primary = NameModel.fmt_primary(primary)
+        self.__primary_index = NameModel.fmt_primary_index(primary_index)
+        self.__secondary = NameModel.fmt_secondary(secondary)
+        self.__secondary_index = NameModel.fmt_secondary_index(secondary_index)
+        self.__suffix = NameModel.fmt_suffix(suffix)
+        self.__data = {}
+
+    def __str__(self):
+        return self.__compile()
 
     def __repr__(self):
-            return self.compile()
+            return "<{cls} '{name}'>".format(
+                cls=self.__class__.__name__,
+                name=self.__compile())
 
-    def compile(self):
-        return ("{sep}".format(sep=NameHandler.SEP)).join(
-            [self.position,
-             self.primary,
-             str(self.primary_index),
-             self.secondary,
-             self.secondary_index,
-             self.suffix])
+    def __compile(self):
+        return "{sep}".format(sep=NameModel.SEP).join(
+            map(str, self.data.values()))
 
-    # def rename(self, position=None, description=None, index=None, suffix=None,
-    #            **kwargs):
-    #     if position is not None:
-    #         self.position = position
-    #     if description is not None:
-    #         self.description = description
-    #     if index is not None:
-    #         self.index = index
-    #     if suffix is not None:
-    #         self.suffix = suffix
-    #     if kwargs.get("append") is not None:
-    #         self.description = self.__append_description(str(kwargs.get("append")))
-    #     if kwargs.get("shape") is not None:
-    #         self.suffix = "{sfx}Shape".format(sfx=self.suffix)
-    #     return self.compile()
-
-    def __copy(self):
-        return deepcopy(self)
-
-    # def generate(self):
-    #     new = self.__copy()
-    #     while cmds.objExists(new.compile()):
-    #         new.index += 1
-    #     return new.compile()
-
-    # def __append_description(self, string):
-    #     append = "{0}{1}".format(string[0].upper(), string[1:])
-    #     return "{description}{append}".format(
-    #         description=self.description, append=append)
-
-    def __match(self, pattern, value, err):
-        try:
-            return re.match(pattern, value).group(0)
-        except (AttributeError, TypeError):
-            raise InvalidNameError(err)
-
-    def __set_position(self, val):
-        err = "Invalid position: '{val}'".format(val=val)
-        self.__position = str(self.__match(PATTERN_POSITION, val, err)).upper()
-
-    def __set_primary(self, val):
-        err = "Invalid primary: '{val}'".format(val=val)
-        self.__primary = self.__match(PATTERN_DESCRIPTION, val, err)
-
-    def __set_primary_index(self, val):
-        err = "Invalid primary: '{val}'".format(val=val)
-        self.__primary_index = int(self.__match(PATTERN_INDEX, str(val), err))
-
-    def __set_secondary(self, val):
-        err = "Invalid secondary: '{val}'".format(val=val)
-        self.__secondary = self.__match(PATTERN_DESCRIPTION, val, err)
-
-    def __set_secondary_index(self, val):
-        err = "Invalid secondary: '{val}'".format(val=val)
-        self.__secondary_index = int(self.__match(PATTERN_INDEX, str(val), err))
-
-    def __set_suffix(self, val):
-        err = "Invalid suffix: '{val}'".format(val=val)
-        self.__suffix = self.__match(PATTERN_SUFFIX, val, err)
-
-    def __get_position(self):
+    @property
+    def position(self):
         return self.__position
 
-    def __get_primary(self):
+    @property
+    def primary(self):
         return self.__primary
 
-    def __get_primary_index(self):
-        return self.__primary_index
+    @property
+    def primary_index(self):
+        return int(self.__primary_index)
 
-    def __get_secondary(self):
+    @property
+    def secondary(self):
         return self.__secondary
 
-    def __get_secondary_index(self):
-        return self.__secondary_index
+    @property
+    def secondary_index(self):
+        return int(self.__secondary_index)
 
-    def __get_suffix(self):
+    @property
+    def suffix(self):
         return self.__suffix
 
-    def __get_tokens(self):
-        return (self.position, self.primary, self.primary_index,
-                self.secondary, self.secondary_index)
+    @property
+    def tokens(self):
+        return (self.position,
+                self.primary,
+                self.primary_index,
+                self.secondary,
+                self.secondary_index)
 
-    position = property(fget=__get_position, fset=__set_position)
-    primary = property(fget=__get_primary, fset=__set_primary)
-    primary_index = property(fget=__get_primary_index, fset=__set_primary_index)
-    secondary = property(fget=__get_secondary, fset=__set_secondary)
-    secondary_index = property(fget=__get_secondary_index, fset=__set_secondary_index)
-    suffix = property(fget=__get_suffix, fset=__set_suffix)
-    tokens = property(fget=__get_tokens)
+    @property
+    def data(self):
+        if not self.__data:
+            self.__data = OrderedDict([
+                (NameModel.POSITION, self.position),
+                (NameModel.PRIMARY, self.primary),
+                (NameModel.PRIMARY_INDEX, self.primary_index),
+                (NameModel.SECONDARY, self.secondary),
+                (NameModel.SECONDARY_INDEX, self.secondary_index),
+                (NameModel.SUFFIX, self.suffix),
+            ])
+        return deepcopy(self.__data)

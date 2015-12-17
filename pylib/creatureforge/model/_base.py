@@ -12,6 +12,7 @@ from maya import cmds
 from creatureforge.model.gen.name import NameModel
 from creatureforge.lib import libattr
 from creatureforge.lib import libutil
+from creatureforge.lib import libname
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +33,15 @@ class ModuleModelBase(object):
 
     SUFFIX = "nde"
 
-    def __init__(self, position, primary, primary_index, secondary,
-                 secondary_index, **kwargs):
+    def __init__(self, name, **kwargs):
+        self.__name = libname.rename(libname.init(name), suffix=self.SUFFIX)
 
-        self.__name = NameModel(position,
-                                primary,
-                                primary_index,
-                                secondary,
-                                secondary_index,
-                                suffix=self.SUFFIX)
+        # self.__name = NameModel(position,
+        #                         primary,
+        #                         primary_index,
+        #                         secondary,
+        #                         secondary_index,
+        #                         suffix=self.SUFFIX)
 
         self._dag = {}
         self._nondag = {}

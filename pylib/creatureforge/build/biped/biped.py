@@ -19,6 +19,8 @@ from creatureforge.model.gen.handle import HandleModel
 from creatureforge.model.parts.fk import PartFkModel
 from creatureforge.model.parts.ik import PartIkRpModel
 from creatureforge.build.biped.arms import AppendageArms
+from creatureforge.build.biped.legs import AppendageLegs
+from creatureforge.build.biped.spikes import AppendageSpikes
 
 from maya import cmds
 
@@ -67,9 +69,8 @@ class BipedBuild(BuildBase):
         # self._create_cog()
         # self._create_shoulders()
         self._create_arms()
-        # self._create_hips()
-        # self._create_legs()
-        # self._create_spikes()
+        self._create_legs()
+        self._create_spikes()
 
     def _create_root(self):
         root_name = name.rename(self.name, secondary="root")
@@ -151,84 +152,56 @@ class BipedBuild(BuildBase):
             self.add_part(key, arm_part)
 
     def _create_spikes(self):
-        spikes_name = name.rename(self.name, secondary="spikes")
-        part = PartGenModel(*spikes_name.tokens)
-
-        component = ComponentGenModel(*spikes_name.tokens)
-        component.create()
-
-        part.add_component("spikes", component)
-        part.create()
 
         joint_raw = "C_spike_{0}_base_0_jnt"
-        for index in range(14):
+        joints = [joint_raw.format(i) for i in range(14)]
 
-            joint = joint_raw.format(index)
-            ctl_name = name.rename(spikes_name, secondary_index=index)
-            ctl = HandleModel(*ctl_name.tokens)
-            ctl.create()
-            ctl.set_shape_rotate(z=90)
-            ctl.set_shape_translate(x=0.5)
-            ctl.set_shape_scale(1.3, 1.3, 1.3)
+        spike_name = name.create("C", "spike", 0, "base", 0, "ctl")
+        spikes = AppendageSpikes(spike_name, joints)
+        spikes.create()
 
-            component.add_control("spike_{0}".format(index), ctl)
-            libxform.match(ctl.group, joint)
-            cmds.parentConstraint(ctl.handle, joint, mo=True)
+        key = "spikes"
+        spike_part = spikes.get_part(key)
+        self.add_part(key, spike_part)
 
-    def _create_hips(self):
-        joint = "{0}_leg_0_hip_0_jnt"
-        for pos in ["L", "R"]:
-            part = PartGenModel(pos, "leg", 0, "hip", 0)
-            part.set_joints(map(lambda s: s.format(pos), [joint]))
+        # spikes_name = name.rename(self.name, secondary="spikes")
+        # part = PartGenModel(*spikes_name.tokens)
 
-            component = ComponentGenModel(pos, "leg", 0, "hip", 0)
-            component.create()
-            part.add_component("{0}_hip".format(pos), component)
+        # component = ComponentGenModel(*spikes_name.tokens)
+        # component.create()
 
-            hip = HandleModel(pos, "leg", 0, "hip", 0)
-            hip.create()
-            hip.set_style("square")
-            libxform.match_translates(hip.group, joint.format(pos))
-            component.add_control("{0}_hip".format(pos), hip)
+        # part.add_component("spikes", component)
+        # part.create()
 
-            # Set control colors
-            # Set control colors
-            color = "blue" if pos == "R" else "red"
-            hip.set_color(color)
-            if pos == "L":
-                libattr.set(hip.offset, "rotateX", 180)
+        # joint_raw = "C_spike_{0}_base_0_jnt"
+        # for index in range(14):
 
-            cmds.parentConstraint(hip.handle, joint.format(pos), mo=True)
+        #     joint = joint_raw.format(index)
+        #     ctl_name = name.rename(spikes_name, secondary_index=index)
+        #     ctl = HandleModel(*ctl_name.tokens)
+        #     ctl.create()
+        #     ctl.set_shape_rotate(z=90)
+        #     ctl.set_shape_translate(x=0.5)
+        #     ctl.set_shape_scale(1.3, 1.3, 1.3)
 
-            part.create()
-            self.add_part("{0}_hip".format(pos), part)
+        #     component.add_control("spike_{0}".format(index), ctl)
+        #     libxform.match(ctl.group, joint)
+        #     cmds.parentConstraint(ctl.handle, joint, mo=True)
 
     def _create_legs(self):
-        joints = ["{0}_leg_0_hip_1_jnt",
-                  "{0}_leg_0_knee_0_jnt",
-                  "{0}_leg_0_ankle_0_jnt"]
+        joints_raw = ["{0}_leg_0_hip_0_jnt",
+                      "{0}_leg_0_hip_1_jnt",
+                      "{0}_leg_0_knee_0_jnt",
+                      "{0}_leg_0_ankle_0_jnt"]
+
         for pos in ["L", "R"]:
-            part = PartIkRpModel(pos, "leg", 0, "base", 0)
-            part.set_joints(map(lambda s: s.format(pos), joints))
+            joints = map(lambda s: s.format(pos), joints_raw)
 
-            # Flip ik controls if 'L' position
-            ik = part.get_component("ik")
-            if pos == "L":
-                ik.set_offset_rotate(x=180)
-            ik.set_match("translate")
+            leg_name = name.create(pos, "leg", 0, "base", 0, "ctl")
+            legs = AppendageLegs(leg_name, joints)
+            legs.set_ik_joints(joints[1], joints[-1])
+            legs.create()
 
-            # Update polevector controls
-            # TODO:
-            #   The components controls haven't been registered yet
-            pv = ik.get_control("pv")
-            pv.set_shape_scale(0.5, 0.5, 0.5)
-            pv.set_shape_rotate(x=-90)
-            libattr.set(pv.offset, "translateZ", 5)
-
-            # Set control colors
-            color = "blue" if pos == "R" else "red"
-            for ctl in ik.get_controls().values():
-                ctl.set_color(color)
-
-            part.create()
-            self.add_part("{0}_leg".format(pos), part)
+            key = "{0}_leg".format(leg_name.position)
+            leg_part = legs.get_part(key)
+            self.add_part(key, leg_part)
